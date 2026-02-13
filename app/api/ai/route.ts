@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/prisma'
 import { calculateRiskScore } from '@/lib/finance-risk-score'
 import { getMarketRates } from '@/lib/market-data'
