@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-fintech-black: #0a0a0a;
+  --font-inter: "Inter", sans-serif;
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Privacy Mode Blur Effect */
+body.privacy-active .privacy-blur {
+  filter: blur(10px);
+  transition: filter 0.3s ease;
+  user-select: none;
+}
+
+/* Custom Components using Tailwind 4 syntax */
+@layer components {
+  .fintech-card {
+    background-color: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 1.5rem;
+    overflow: hidden;
+  }
+
+  .glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Scrollbar Styling - Standard CSS is fine here */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}

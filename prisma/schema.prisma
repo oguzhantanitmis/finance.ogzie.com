@@ -1,0 +1,386 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  riskScore     Int       @default(100)
+  netWorth      Float     @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  assets        Asset[]
+  debts         Debt[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  snapshots     Snapshot[]
+  creditCards   CreditCard[]
+  insights      AIInsight[]
+}
+
+enum AssetType {
+  CASH
+  BANK
+  GOLD
+  FX
+  CRYPTO
+  STOCK
+  ESTATE
+  OTHER
+  RECEIVABLE
+}
+
+model Asset {
+  id            String    @id @default(cuid())
+  userId        String?   // Optional for migration compatibility, should be required later
+  name          String
+  type          AssetType
+  amount        Float
+  unitPrice     Float?    // Maliyet
+  currency      String    @default("TRY")
+  lastValue     Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user          User?     @relation(fields: [userId], references: [id])
+}
+
+enum DebtType {
+  CREDIT_CARD
+  LOAN
+  KMH
+  PERSONAL
+  MANUAL // Legacy support
+}
+
+model Debt {
+  id                String    @id @default(cuid())
+  userId            String?   // Optional for migration
+  name              String
+  type              DebtType
+  
+  // Kredi Kartı & KMH
+  limit             Float?
+  cutOffDay         Int?      // Hesap kesim (1-31)
+  paymentDueDay     Int?      // Son ödeme günü (1-31)
+  
+  // Kredi
+  totalPrincipal    Float?    // Çekilen tutar
+  installments      Int?
+  remainingInstallments Int?
+  
+  // Güncel Durum
+  totalBalance      Float     // Kart için dönem borcu, Kredi için kalan anapara
+  remainingBalance  Float     // Ödenmesi gereken (Aktif borç)
+  interestRate      Float     @default(0)
+  minPaymentRate    Float     @default(0.20) // 0.20 or 0.40
+  
+  // Vergi Oranları (Sabit ama değiştirilebilir)
+  kkdfRate          Float     @default(0.15)
+  bsmvRate          Float     @default(0.15)
+
+  dueDate           DateTime? // Tek seferlik borçlar için
+  lastPaymentDate   DateTime?
+  isPaid            Boolean   @default(false)
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  user              User?     @relation(fields: [userId], references: [id])
+  paymentPlan       PaymentPlan[]
+}
+
+model PaymentPlan {
+  id            String    @id @default(cuid())
+  debtId        String
+  installmentNo Int
+  amount        Float     // Taksit tutarı
+  principalAmount Float   // Ana para kısmı
+  interestAmount  Float   // Faiz kısmı
+  taxAmount       Float   // Vergi kısmı
+  dueDate       DateTime
+  isPaid        Boolean   @default(false)
+  paidDate      DateTime?
+  
+  debt          Debt      @relation(fields: [debtId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id          String    @id @default(cuid())
+  userId      String?
+  amount      Float
+  type        String    // INCOME, EXPENSE
+  category    String
+  description String?
+  date        DateTime  @default(now())
+  
+  assetId     String?
+  debtId      String?
+  
+  user        User?     @relation(fields: [userId], references: [id])
+}
+
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String?
+  name          String
+  amount        Float
+  currency      String    @default("TRY")
+  billingCycle  String    // MONTHLY, YEARLY
+  category      String    @default("Genel")
+  nextPayment   DateTime
+  isActive      Boolean   @default(true)
+  
+  user          User?     @relation(fields: [userId], references: [id])
+}
+
+model AIInsight {
+  id          String   @id @default(cuid())
+  userId      String?
+  title       String
+  content     String   @db.Text
+  type        String   @default("INFO") // INFO, WARNING, SUCCESS, RISK
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+
+model FinanceJournal {
+  id        String    @id @default(cuid())
+  content   String    @db.Text
+  date      DateTime  @default(now())
+  isParsed  Boolean   @default(false)
+}
+
+model Reminder {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime
+  isCompleted Boolean   @default(false)
+  priority    String    @default("NORMAL")
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @default(now())
+  netWorth  Float
+  totalAssets Float
+  totalDebts  Float
+  assets    Json     // Detailed breakdown
+  debts     Json     // Detailed breakdown
+  
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+// ============================================================
+// 🏦 BANKA SEVİYESİ KREDİ KARTI SİSTEMİ
+// ============================================================
+
+enum CardNetwork {
+  VISA
+  MASTERCARD
+  TROY
+}
+
+enum CardStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  PURCHASE
+  INSTALLMENT_PURCHASE
+  CASH_ADVANCE
+  FEE
+  REFUND
+  ADJUSTMENT
+  INTEREST_CHARGE
+  TAX_CHARGE
+}
+
+enum StatementStatus {
+  OPEN
+  PAID
+  CLOSED
+  OVERDUE
+}
+
+enum InterestType {
+  CONTRACTUAL
+  DEFAULT_INTEREST
+  CASH_ADVANCE_INTEREST
+}
+
+model CreditCard {
+  id                  String    @id @default(cuid())
+  userId              String
+  
+  // Kart Kimliği
+  cardName            String    // "Akbank Axess Platinum"
+  bankName            String    // "Akbank"
+  last4Digits         String    // "4532"
+  cardNetwork         CardNetwork @default(VISA)
+  status              CardStatus  @default(ACTIVE)
+  color               String    @default("#6366F1")
+  
+  // Limitler
+  totalLimit          Float     // 50.000
+  cashAdvanceLimit    Float     @default(0)
+  
+  // Faturalama Döngüsü
+  cutOffDay           Int       // Hesap kesim günü (1-31)
+  paymentDueDay       Int       // Son ödeme günü (1-31)
+  
+  // Faiz Oranları (Aylık %)
+  contractualRate     Float     @default(4.42)  // Akdi faiz
+  defaultRate         Float     @default(5.42)  // Gecikme faizi
+  cashAdvanceRate     Float     @default(5.92)  // Nakit avans faizi
+  
+  // Vergi Oranları
+  kkdfRate            Float     @default(0.15)
+  bsmvRate            Float     @default(0.15)
+  
+  // Asgari Ödeme Oranı
+  minPaymentRate      Float     @default(0.20)  // limit<=50k: 0.20, >50k: 0.40
+  
+  // Puan / Ödül
+  rewardsPoints       Float     @default(0)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  
+  user                User      @relation(fields: [userId], references: [id])
+  statements          CardStatement[]
+  transactions        CardTransaction[]
+  payments            CardPayment[]
+  interestAccruals    InterestAccrual[]
+}
+
+model CardStatement {
+  id                  String    @id @default(cuid())
+  creditCardId        String
+  
+  // Dönem Bilgileri
+  statementDate       DateTime  // Hesap kesim tarihi
+  dueDate             DateTime  // Son ödeme tarihi
+  periodStart         DateTime  // Dönem başlangıcı
+  periodEnd           DateTime  // Dönem sonu (= statementDate)
+  
+  // Tutarlar
+  previousBalance     Float     @default(0) // Önceki devreden borç
+  newCharges          Float     @default(0) // Bu dönem harcamalar
+  interestCharged     Float     @default(0) // Bu döneme yansıtılan faiz
+  taxCharged          Float     @default(0) // KKDF + BSMV
+  paymentsReceived    Float     @default(0) // Bu dönem gelen ödemeler
+  statementBalance    Float     @default(0) // Dönem sonu borç
+  minimumPayment      Float     @default(0) // Asgari ödeme
+  
+  // Durum
+  status              StatementStatus @default(OPEN)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  creditCard          CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  transactions        CardTransaction[]
+  payments            CardPayment[]
+  interestAccruals    InterestAccrual[]
+  installments        CardInstallment[]
+}
+
+model CardTransaction {
+  id                  String    @id @default(cuid())
+  creditCardId        String
+  statementId         String?   // null = henüz ekstreye girmemiş
+  
+  // İşlem Bilgileri
+  type                TransactionType
+  description         String
+  merchant            String?   // Harcama yapılan yer
+  amount              Float     // İşlem tutarı
+  remainingAmount     Float     // Kalan tutar (taksitlerde düşer)
+  transactionDate     DateTime  @default(now())
+  
+  // Taksit Bilgisi
+  totalInstallments   Int       @default(1) // 1 = tek çekim
+  currentInstallment  Int       @default(1) // Şu anki taksit no
+  
+  // Nakit Avans
+  isCashAdvance       Boolean   @default(false)
+  
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  creditCard          CreditCard      @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  statement           CardStatement?  @relation(fields: [statementId], references: [id])
+  installments        CardInstallment[]
+}
+
+model CardInstallment {
+  id                  String    @id @default(cuid())
+  transactionId       String
+  statementId         String?   // Hangi ekstreye düştüğü
+  
+  installmentNo       Int       // Taksit numarası
+  amount              Float     // Bu taksitin tutarı
+  dueDate             DateTime  // Vade tarihi
+  isPaid              Boolean   @default(false)
+  paidDate            DateTime?
+  
+  createdAt           DateTime  @default(now())
+  
+  transaction         CardTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  statement           CardStatement?  @relation(fields: [statementId], references: [id])
+}
+
+model CardPayment {
+  id                  String    @id @default(cuid())
+  creditCardId        String
+  statementId         String?   // Hangi ekstreye sayıldığı
+  
+  amount              Float     // Ödeme tutarı
+  paymentDate         DateTime  @default(now())
+  description         String?   // "Asgari Ödeme", "Tam Ödeme" vb.
+  
+  // Dağıtım Detayı (JSON)
+  allocationDetail    Json?     // { overdueInterest, overduePrincipal, currentInterest, currentPrincipal, ... }
+  
+  createdAt           DateTime  @default(now())
+  
+  creditCard          CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  statement           CardStatement? @relation(fields: [statementId], references: [id])
+}
+
+model InterestAccrual {
+  id                  String    @id @default(cuid())
+  creditCardId        String
+  statementId         String?
+  
+  type                InterestType
+  baseAmount          Float     // Faiz hesaplanan anapara
+  rate                Float     // Aylık oran
+  dayCount            Int       // Gün sayısı
+  interest            Float     // Hesaplanan saf faiz
+  kkdf                Float     // KKDF tutarı
+  bsmv                Float     // BSMV tutarı
+  totalCost           Float     // Faiz + KKDF + BSMV
+  
+  calculatedAt        DateTime  @default(now())
+  
+  creditCard          CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  statement           CardStatement? @relation(fields: [statementId], references: [id])
+}
