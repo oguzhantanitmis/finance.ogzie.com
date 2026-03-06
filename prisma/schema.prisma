@@ -21,9 +21,36 @@ model User {
   debts         Debt[]
   transactions  Transaction[]
   subscriptions Subscription[]
+  recurringExpenses RecurringExpense[]
+  incomeSources IncomeSource[]
+  budgetMonths  BudgetMonth[]
+  budgetAlerts  BudgetAlert[]
   snapshots     Snapshot[]
   creditCards   CreditCard[]
   insights      AIInsight[]
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum RecordStatus {
+  ACTIVE
+  PAUSED
+  CANCELED
+}
+
+enum BudgetAlertType {
+  UPCOMING_PAYMENT
+  BUDGET_PRESSURE
+  RENEWAL
+  PRICE_CHANGE
+}
+
+enum BudgetAlertState {
+  OPEN
+  DISMISSED
 }
 
 enum AssetType {
@@ -134,12 +161,96 @@ model Subscription {
   name          String
   amount        Float
   currency      String    @default("TRY")
-  billingCycle  String    // MONTHLY, YEARLY
+  billingCycle  BillingCycle
   category      String    @default("Genel")
   nextPayment   DateTime
   isActive      Boolean   @default(true)
+  brandKey      String?
+  providerDomain String?
+  logoUrl       String?
+  color         String    @default("#27272A")
+  billingAnchorDay Int?
+  autopay       Boolean   @default(false)
+  status        RecordStatus @default(ACTIVE)
+  notes         String?   @db.Text
+  lastAmount    Float?
+  monthlyNormalizedAmount Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   
   user          User?     @relation(fields: [userId], references: [id])
+}
+
+model RecurringExpense {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  category      String
+  amount        Float
+  currency      String    @default("TRY")
+  billingCycle  BillingCycle
+  billingAnchorDay Int?
+  nextPayment   DateTime
+  autopay       Boolean   @default(false)
+  isEssential   Boolean   @default(true)
+  status        RecordStatus @default(ACTIVE)
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model IncomeSource {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  amount        Float
+  currency      String    @default("TRY")
+  billingCycle  BillingCycle
+  payday        Int?
+  isPrimary     Boolean   @default(false)
+  status        RecordStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BudgetMonth {
+  id               String    @id @default(cuid())
+  userId           String
+  month            DateTime
+  plannedIncome    Float     @default(0)
+  fixedCommitments Float     @default(0)
+  debtCommitments  Float     @default(0)
+  freeCash         Float     @default(0)
+  bufferTarget     Float     @default(0)
+  notes            String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month])
+}
+
+model BudgetAlert {
+  id            String    @id @default(cuid())
+  userId        String
+  type          BudgetAlertType
+  state         BudgetAlertState @default(OPEN)
+  title         String
+  content       String    @db.Text
+  dueDate       DateTime?
+  channel       String    @default("IN_APP")
+  dedupeKey     String    @unique
+  metadata      Json?
+  dismissedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AIInsight {

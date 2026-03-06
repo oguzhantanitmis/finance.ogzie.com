@@ -1,20 +1,18 @@
-import React from 'react'
 import Navbar from '@/components/Navbar'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { redirect, notFound } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import CardDetailView from '@/components/cards/CardDetailView'
+import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
 async function getCardDetail(id: string) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) return null
+    const user = await getCurrentUser()
+    if (!user) return null
 
     try {
-        const card = await prisma.creditCard.findUnique({
-            where: { id },
+        const card = await prisma.creditCard.findFirst({
+            where: { id, userId: user.id },
             include: {
                 transactions: {
                     orderBy: { transactionDate: 'desc' },
@@ -99,7 +97,7 @@ export default async function CardDetailPage({ params }: { params: Promise<{ id:
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-64 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
                 <CardDetailView card={serializedCard} />
             </main>
         </div>

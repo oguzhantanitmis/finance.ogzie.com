@@ -1,15 +1,16 @@
 import Navbar from '@/components/Navbar'
-import { addDebt } from '@/app/actions' // Server Action remains the same
-import { Plus } from 'lucide-react'
 import { prisma } from '@/lib/prisma'
 import DebtTable from '@/components/DebtTable'
-import DebtsClientWrapper from './DebtsClientWrapper' // We'll need a wrapper for client-side modal state if we want to keep server fetching clean
+import DebtsClientWrapper from './DebtsClientWrapper'
+import { getCurrentUser } from '@/lib/server-auth'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
-async function getDebts() {
+async function getDebts(userId: string) {
     try {
         const debts = await prisma.debt.findMany({
+            where: { userId },
             orderBy: { remainingBalance: 'desc' },
             include: {
                 paymentPlan: {
@@ -25,12 +26,18 @@ async function getDebts() {
 }
 
 export default async function DebtsPage() {
-    const debts = await getDebts()
+    const user = await getCurrentUser()
+
+    if (!user) {
+        redirect('/login')
+    }
+
+    const debts = await getDebts(user.id)
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-64 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
                 <header className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Borç Yönetimi</h1>

@@ -3,24 +3,30 @@ import { prisma } from '@/lib/prisma'
 import { Wallet, TrendingUp, DollarSign } from 'lucide-react'
 import AssetsClientWrapper from './AssetsClientWrapper'
 import { getMarketRates, calculateAssetValue } from '@/lib/market-data'
+import { getCurrentUser } from '@/lib/server-auth'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AssetsPage() {
+    const user = await getCurrentUser()
+
+    if (!user) {
+        redirect('/login')
+    }
+
     const assets = await prisma.asset.findMany({
+        where: { userId: user.id },
         orderBy: { amount: 'desc' }
     })
 
     const rates = await getMarketRates()
 
-    // Toplam Varlık Hesabı
-    let totalAssetsValue = 0
-
     const assetsWithValuation = assets.map(asset => {
         const valueInTL = calculateAssetValue(asset.amount, asset.type, asset.currency, rates)
-        totalAssetsValue += valueInTL
         return { ...asset, valueInTL }
     })
+    const totalAssetsValue = assetsWithValuation.reduce((sum, asset) => sum + asset.valueInTL, 0)
 
     const formatCurrency = (amount: number, currency: string = 'TRY') => {
         return new Intl.NumberFormat('tr-TR', { style: 'currency', currency }).format(amount)
@@ -29,7 +35,7 @@ export default async function AssetsPage() {
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-64 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
                 <header className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Varlık Yönetimi</h1>

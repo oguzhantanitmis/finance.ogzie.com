@@ -1,20 +1,25 @@
-# Plesk Kurulum Talimatları
+# Vercel Deploy Notları
 
-Bu zip dosyası, projenizi Plesk üzerinde çalıştırmak için optimize edilmiş dosyaları içerir.
+Bu proje artık Vercel deploy akışına göre ayarlanmıştır.
 
-### Plesk Ayarları:
-1. **Uygulama Kökü (Application Root)**: `/httpsdocs` (veya dosyaları yüklediğiniz dizin)
-2. **Belge Kökü (Document Root)**: `/httpdocs/public`
-3. **Uygulama Başlatma Dosyası (Application Startup File)**: `app.js`
-4. **Node.js Sürümü**: `24.13.1` (veya mevcut en yakın sürüm)
-5. **Uygulama Modu**: `production`
+## Önerilen Vercel ayarları
+1. Framework Preset: `Next.js`
+2. Build Command: `npm run build:vercel`
+3. Install Command: varsayılan bırakılabilir
+4. Environment Variables:
+   - `DATABASE_URL`
+   - `NEXTAUTH_SECRET`
+   - `NEXTAUTH_URL`
+   - gerekiyorsa `AI_MODEL_ENDPOINT`, `AI_API_KEY`, `SMTP_*`
 
-### Kurulum Adımları:
-1. Zip içeriğini `/httpsdocs` dizinine açın.
-2. Plesk Node.js panelinden **"NPM Install"** butonuna basın.
-3. `.env` dosyanızı oluşturun ve `DATABASE_URL`, `NEXTAUTH_SECRET` gibi değişkenleri tanımlayın.
-4. Veritabanı şemasını güncellemek için terminalden (veya Plesk üzerinden):
-   `npx prisma db push`
-5. Uygulamayı başlatmak için **"Restart App"** butonuna basın.
+## Build akışı
+- `npm run build:vercel`
+  - önce `prisma migrate deploy`
+  - sonra `prisma generate`
+  - ardından `next build`
 
-**Not**: Eğer `/httpdocs/public` dizini boş ise, `/httpsdocs/public` içeriğini oraya kopyalayın veya Plesk üzerinden belge kökünü `/httpsdocs/public` olarak güncelleyin.
+## Notlar
+- Production/Preview deploy sırasında veritabanı migration’larını atlamamak için Vercel Build Command olarak `npm run build:vercel` kullanılmalı.
+- `npm run db:update` tek başına migration deploy etmek için tutuldu.
+- `npm run db:push` sadece local geliştirme veya legacy senaryolar için bırakıldı.
+- Finance OS V1.5 tabloları (`RecurringExpense`, `IncomeSource`, `BudgetMonth`, `BudgetAlert`) bu migration akışına dahildir.

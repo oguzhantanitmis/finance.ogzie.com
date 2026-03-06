@@ -1,22 +1,17 @@
-import React from 'react'
 import Navbar from '@/components/Navbar'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import CardGrid from '@/components/cards/CardGrid'
 import AddCardButton from '@/components/cards/AddCardButton'
+import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
 async function getCards() {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) return null
+    const user = await getCurrentUser()
+    if (!user) return null
 
     try {
-        const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-        if (!user) return null
-
         const cards = await prisma.creditCard.findMany({
             where: { userId: user.id },
             include: {
@@ -47,7 +42,7 @@ export default async function CardsPage() {
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-64 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
                 <header className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">💳 Kredi Kartlarım</h1>

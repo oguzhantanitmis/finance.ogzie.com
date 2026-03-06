@@ -1,7 +1,6 @@
 'use client'
 
-import React from 'react'
-import { Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff, MoreHorizontal } from 'lucide-react'
+import { Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff, MoreHorizontal, Repeat, ReceiptText } from 'lucide-react'
 import { useFinance } from './FinanceContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -17,6 +16,8 @@ export default function Navbar() {
         { name: 'Borçlar', icon: CreditCard, path: '/debts' },
         { name: 'Kartlarım', icon: CreditCard, path: '/cards' },
         { name: 'Abonelikler', icon: MoreHorizontal, path: '/subscriptions' },
+        { name: 'Sabit Giderler', icon: Repeat, path: '/recurring' },
+        { name: 'Bütçe', icon: ReceiptText, path: '/budget' },
         { name: 'Analiz', icon: PieChart, path: '/analytics' },
 
         { name: 'AI Koç', icon: MessageSquare, path: '/ai' },
@@ -25,7 +26,7 @@ export default function Navbar() {
     return (
         <>
             {/* Desktop Sidebar */}
-            <nav className="hidden md:flex flex-col fixed left-0 top-0 h-full w-64 bg-[#0a0a0a] border-r border-[#1a1a1a] p-6 z-50">
+            <nav className="hidden md:flex flex-col fixed left-0 top-0 h-full w-72 bg-[#0a0a0a] border-r border-[#1a1a1a] p-6 z-50">
                 <div className="flex items-center gap-3 mb-10">
                     <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                         <div className="w-4 h-4 bg-black rounded-sm" />
@@ -63,13 +64,13 @@ export default function Navbar() {
             </nav>
 
             {/* Mobile Bottom Nav */}
-            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] glass rounded-3xl p-2 z-50 flex items-center justify-around shadow-2xl border border-white/10">
+            <nav className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[94%] glass rounded-3xl p-2 z-50 flex items-center gap-1 overflow-x-auto shadow-2xl border border-white/10">
                 {navItems.map((item) => (
                     <Link
                         key={item.path}
                         href={item.path}
                         className={cn(
-                            "p-3 rounded-2xl transition-all duration-200",
+                            "p-3 rounded-2xl transition-all duration-200 shrink-0",
                             pathname === item.path ? "bg-white text-black" : "text-zinc-400"
                         )}
                     >

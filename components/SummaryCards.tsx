@@ -2,17 +2,17 @@
 
 import React from 'react'
 import { formatCurrency, cn } from '@/lib/utils'
-import { TrendingUp, TrendingDown, ShieldCheck } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Landmark, Wallet2 } from 'lucide-react'
 
 interface StatCardProps {
     title: string
     value: number
     change?: string
-    isTrendUp?: boolean
+    isPositive?: boolean
     icon?: React.ElementType
 }
 
-export function StatCard({ title, value, change, isTrendUp, icon: Icon }: StatCardProps) {
+export function StatCard({ title, value, change, isPositive = true, icon: Icon }: StatCardProps) {
 
     return (
         <div className="fintech-card p-6 flex flex-col justify-between min-h-[140px]">
@@ -27,9 +27,9 @@ export function StatCard({ title, value, change, isTrendUp, icon: Icon }: StatCa
                 {change && (
                     <div className={cn(
                         "flex items-center gap-1 text-xs mt-1 font-medium",
-                        isTrendUp ? "text-emerald-500" : "text-rose-500"
+                        isPositive ? "text-emerald-500" : "text-rose-500"
                     )}>
-                        {isTrendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        {isPositive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
                         {change}
                     </div>
                 )}
@@ -38,29 +38,43 @@ export function StatCard({ title, value, change, isTrendUp, icon: Icon }: StatCa
     )
 }
 
-export default function SummaryCards({ data }: { data: any }) {
+interface SummaryCardData {
+    plannedIncome: number
+    fixedCommitments: number
+    debtCommitments: number
+    freeCash: number
+}
+
+export default function SummaryCards({ data }: { data: SummaryCardData }) {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
-                title="Net Değer"
-                value={data.netWorth}
-                change="+%3.2 vs geçen ay"
-                isTrendUp={true}
+                title="Planlanan Gelir"
+                value={data.plannedIncome}
+                change="Nakit girisi"
+                isPositive={true}
+                icon={Wallet2}
             />
             <StatCard
-                title="Toplam Varlık"
-                value={data.totalAssets}
+                title="Sabit Yuk"
+                value={data.fixedCommitments}
+                change="Abonelik + sabit gider"
+                isPositive={false}
+                icon={Landmark}
             />
             <StatCard
-                title="Toplam Borç"
-                value={data.totalDebts}
-                change="-%1.2 Azalma"
-                isTrendUp={true}
+                title="Borc Baskisi"
+                value={data.debtCommitments}
+                change="Bu ay odenecek"
+                isPositive={false}
+                icon={ArrowDownLeft}
             />
             <StatCard
-                title="Risk Skoru"
-                value={data.riskScore}
-                icon={ShieldCheck}
+                title="Serbest Nakit"
+                value={data.freeCash}
+                change={data.freeCash >= 0 ? "Hareket alani" : "Acil dengeleme gerekli"}
+                isPositive={data.freeCash >= 0}
+                icon={ArrowUpRight}
             />
         </div>
     )

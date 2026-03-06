@@ -1,93 +1,108 @@
-import React from 'react'
-import Navbar from '@/components/Navbar'
-import AnalyticsCharts from '@/components/AnalyticsCharts'
-import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { PieChart, TrendingUp } from 'lucide-react'
+
+import Navbar from '@/components/Navbar'
+import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
+import { getCurrentUser } from '@/lib/server-auth'
+import { formatCurrency } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
-interface Asset {
-    name: string
-    amount: number
-    currency: string
-}
-
-interface Debt {
-    name: string
-    remainingBalance: number
-    type: string
-}
-
-async function getData() {
-    const session = await getServerSession(authOptions)
-    if (!session) return null
-
-    try {
-        const assets = await prisma.asset.findMany()
-        const debts = await prisma.debt.findMany()
-
-        // Conversion rates (Fixed for now, can be dynamic later)
-        const rates: Record<string, number> = {
-            'USD': 32,
-            'EUR': 35,
-            'GOLD': 2450,
-            'TL': 1
-        }
-
-        const assetDistribution = assets.map((asset: Asset) => ({
-            name: asset.name,
-            value: asset.amount * (rates[asset.currency] || 1),
-            originalAmount: asset.amount,
-            currency: asset.currency
-        })).sort((a: { value: number }, b: { value: number }) => b.value - a.value)
-
-        const debtDistribution = debts.map((debt: Debt) => ({
-            name: debt.name,
-            value: debt.remainingBalance,
-            type: debt.type
-        })).sort((a: { value: number }, b: { value: number }) => b.value - a.value)
-
-        return {
-            assetDistribution,
-            debtDistribution,
-            rates
-        }
-    } catch (error) {
-        console.error("Analytics data fetch error:", error)
-        return {
-            assetDistribution: [],
-            debtDistribution: [],
-            rates: {}
-        }
-    }
-}
-
 export default async function AnalyticsPage() {
-    const data = await getData()
+    const user = await getCurrentUser()
 
-    if (!data && process.env.NODE_ENV !== 'development') {
+    if (!user) {
         redirect('/login')
     }
 
-    const safeData = data || { assetDistribution: [], debtDistribution: [], rates: {} }
+    const summary = await getMonthlyBudgetSummary(user.id)
+    const topSubscriptions = [...summary.subscriptions]
+        .sort((left, right) => right.monthlyNormalizedAmount - left.monthlyNormalizedAmount)
+        .slice(0, 5)
+    const topRecurring = [...summary.recurringExpenses]
+        .sort((left, right) => right.amount - left.amount)
+        .slice(0, 5)
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
             <Navbar />
 
-            <main className="md:ml-64 p-6 md:p-10 max-w-7xl mx-auto">
+            <main className="md:ml-72 p-6 md:p-10 max-w-7xl mx-auto">
                 <header className="mb-10">
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Analysis</p>
                     <h1 className="text-3xl font-bold tracking-tight mb-2">Finansal Analiz</h1>
-                    <p className="text-zinc-500">Varlık ve borç dağılımlarının detaylı incelemesi.</p>
+                    <p className="text-zinc-400">Aylik yuklerin, net varlik ve odeme baskisi uzerinden sade bir dagilim analizi.</p>
                 </header>
 
-                <AnalyticsCharts
-                    assetDistribution={safeData.assetDistribution}
-                    debtDistribution={safeData.debtDistribution}
-                    conversionRates={safeData.rates}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                            <TrendingUp className="w-5 h-5 text-emerald-400" />
+                            <h2 className="font-semibold">Net Deger</h2>
+                        </div>
+                        <p className="text-3xl font-bold">{formatCurrency(summary.netWorth, 'TRY')}</p>
+                    </div>
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                            <PieChart className="w-5 h-5 text-sky-400" />
+                            <h2 className="font-semibold">Abonelik Yuk</h2>
+                        </div>
+                        <p className="text-3xl font-bold">{formatCurrency(summary.subscriptionLoad, 'TRY')}</p>
+                    </div>
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                            <PieChart className="w-5 h-5 text-amber-400" />
+                            <h2 className="font-semibold">Sabit Gider Yuk</h2>
+                        </div>
+                        <p className="text-3xl font-bold">{formatCurrency(summary.recurringLoad, 'TRY')}</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <div className="fintech-card p-6 md:p-7">
+                        <h2 className="text-2xl font-bold mb-5">En Yuksek Abonelik Etkisi</h2>
+                        {topSubscriptions.length === 0 ? (
+                            <p className="text-zinc-400">Veri yok.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {topSubscriptions.map((subscription) => (
+                                    <div key={subscription.id} className="rounded-3xl border border-white/8 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
+                                        <div>
+                                            <p className="font-semibold">{subscription.name}</p>
+                                            <p className="text-sm text-zinc-500">{subscription.category}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold">{formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}</p>
+                                            <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">Aylik etki</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="fintech-card p-6 md:p-7">
+                        <h2 className="text-2xl font-bold mb-5">En Yuksek Sabit Giderler</h2>
+                        {topRecurring.length === 0 ? (
+                            <p className="text-zinc-400">Veri yok.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {topRecurring.map((expense) => (
+                                    <div key={expense.id} className="rounded-3xl border border-white/8 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
+                                        <div>
+                                            <p className="font-semibold">{expense.name}</p>
+                                            <p className="text-sm text-zinc-500">{expense.category}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold">{formatCurrency(expense.amount, expense.currency)}</p>
+                                            <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">{expense.billingCycle}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </main>
         </div>
     )

@@ -1,186 +1,177 @@
-import React from 'react'
-import Navbar from '@/components/Navbar'
-import SummaryCards from '@/components/SummaryCards'
-import DashboardCharts from '@/components/DashboardCharts'
-import ActionButtons from '@/components/ActionButtons'
+import { formatDistanceToNowStrict } from 'date-fns'
+import { redirect } from 'next/navigation'
+import { ArrowRight, CalendarClock, Landmark, ShieldAlert, Sparkles, Wallet } from 'lucide-react'
+import Link from 'next/link'
+
 import AIHeader from '@/components/AIHeader'
 import InsightFeed from '@/components/InsightFeed'
-
+import Navbar from '@/components/Navbar'
+import SummaryCards from '@/components/SummaryCards'
+import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import { redirect } from 'next/navigation'
-import { calculateRiskScore } from '@/lib/finance-risk-score'
-import { getMarketRates, calculateAssetValue } from '@/lib/market-data'
+import { syncBudgetAlerts } from '@/lib/reminder-engine'
+import { getCurrentUser } from '@/lib/server-auth'
+import { formatCurrency } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
-async function getData() {
-  const session = await getServerSession(authOptions)
-  if (!session) return null
-
-  try {
-    const assets = await prisma.asset.findMany()
-    const debts = await prisma.debt.findMany()
-    const creditCards = await prisma.creditCard.findMany({
-      include: {
-        transactions: true,
-        payments: true,
-      }
-    })
-    const marketRates = await getMarketRates()
-    const insights = await prisma.aIInsight.findMany({
-      where: { isRead: false },
-      orderBy: { createdAt: 'desc' },
-      take: 3
-    })
-    const subscriptions = await prisma.subscription.findMany()
-
-
-    // Toplam Varlık (TL Değerleme)
-    const totalAssets = assets.reduce((acc: number, a: any) => acc + calculateAssetValue(a.amount, a.type, a.currency, marketRates), 0)
-
-    // Konvansiyonel Borç
-    const convDebt = debts.reduce((acc: number, d: any) => acc + d.remainingBalance, 0)
-
-    // Kart Borcu
-    const cardDebt = creditCards.reduce((acc: number, card: any) => {
-      const charges = card.transactions
-        .filter((t: any) => t.type !== 'REFUND')
-        .reduce((s: number, t: any) => s + t.amount, 0)
-
-      const refunds = card.transactions
-        .filter((t: any) => t.type === 'REFUND')
-        .reduce((s: number, t: any) => s + t.amount, 0)
-
-      const payments = card.payments
-        .reduce((s: number, p: any) => s + p.amount, 0)
-
-      return acc + Math.max(charges - refunds - payments, 0)
-    }, 0)
-
-    const totalDebts = convDebt + cardDebt
-    const netWorth = totalAssets - totalDebts
-
-    // Gerçek Risk Analizi
-    const risk = calculateRiskScore(assets, debts, marketRates, creditCards)
-
-    // Mock history for now (Net worth tabanlı)
-    const history = [
-      { name: 'Oca', value: netWorth * 0.9 },
-      { name: 'Şub', value: netWorth * 0.95 },
-      { name: 'Mar', value: netWorth }
-    ]
-
-    const distribution = assets.map((a: any) => ({ name: a.name, value: calculateAssetValue(a.amount, a.type, a.currency, marketRates) }))
-
-    if (cardDebt > 0) {
-      distribution.push({ name: 'Kart Borcu', value: -cardDebt })
-    }
-
-    return {
-      netWorth,
-      totalAssets,
-      totalDebts,
-      riskScore: risk.score,
-      history,
-      distribution,
-      insights,
-      subscriptions
-    }
-
-  } catch (error) {
-    console.error("Data fetch error:", error)
-    return {
-      netWorth: 0,
-      totalAssets: 0,
-      totalDebts: 0,
-      riskScore: 0,
-      history: [],
-      distribution: []
-    }
-  }
-}
-
 export default async function Home() {
-  const data = await getData()
+    const user = await getCurrentUser()
 
-  if (!data && process.env.NODE_ENV !== 'development') {
-    redirect('/login')
-  }
+    if (!user) {
+        redirect('/login')
+    }
 
-  // Fallback for dev mode if auth is skipped or fails
-  const safeData = data || {
-    netWorth: 0,
-    totalAssets: 0,
-    totalDebts: 0,
-    riskScore: 0,
-    history: [],
-    distribution: [],
-    insights: [],
-    subscriptions: []
-  }
+    const summary = await getMonthlyBudgetSummary(user.id)
+    const alerts = await syncBudgetAlerts(user.id, summary)
+    const insights = await prisma.aIInsight.findMany({
+        where: { userId: user.id, isRead: false },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+    })
 
+    return (
+        <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
+            <Navbar />
 
-
-
-  return (
-    <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
-      <Navbar />
-
-      <main className="md:ml-64 p-6 md:p-10 max-w-7xl mx-auto">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-1">Hoş Geldin, Patron</h1>
-            <p className="text-zinc-500">Finansal imparatorluğun seni bekliyor.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center font-bold">
-              OT
-            </div>
-          </div>
-        </header>
-
-        <AIHeader summary="Varlıkların geçen aya göre artış trendinde. AI analizlerin için daha fazla veriye ihtiyacım var." />
-
-        <InsightFeed insights={safeData.insights || []} />
-
-        <ActionButtons />
-        <SummaryCards data={safeData} />
-        <DashboardCharts history={safeData.history} distribution={safeData.distribution} />
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="fintech-card p-6">
-            <h3 className="font-medium mb-6">Yaklaşan Ödemeler</h3>
-            {(safeData.subscriptions || []).length > 0 ? (
-
-              <div className="space-y-4">
-                {(safeData.subscriptions || []).slice(0, 3).map((sub: any) => (
-
-                  <div key={sub.id} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <div>
-                      <p className="font-medium">{sub.name}</p>
-                      <p className="text-xs text-zinc-500">{new Date(sub.nextPayment).toLocaleDateString('tr-TR')}</p>
+            <main className="md:ml-72 p-6 md:p-10 max-w-7xl mx-auto">
+                <header className="mb-10">
+                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+                        <div>
+                            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finance OS</p>
+                            <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3">Aylik kontrol merkezi</h1>
+                            <p className="text-zinc-400 max-w-3xl">
+                                Gelir, sabit gider, abonelik ve borc baskisini tek ekranda gor. Onumuzdeki 14 gunun
+                                odeme akisini buradan yonet.
+                            </p>
+                        </div>
+                        <div className="fintech-card px-6 py-5 min-w-[280px] bg-gradient-to-br from-emerald-500/10 to-black">
+                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Free Cash</p>
+                            <p className={`text-3xl font-bold ${summary.freeCash < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                {formatCurrency(summary.freeCash, 'TRY')}
+                            </p>
+                            <p className="text-sm text-zinc-400 mt-2">Bu ay sabit yuklerden sonra kalan alan</p>
+                        </div>
                     </div>
-                    <p className="font-bold">{sub.amount.toLocaleString('tr-TR', { style: 'currency', currency: sub.currency })}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-zinc-500 text-sm">Yaklaşan ödeme bulunmuyor.</p>
-            )}
-          </div>
+                </header>
 
+                <AIHeader
+                    summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yuk ${formatCurrency(summary.fixedCommitments, 'TRY')}, borc baskisi ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
+                />
 
-          <div className="fintech-card p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-[50px] rounded-full" />
-            <h3 className="font-medium mb-6 relative z-10">AI Tavsiyesi</h3>
-            <p className="text-zinc-400 text-sm relative z-10">
-              Veri girişi yaptıkça sana özel tavsiyeler oluşturacağım. Varlık ve borçlarını ekleyerek başlayabilirsin.
-            </p>
-          </div>
+                <InsightFeed insights={insights} />
+
+                <SummaryCards
+                    data={{
+                        plannedIncome: summary.plannedIncome,
+                        fixedCommitments: summary.fixedCommitments,
+                        debtCommitments: summary.debtCommitments,
+                        freeCash: summary.freeCash,
+                    }}
+                />
+
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] gap-6 mt-6">
+                    <div className="space-y-6">
+                        <div className="fintech-card p-6 md:p-7">
+                            <div className="flex items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Upcoming 14 Days</p>
+                                    <h2 className="text-2xl font-bold">Yaklasan Odemeler</h2>
+                                </div>
+                                <CalendarClock className="w-5 h-5 text-zinc-500" />
+                            </div>
+                            {summary.upcomingObligations.length === 0 ? (
+                                <p className="text-zinc-400">Onumuzdeki 14 gunde zorlayici bir odeme yok.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {summary.upcomingObligations.slice(0, 8).map((obligation) => (
+                                        <div key={`${obligation.source}-${obligation.id}`} className="rounded-3xl border border-white/8 bg-white/[0.03] px-4 py-4 flex items-center justify-between gap-4">
+                                            <div className="min-w-0">
+                                                <p className="font-semibold truncate">{obligation.name}</p>
+                                                <p className="text-sm text-zinc-500 truncate">
+                                                    {obligation.category} • {formatDistanceToNowStrict(new Date(obligation.dueDate), { addSuffix: true })}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="font-bold">{formatCurrency(obligation.amount, obligation.currency)}</p>
+                                                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{obligation.source}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="fintech-card p-6 bg-gradient-to-br from-zinc-950 to-black">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Landmark className="w-5 h-5 text-amber-400" />
+                                    <h3 className="font-semibold">Abonelik Yuk</h3>
+                                </div>
+                                <p className="text-3xl font-bold">{formatCurrency(summary.subscriptionLoad, 'TRY')}</p>
+                                <p className="text-sm text-zinc-400 mt-2">Aylik normalize abonelik etkisi</p>
+                                <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-white mt-5">
+                                    Aboneliklere git <ArrowRight className="w-4 h-4" />
+                                </Link>
+                            </div>
+
+                            <div className="fintech-card p-6 bg-gradient-to-br from-zinc-950 to-black">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Wallet className="w-5 h-5 text-sky-400" />
+                                    <h3 className="font-semibold">Sabit Gider Yuk</h3>
+                                </div>
+                                <p className="text-3xl font-bold">{formatCurrency(summary.recurringLoad, 'TRY')}</p>
+                                <p className="text-sm text-zinc-400 mt-2">Kira, fatura, sigorta ve diger duzenli odemeler</p>
+                                <Link href="/recurring" className="inline-flex items-center gap-2 text-sm text-white mt-5">
+                                    Sabit giderleri ac <ArrowRight className="w-4 h-4" />
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="fintech-card p-6 md:p-7">
+                            <div className="flex items-center justify-between gap-4 mb-5">
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Live Alerts</p>
+                                    <h2 className="text-2xl font-bold">Kritik Sinyaller</h2>
+                                </div>
+                                <ShieldAlert className="w-5 h-5 text-red-400" />
+                            </div>
+                            {alerts.length === 0 ? (
+                                <p className="text-zinc-400">Acik uyari yok. Sistem dengede.</p>
+                            ) : (
+                                <div className="space-y-3">
+                                    {alerts.map((alert) => (
+                                        <div key={alert.id} className="rounded-3xl border border-white/8 bg-white/[0.03] p-4">
+                                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{alert.type}</p>
+                                            <h3 className="font-semibold mb-1">{alert.title}</h3>
+                                            <p className="text-sm text-zinc-400">{alert.content}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="fintech-card p-6 md:p-7">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Sparkles className="w-5 h-5 text-emerald-400" />
+                                <h2 className="text-2xl font-bold">Sistem Onerisi</h2>
+                            </div>
+                            <p className="text-zinc-300 leading-7">
+                                {summary.incomeSources.length === 0
+                                    ? 'Butce merkezi daha saglikli calissin diye once duzenli gelirlerini ekle. Gelir kaydi olmadan serbest nakit hesaplari eksik kalir.'
+                                    : summary.freeCash < 0
+                                        ? 'Bu ay eksiye dusuyorsun. Sabit giderlerden kritik olmayanlari ayris, yillik yenilemeleri kontrol et ve kredi karti minimum odemelerini yeniden planla.'
+                                        : `Onumuzdeki 14 gunde ${summary.upcomingObligations.length} odeme var. Buffer hedefini ${formatCurrency(Math.max(summary.fixedCommitments * 0.2, 0), 'TRY')} bandina cekmek mantikli.`}
+                            </p>
+                            <Link href="/budget" className="inline-flex items-center gap-2 text-sm text-white mt-5">
+                                Butce merkezine gec <ArrowRight className="w-4 h-4" />
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
-      </main>
-    </div>
-  )
+    )
 }

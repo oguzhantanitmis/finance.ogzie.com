@@ -51,7 +51,7 @@ export default function AIPage() {
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0 font-sans">
             <Navbar />
 
-            <main className="md:ml-64 h-screen flex flex-col max-w-4xl mx-auto p-4 md:p-6">
+            <main className="md:ml-72 h-screen flex flex-col max-w-4xl mx-auto p-4 md:p-6">
                 <header className="mb-6 flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
                         <Bot className="text-black w-6 h-6" />
