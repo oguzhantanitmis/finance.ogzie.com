@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Info, AlertTriangle, CheckCircle, Zap, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Zap, X } from 'lucide-react'
 import { markInsightAsRead } from '@/app/actions'
 import { cn } from '@/lib/utils'
 
@@ -26,7 +26,7 @@ export default function InsightFeed({ insights: initialInsights }: { insights: I
 
     return (
         <div className="space-y-4 mb-10">
-            <h2 className="text-sm font-medium text-zinc-500 uppercase tracking-widest px-1">AI Analiz Akışı</h2>
+            <h2 className="text-sm font-medium text-zinc-500 uppercase tracking-widest px-1">Akıllı analiz akışı</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence mode="popLayout">
                     {insights.map((insight) => (

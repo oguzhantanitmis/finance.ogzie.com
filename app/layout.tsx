@@ -1,18 +1,19 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AuthProvider from "@/components/AuthProvider";
 import { FinanceProvider } from "@/components/FinanceContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Ogzie Finance OS",
-  description: "Advanced Personal Finance Management System",
+  title: "Ogzie Finans",
+  description: "Kişisel finans yönetim paneli",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Ogzie Finance",
+    title: "Ogzie Finans",
   },
 };
 
@@ -20,8 +21,6 @@ export const viewport: Viewport = {
   themeColor: "#000000",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -32,9 +31,11 @@ export default function RootLayout({
   return (
     <html lang="tr" className="dark" suppressHydrationWarning>
       <body className={`${inter.className} bg-black text-white antialiased`}>
-        <FinanceProvider>
-          {children}
-        </FinanceProvider>
+        <AuthProvider>
+          <FinanceProvider>
+            {children}
+          </FinanceProvider>
+        </AuthProvider>
       </body>
     </html>
   );

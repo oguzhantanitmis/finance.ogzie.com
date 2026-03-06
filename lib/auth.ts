@@ -12,10 +12,10 @@ export const authOptions: NextAuthOptions = {
     },
     providers: [
         CredentialsProvider({
-            name: "Sign In",
+            name: "Giriş",
             credentials: {
-                email: { label: "Email", type: "email", placeholder: "hello@example.com" },
-                password: { label: "Password", type: "password" },
+                email: { label: "E-posta", type: "email", placeholder: "ornek@ogzie.com" },
+                password: { label: "Şifre", type: "password" },
             },
             async authorize(credentials) {
                 if (!credentials?.email || !credentials.password) {

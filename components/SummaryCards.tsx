@@ -51,28 +51,28 @@ export default function SummaryCards({ data }: { data: SummaryCardData }) {
             <StatCard
                 title="Planlanan Gelir"
                 value={data.plannedIncome}
-                change="Nakit girisi"
+                change="Nakit girişi"
                 isPositive={true}
                 icon={Wallet2}
             />
             <StatCard
-                title="Sabit Yuk"
+                title="Sabit Yük"
                 value={data.fixedCommitments}
                 change="Abonelik + sabit gider"
                 isPositive={false}
                 icon={Landmark}
             />
             <StatCard
-                title="Borc Baskisi"
+                title="Borç Baskısı"
                 value={data.debtCommitments}
-                change="Bu ay odenecek"
+                change="Bu ay ödenecek"
                 isPositive={false}
                 icon={ArrowDownLeft}
             />
             <StatCard
                 title="Serbest Nakit"
                 value={data.freeCash}
-                change={data.freeCash >= 0 ? "Hareket alani" : "Acil dengeleme gerekli"}
+                change={data.freeCash >= 0 ? "Hareket alanı" : "Acil dengeleme gerekli"}
                 isPositive={data.freeCash >= 0}
                 icon={ArrowUpRight}
             />

@@ -1,4 +1,5 @@
 import Navbar from '@/components/Navbar'
+import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { Wallet, TrendingUp, DollarSign } from 'lucide-react'
 import AssetsClientWrapper from './AssetsClientWrapper'
@@ -35,7 +36,7 @@ export default async function AssetsPage() {
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <PageShell width="genis">
                 <header className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Varlık Yönetimi</h1>
@@ -64,7 +65,7 @@ export default async function AssetsPage() {
                             <div className="p-3 bg-blue-500/20 rounded-full text-blue-400">
                                 <DollarSign className="w-6 h-6" />
                             </div>
-                            <h3 className="text-zinc-400 font-medium">Dolar Kuru (Mock)</h3>
+                            <h3 className="text-zinc-400 font-medium">Dolar kuru</h3>
                         </div>
                         <p className="text-3xl font-bold text-white">{formatCurrency(rates.USD)}</p>
                     </div>
@@ -120,7 +121,7 @@ export default async function AssetsPage() {
                         </table>
                     </div>
                 </div>
-            </main>
+            </PageShell>
         </div>
     )
 }

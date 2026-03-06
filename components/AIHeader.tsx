@@ -3,6 +3,7 @@
 import React from 'react'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import { motion } from 'framer-motion'
+import Link from 'next/link'
 
 export default function AIHeader({ summary }: { summary: string }) {
     return (
@@ -26,10 +27,10 @@ export default function AIHeader({ summary }: { summary: string }) {
                 </p>
 
                 <div className="mt-6 flex items-center gap-4 relative z-10">
-                    <button className="flex items-center gap-2 text-sm font-semibold hover:text-white/80 transition-colors">
-                        Detaylı analizi gör
+                    <Link href="/analytics" className="flex items-center gap-2 text-sm font-semibold hover:text-white/80 transition-colors">
+                        Detaylı analizi aç
                         <ArrowRight className="w-4 h-4" />
-                    </button>
+                    </Link>
                 </div>
             </motion.div>
         </div>

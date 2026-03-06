@@ -1,4 +1,5 @@
 import Navbar from '@/components/Navbar'
+import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import CardDetailView from '@/components/cards/CardDetailView'
@@ -97,9 +98,9 @@ export default async function CardDetailPage({ params }: { params: Promise<{ id:
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <PageShell width="genis">
                 <CardDetailView card={serializedCard} />
-            </main>
+            </PageShell>
         </div>
     )
 }

@@ -67,11 +67,11 @@ export async function syncBudgetAlerts(userId: string, summary: MonthlyBudgetSum
                 ensureAlert({
                     userId,
                     type: BudgetAlertType.UPCOMING_PAYMENT,
-                    title: `${obligation.name} odemesi yaklasiyor`,
-                    content: `${obligation.name} icin ${obligation.amount.toLocaleString('tr-TR', {
+                    title: `${obligation.name} ödemesi yaklaşıyor`,
+                    content: `${obligation.name} için ${obligation.amount.toLocaleString('tr-TR', {
                         style: 'currency',
                         currency: obligation.currency === 'TL' ? 'TRY' : obligation.currency,
-                    })} odeme ${differenceInCalendarDays(obligation.dueDate, today)} gun icinde.`,
+                    })} ödeme ${differenceInCalendarDays(obligation.dueDate, today)} gün içinde.`,
                     dueDate: obligation.dueDate,
                     suffix: `${obligation.source}:${obligation.id}:${startOfDay(obligation.dueDate).toISOString()}`,
                 }),
@@ -83,11 +83,11 @@ export async function syncBudgetAlerts(userId: string, summary: MonthlyBudgetSum
             ensureAlert({
                 userId,
                 type: BudgetAlertType.BUDGET_PRESSURE,
-                title: 'Bu ay serbest nakit eksiye dusuyor',
-                content: `Bu ay planlanan gelir, sabit yukler ve borc odemeleri sonrasinda ${Math.abs(summary.freeCash).toLocaleString('tr-TR', {
+                title: 'Bu ay serbest nakit eksiye düşüyor',
+                content: `Bu ay planlanan gelir, sabit yükler ve borç ödemeleri sonrasında ${Math.abs(summary.freeCash).toLocaleString('tr-TR', {
                     style: 'currency',
                     currency: 'TRY',
-                })} acik veriyor.`,
+                })} açık veriyor.`,
                 suffix: `budget-pressure:${summary.month.toISOString()}`,
             }),
         )
@@ -106,8 +106,8 @@ export async function syncBudgetAlerts(userId: string, summary: MonthlyBudgetSum
             ensureAlert({
                 userId,
                 type: BudgetAlertType.RENEWAL,
-                title: `${subscription.name} yillik yenileme`,
-                content: `${subscription.name} yillik yenilemesi yaklasiyor. Aylik normalize etkisi ${subscription.monthlyNormalizedAmount.toLocaleString('tr-TR', {
+                title: `${subscription.name} yıllık yenileme`,
+                content: `${subscription.name} yıllık yenilemesi yaklaşıyor. Aylık normalize etkisi ${subscription.monthlyNormalizedAmount.toLocaleString('tr-TR', {
                     style: 'currency',
                     currency: subscription.currency === 'TL' ? 'TRY' : subscription.currency,
                 })}.`,

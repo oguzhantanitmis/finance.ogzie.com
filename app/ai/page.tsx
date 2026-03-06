@@ -51,14 +51,15 @@ export default function AIPage() {
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0 font-sans">
             <Navbar />
 
-            <main className="md:ml-72 h-screen flex flex-col max-w-4xl mx-auto p-4 md:p-6">
+            <main className="min-h-screen lg:pl-72">
+                <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12">
                 <header className="mb-6 flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
                         <Bot className="text-black w-6 h-6" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold">AI Finans Koçu</h1>
-                        <p className="text-zinc-500 text-sm">7/24 Aktif Analist</p>
+                        <h1 className="text-2xl font-bold">Finans asistanı</h1>
+                        <p className="text-zinc-500 text-sm">7/24 aktif analist</p>
                     </div>
                 </header>
 
@@ -125,6 +126,7 @@ export default function AIPage() {
                         <Send className="w-4 h-4 text-black" />
                     </button>
                 </form>
+                </div>
             </main>
         </div>
     )

@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { Sparkles, ArrowRight, Lock } from 'lucide-react'
+import { ArrowRight, Lock } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -12,7 +11,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const router = useRouter()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -29,9 +27,9 @@ export default function LoginPage() {
             if (result?.error) {
                 setError('Giriş başarısız. Bilgilerinizi kontrol edin.')
             } else {
-                router.push('/')
+                window.location.assign('/')
             }
-        } catch (err) {
+        } catch {
             setError('Bir hata oluştu.')
         } finally {
             setLoading(false)
@@ -53,7 +51,7 @@ export default function LoginPage() {
                     <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-white/10">
                         <div className="w-6 h-6 bg-black rounded-md" />
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight mb-2">OGZIE FINANCE OS</h1>
+                    <h1 className="text-2xl font-bold tracking-tight mb-2">OGZIE FİNANS</h1>
                     <p className="text-zinc-500">Kişisel Finansal Yönetim Sisteminize Giriş Yapın</p>
                 </div>
 
@@ -73,7 +71,7 @@ export default function LoginPage() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="w-full bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/20 transition-all group-hover:border-white/10"
-                                    placeholder="name@example.com"
+                                    placeholder="ornek@ogzie.com"
                                     required
                                 />
                             </div>
@@ -113,7 +111,7 @@ export default function LoginPage() {
                     </form>
 
                     <p className="mt-6 text-center text-xs text-zinc-600">
-                        Secure Session • End-to-End Encryption • Private Access
+                        Güvenli oturum • Şifreli erişim • Özel panel
                     </p>
                 </div>
             </motion.div>

@@ -3,8 +3,10 @@ import { CalendarDays, Landmark, Trash2 } from 'lucide-react'
 
 import { createRecurringExpense, deleteRecurringExpense } from '@/app/actions'
 import Navbar from '@/components/Navbar'
+import PageShell from '@/components/PageShell'
 import { getMonthlyBudgetSummary, normalizeMonthlyAmount } from '@/lib/monthly-planner'
 import { getCurrentUser } from '@/lib/server-auth'
+import { formatBillingCycleLabel } from '@/lib/ui-text'
 import { formatCurrency } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -22,12 +24,12 @@ export default async function RecurringPage() {
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
 
-            <main className="md:ml-72 p-6 md:p-10 max-w-7xl mx-auto">
+            <PageShell width="genis">
                 <header className="mb-10">
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Fixed Commitments</p>
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Sabit ödemeler</p>
                     <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Sabit Giderler</h1>
                     <p className="text-zinc-400 max-w-3xl">
-                        Kira, aidat, sigorta, internet ve abonelik disi tum duzenli odemelerini ayri bir modulde tut.
+                        Kira, aidat, sigorta, internet ve abonelik dışı tüm düzenli ödemelerini ayrı bir modülde tut.
                     </p>
                 </header>
 
@@ -54,10 +56,10 @@ export default async function RecurringPage() {
                                 </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <input name="category" placeholder="Barinma, Fatura, Sigorta..." className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+                                <input name="category" placeholder="Barınma, fatura, sigorta..." className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
                                 <select name="billingCycle" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
-                                    <option value="MONTHLY">Aylik</option>
-                                    <option value="YEARLY">Yillik</option>
+                                    <option value="MONTHLY">Aylık</option>
+                                    <option value="YEARLY">Yıllık</option>
                                 </select>
                             </div>
                             <input name="nextPayment" type="date" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
@@ -65,7 +67,7 @@ export default async function RecurringPage() {
                             <div className="flex items-center justify-between text-sm text-zinc-400">
                                 <label className="flex items-center gap-2">
                                     <input name="autopay" type="checkbox" className="rounded border-white/20 bg-black" />
-                                    Otomatik odeme
+                                    Otomatik ödeme
                                 </label>
                                 <label className="flex items-center gap-2">
                                     <input name="isEssential" type="checkbox" defaultChecked className="rounded border-white/20 bg-black" />
@@ -80,14 +82,14 @@ export default async function RecurringPage() {
 
                     <div className="space-y-4">
                         <div className="fintech-card p-6 md:p-7 bg-gradient-to-r from-zinc-950 to-zinc-900">
-                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-3">Monthly Load</p>
+                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-3">Aylık yük</p>
                             <h3 className="text-3xl font-bold">{formatCurrency(summary.recurringLoad, 'TRY')}</h3>
-                            <p className="text-zinc-400 mt-2">Aylik normalize sabit gider etkisi</p>
+                            <p className="text-zinc-400 mt-2">Aylık normalize sabit gider etkisi</p>
                         </div>
 
                         {summary.recurringExpenses.length === 0 ? (
                             <div className="fintech-card p-16 text-center text-zinc-400">
-                                Henuz sabit gider kaydi yok.
+                                Henüz sabit gider kaydı yok.
                             </div>
                         ) : (
                             summary.recurringExpenses.map((expense) => (
@@ -103,14 +105,14 @@ export default async function RecurringPage() {
                                                 <CalendarDays className="w-3.5 h-3.5" />
                                                 {new Date(expense.nextPayment).toLocaleDateString('tr-TR')}
                                             </span>
-                                            <span>{expense.billingCycle === 'YEARLY' ? 'Yillik' : 'Aylik'}</span>
+                                            <span>{formatBillingCycleLabel(expense.billingCycle)}</span>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-8">
                                         <div className="text-right">
                                             <p className="text-xl font-bold">{formatCurrency(expense.amount, expense.currency)}</p>
                                             <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">
-                                                Aylik etki {formatCurrency(normalizeMonthlyAmount(expense.amount, expense.billingCycle), 'TRY')}
+                                                Aylık etki {formatCurrency(normalizeMonthlyAmount(expense.amount, expense.billingCycle), 'TRY')}
                                             </p>
                                         </div>
                                         <form action={async () => {
@@ -127,7 +129,7 @@ export default async function RecurringPage() {
                         )}
                     </div>
                 </div>
-            </main>
+            </PageShell>
         </div>
     )
 }

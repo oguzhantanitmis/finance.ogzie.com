@@ -1,4 +1,5 @@
 import Navbar from '@/components/Navbar'
+import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import DebtTable from '@/components/DebtTable'
 import DebtsClientWrapper from './DebtsClientWrapper'
@@ -37,7 +38,7 @@ export default async function DebtsPage() {
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
             <Navbar />
-            <main className="md:ml-72 p-6 md:p-10 max-w-[1600px] mx-auto">
+            <PageShell width="genis">
                 <header className="flex items-center justify-between mb-8">
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">Borç Yönetimi</h1>
@@ -47,7 +48,7 @@ export default async function DebtsPage() {
                 </header>
 
                 <DebtTable debts={debts} />
-            </main>
+            </PageShell>
         </div>
     )
 }

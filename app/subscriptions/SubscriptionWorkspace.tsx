@@ -99,8 +99,8 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
             <div className="fintech-card p-6 md:p-7 xl:sticky xl:top-10 h-fit bg-gradient-to-b from-zinc-950 to-black">
                 <div className="flex items-start justify-between gap-4 mb-6">
                     <div>
-                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Quick Add</p>
-                        <h2 className="text-2xl font-bold">Abonelik Komut Merkezi</h2>
+                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Hızlı ekle</p>
+                        <h2 className="text-2xl font-bold">Abonelik komut merkezi</h2>
                     </div>
                     <div className="rounded-2xl bg-white text-black w-12 h-12 flex items-center justify-center">
                         <Plus className="w-5 h-5" />
@@ -109,7 +109,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
 
                 <form ref={formRef} action={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="text-xs text-zinc-500 mb-1.5 block px-1">Abonelik Adi</label>
+                        <label className="text-xs text-zinc-500 mb-1.5 block px-1">Abonelik adı</label>
                         <input
                             name="name"
                             value={name}
@@ -135,7 +135,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                             />
                         </div>
                         <div>
-                            <label className="text-xs text-zinc-500 mb-1.5 block px-1">Doviz</label>
+                        <label className="text-xs text-zinc-500 mb-1.5 block px-1">Döviz</label>
                             <select
                                 name="currency"
                                 value={currency}
@@ -160,22 +160,22 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                             />
                         </div>
                         <div>
-                            <label className="text-xs text-zinc-500 mb-1.5 block px-1">Odeme Dongusu</label>
+                            <label className="text-xs text-zinc-500 mb-1.5 block px-1">Ödeme döngüsü</label>
                             <select
                                 name="billingCycle"
                                 value={billingCycle}
                                 onChange={(event) => setBillingCycle(event.target.value as BillingCycle)}
                                 className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 focus:border-white/30 outline-none transition-all"
                             >
-                                <option value={BillingCycle.MONTHLY}>Aylik</option>
-                                <option value={BillingCycle.YEARLY}>Yillik</option>
+                                <option value={BillingCycle.MONTHLY}>Aylık</option>
+                                <option value={BillingCycle.YEARLY}>Yıllık</option>
                             </select>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4">
                         <div>
-                            <label className="text-xs text-zinc-500 mb-1.5 block px-1">Sonraki Odeme</label>
+                            <label className="text-xs text-zinc-500 mb-1.5 block px-1">Sonraki ödeme</label>
                             <input
                                 name="nextPayment"
                                 type="date"
@@ -207,7 +207,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                         <div className="min-w-0">
                             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-zinc-500 mb-1">
                                 <Sparkles className="w-3.5 h-3.5" />
-                                Akilli zenginlestirme
+                                Akıllı zenginleştirme
                             </div>
                             <p className="font-semibold truncate">{activePreview?.displayName ?? 'Marka tahmini bekleniyor'}</p>
                             <p className="text-sm text-zinc-400 truncate">
@@ -221,7 +221,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                         disabled={isPending}
                         className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all mt-4 disabled:opacity-60"
                     >
-                        {isPending ? 'Kaydediliyor...' : 'Aboneligi Kaydet'}
+                        {isPending ? 'Kaydediliyor...' : 'Aboneliği kaydet'}
                     </button>
                 </form>
             </div>
@@ -230,19 +230,19 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                 <div className="fintech-card p-6 md:p-7 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950">
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div>
-                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Portfolio Load</p>
+                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam yük</p>
                             <h3 className="text-3xl font-bold">{formatCurrency(monthlyTotal, 'TRY')}</h3>
-                            <p className="text-zinc-400 mt-2">Aylik normalize abonelik yuku</p>
+                            <p className="text-zinc-400 mt-2">Aylık normalize abonelik yükü</p>
                         </div>
                         <div className="text-sm text-zinc-400">
-                            {subscriptions.length} aktif kayit
+                            {subscriptions.length} aktif kayıt
                         </div>
                     </div>
                 </div>
 
                 {subscriptions.length === 0 ? (
                     <div className="fintech-card p-16 text-center">
-                        <p className="text-zinc-400">Henüz abonelik eklenmedi. Hizli ekle ile ilk servisi ekleyebilirsin.</p>
+                        <p className="text-zinc-400">Henüz abonelik eklenmedi. Hızlı ekle ile ilk servisi ekleyebilirsin.</p>
                     </div>
                 ) : (
                     subscriptions.map((subscription) => (
@@ -260,23 +260,23 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mt-1">
-                                        <span className="flex items-center gap-1">
-                                            <Calendar className="w-3.5 h-3.5" />
-                                            {new Date(subscription.nextPayment).toLocaleDateString('tr-TR')}
-                                        </span>
-                                        <span>{subscription.category}</span>
-                                        <span>{subscription.billingCycle === BillingCycle.YEARLY ? 'Yillik' : 'Aylik'}</span>
+                                            <span className="flex items-center gap-1">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                {new Date(subscription.nextPayment).toLocaleDateString('tr-TR')}
+                                            </span>
+                                            <span>{subscription.category}</span>
+                                            <span>{subscription.billingCycle === BillingCycle.YEARLY ? 'Yıllık' : 'Aylık'}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
                             <div className="flex items-center justify-between md:justify-end gap-8">
                                 <div className="text-right">
-                                    <p className="text-xl font-bold">{formatCurrency(subscription.amount, subscription.currency)}</p>
-                                    <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">
-                                        Aylik etki {formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}
-                                    </p>
-                                </div>
+                                            <p className="text-xl font-bold">{formatCurrency(subscription.amount, subscription.currency)}</p>
+                                            <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">
+                                                Aylık etki {formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}
+                                            </p>
+                                        </div>
 
                                 <button
                                     type="button"
