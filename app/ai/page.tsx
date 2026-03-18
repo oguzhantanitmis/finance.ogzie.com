@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Navbar from '@/components/Navbar'
-import { Send, Bot, User, Zap } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Bot, User, Zap, Send } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 interface Message {
@@ -26,7 +26,19 @@ export default function AIPage() {
     ])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
+    const [showReasoningInfo, setShowReasoningInfo] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
+
+    // Gönderim uzun sürerse (3 sn sonrası) bilgi mesajı göster
+    useEffect(() => {
+        let timer: NodeJS.Timeout
+        if (loading) {
+            timer = setTimeout(() => setShowReasoningInfo(true), 3000)
+        } else {
+            setShowReasoningInfo(false)
+        }
+        return () => clearTimeout(timer)
+    }, [loading])
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -122,18 +134,33 @@ export default function AIPage() {
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            className="flex gap-3 max-w-[85%]"
+                            className="flex flex-col gap-2 max-w-[85%]"
                         >
-                            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
-                                <Bot className="w-4 h-4 text-black" />
-                            </div>
-                            <div className="p-4 rounded-2xl bg-white/10 text-white rounded-tl-sm w-24 flex items-center justify-center">
-                                <div className="flex gap-1">
-                                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <div className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
+                                    <Bot className="w-4 h-4 text-black" />
+                                </div>
+                                <div className="p-4 rounded-2xl bg-white/10 text-white rounded-tl-sm w-24 flex items-center justify-center">
+                                    <div className="flex gap-1">
+                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </div>
                                 </div>
                             </div>
+                            
+                            <AnimatePresence>
+                                {showReasoningInfo && (
+                                    <motion.p
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0 }}
+                                        className="text-xs text-amber-500/80 ml-11 font-medium bg-amber-500/5 px-3 py-2 rounded-xl border border-amber-500/10 inline-block w-fit"
+                                    >
+                                        🧠 Yapay zeka detaylı finansal durumunuzu analiz ediyor. <br/>Kapsamlı modellerde bu işlem 10-15 saniyeyi bulabilir...
+                                    </motion.p>
+                                )}
+                            </AnimatePresence>
                         </motion.div>
                     )}
                 </div>
