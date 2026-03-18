@@ -105,8 +105,11 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const model = await getSetting(user.id, 'ai.model') ?? 'gpt-4.1-mini'
-                        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                        const model = await getSetting(user.id, 'ai.model') || 'gpt-4o-mini'
+                        const rawBaseUrl = await getSetting(user.id, 'ai.base_url')
+                        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
+                        
+                        const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                             body: JSON.stringify({
@@ -135,8 +138,11 @@ Bana şunları sorabilirsin:
                 // Diğer tüm sorgu türleri de context-aware
                 if (apiKey) {
                     try {
-                        const model = await getSetting(user.id, 'ai.model') ?? 'gpt-4.1-mini'
-                        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                        const model = await getSetting(user.id, 'ai.model') || 'gpt-4o-mini'
+                        const rawBaseUrl = await getSetting(user.id, 'ai.base_url')
+                        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
+
+                        const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                             body: JSON.stringify({

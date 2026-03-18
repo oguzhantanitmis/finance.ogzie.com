@@ -12,9 +12,11 @@ interface CardSettingsData {
 interface Props {
     cardSettings: CardSettingsData | null
     openAiKey: string
+    aiModel: string
+    aiBaseUrl: string
 }
 
-export default function SettingsWorkspace({ cardSettings, openAiKey }: Props) {
+export default function SettingsWorkspace({ cardSettings, openAiKey, aiModel, aiBaseUrl }: Props) {
     return (
         <div className="space-y-8">
             {/* Genel Kart Faiz Ayarları */}
@@ -94,8 +96,30 @@ export default function SettingsWorkspace({ cardSettings, openAiKey }: Props) {
                             className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
                         />
                     </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Model Adı</label>
+                            <input 
+                                name="aiModel" 
+                                type="text" 
+                                placeholder="gpt-4o-mini" 
+                                defaultValue={aiModel} 
+                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Base URL (Opsiyonel proxy)</label>
+                            <input 
+                                name="aiBaseUrl" 
+                                type="url" 
+                                placeholder="https://api.openai.com/v1" 
+                                defaultValue={aiBaseUrl} 
+                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
+                            />
+                        </div>
+                    </div>
                     <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all">
-                        API Anahtarını Kaydet
+                        AI Ayarlarını Kaydet
                     </button>
                 </form>
             </div>

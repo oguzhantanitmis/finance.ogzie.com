@@ -9,9 +9,13 @@ export async function saveOpenAIApiKeyAction(formData: FormData) {
     if (!user) throw new Error('Unauthorized')
 
     const apiKey = formData.get('apiKey') as string
+    const aiModel = formData.get('aiModel') as string
+    const aiBaseUrl = formData.get('aiBaseUrl') as string
     
-    // Save to settings table using key 'ai.openai_api_key'
-    await setSetting(user.id, 'ai.openai_api_key', apiKey, true) // isEncrypted = true is a good practice if supported
+    // Save to settings table
+    if (apiKey) await setSetting(user.id, 'ai.openai_api_key', apiKey, true)
+    if (aiModel) await setSetting(user.id, 'ai.model', aiModel)
+    if (aiBaseUrl) await setSetting(user.id, 'ai.base_url', aiBaseUrl)
 
     revalidatePath('/settings')
     revalidatePath('/ai')
