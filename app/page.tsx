@@ -65,6 +65,7 @@ async function DashboardContent({ userId }: { userId: string }) {
         where: { userId, isRead: false },
         orderBy: { createdAt: 'desc' },
         take: 3,
+        select: { id: true, title: true, content: true, type: true, isRead: true }
     }).catch(() => [])
 
     const aiRecommendations = await prisma.aIRecommendation.findMany({
