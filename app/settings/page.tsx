@@ -1,0 +1,41 @@
+import { redirect } from 'next/navigation'
+import Navbar from '@/components/Navbar'
+import PageShell from '@/components/PageShell'
+import SettingsWorkspace from '@/components/settings/SettingsWorkspace'
+import { getCardFinanceSettings } from '@/lib/card-finance-settings-service'
+import { getCurrentUser } from '@/lib/server-auth'
+
+export const dynamic = 'force-dynamic'
+
+export default async function SettingsPage() {
+    const user = await getCurrentUser()
+    if (!user) redirect('/login')
+
+    const cardSettings = await getCardFinanceSettings(user.id)
+
+    return (
+        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
+            <Navbar />
+            <PageShell width="normal">
+                <header className="mb-10">
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Ayarlar</h1>
+                    <p className="text-zinc-400 max-w-3xl">
+                        Genel kart faiz oranları ve uygulama ayarları.
+                    </p>
+                </header>
+                <SettingsWorkspace cardSettings={cardSettings ? {
+                    contractualRate: cardSettings.contractualRate,
+                    defaultRate: cardSettings.defaultRate,
+                    cashAdvanceRate: cardSettings.cashAdvanceRate,
+                    minPaymentRateBelow50k: cardSettings.minPaymentRateBelow50k,
+                    minPaymentRateAbove50k: cardSettings.minPaymentRateAbove50k,
+                    kkdfRate: cardSettings.kkdfRate,
+                    bsmvRate: cardSettings.bsmvRate,
+                    notes: cardSettings.notes,
+                    lastUpdated: cardSettings.lastUpdated.toISOString(),
+                } : null} />
+            </PageShell>
+        </div>
+    )
+}

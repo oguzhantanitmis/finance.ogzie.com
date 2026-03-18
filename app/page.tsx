@@ -1,7 +1,7 @@
 import { formatDistanceToNowStrict } from 'date-fns'
 import { tr } from 'date-fns/locale'
 import { redirect } from 'next/navigation'
-import { ArrowRight, CalendarClock, Landmark, ShieldAlert, Sparkles, Wallet } from 'lucide-react'
+import { ArrowRight, CalendarClock, Landmark, ShieldAlert, Sparkles, Wallet, TrendingUp, TrendingDown, Target, BookOpen, Users, ArrowDownLeft, ArrowUpRight, Activity } from 'lucide-react'
 import Link from 'next/link'
 
 import AIHeader from '@/components/AIHeader'
@@ -14,7 +14,10 @@ import { prisma } from '@/lib/prisma'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { getCurrentUser } from '@/lib/server-auth'
 import { formatAlertTypeLabel, formatCategoryLabel, formatObligationSourceLabel } from '@/lib/ui-text'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, cn } from '@/lib/utils'
+import { getDashboardData } from '@/lib/dashboard-service'
+import { calculateHealthScore } from '@/lib/health-score-service'
+import { getActiveGoalForDashboard } from '@/lib/goal-service'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,7 +28,13 @@ export default async function Home() {
         redirect('/login')
     }
 
-    const summary = await getMonthlyBudgetSummary(user.id)
+    const [summary, dashData, healthScore, activeGoal] = await Promise.all([
+        getMonthlyBudgetSummary(user.id),
+        getDashboardData(user.id),
+        calculateHealthScore(user.id),
+        getActiveGoalForDashboard(user.id),
+    ])
+
     const alerts = await syncBudgetAlerts(user.id, summary)
     const insights = await prisma.aIInsight.findMany({
         where: { userId: user.id, isRead: false },
@@ -172,6 +181,171 @@ export default async function Home() {
                             </Link>
                         </div>
                     </div>
+                </div>
+
+                {/* ————— Faz 8: Yeni Dashboard Bölümleri ————— */}
+
+                {/* Finansal Genel Bakış */}
+                <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 mt-8">
+                    <div className="fintech-card p-4">
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Toplam Bakiye</p>
+                        <p className={cn('text-lg font-bold', dashData.totalBalance < 0 ? 'text-red-400' : 'text-white')}>
+                            {formatCurrency(dashData.totalBalance, 'TRY')}
+                        </p>
+                    </div>
+                    <div className="fintech-card p-4">
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Kullanılabilir Nakit</p>
+                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(dashData.availableCash, 'TRY')}</p>
+                    </div>
+                    <div className="fintech-card p-4">
+                        <div className="flex items-center gap-1 mb-1">
+                            <ArrowDownLeft className="w-3 h-3 text-emerald-400" />
+                            <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Alacak</p>
+                        </div>
+                        <p className="text-lg font-bold text-emerald-400">{formatCurrency(dashData.totalReceivable, 'TRY')}</p>
+                    </div>
+                    <div className="fintech-card p-4">
+                        <div className="flex items-center gap-1 mb-1">
+                            <ArrowUpRight className="w-3 h-3 text-red-400" />
+                            <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Verecek</p>
+                        </div>
+                        <p className="text-lg font-bold text-red-400">{formatCurrency(dashData.totalPayable, 'TRY')}</p>
+                    </div>
+                    <div className="fintech-card p-4">
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Kart Borcu</p>
+                        <p className="text-lg font-bold text-amber-400">{formatCurrency(dashData.totalCardDebt, 'TRY')}</p>
+                    </div>
+                    <div className="fintech-card p-4">
+                        <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Net Pozisyon</p>
+                        <p className={cn('text-lg font-bold', dashData.netPosition >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                            {formatCurrency(dashData.netPosition, 'TRY')}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Sağlık Puanı + Aktif Hedef + Son İşlemler */}
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
+                    {/* Finansal Sağlık Puanı */}
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <Activity className="w-5 h-5 text-sky-400" />
+                                <h3 className="font-semibold">Finansal Sağlık</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {healthScore.trend === 'improving' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
+                                {healthScore.trend === 'declining' && <TrendingDown className="w-4 h-4 text-red-400" />}
+                                <span className={cn(
+                                    'text-xs uppercase tracking-[0.25em] px-2 py-0.5 rounded-lg',
+                                    healthScore.score >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
+                                    healthScore.score >= 60 ? 'text-sky-400 bg-sky-500/10' :
+                                    healthScore.score >= 40 ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                                )}>
+                                    {healthScore.level === 'EXCELLENT' ? 'Mükemmel' : healthScore.level === 'GOOD' ? 'İyi' : healthScore.level === 'MODERATE' ? 'Orta' : healthScore.level === 'HIGH' ? 'Yüksek Risk' : 'Kritik'}
+                                </span>
+                            </div>
+                        </div>
+                        {/* Skor göstergesi */}
+                        <div className="flex items-center justify-center mb-4">
+                            <div className="relative w-28 h-28">
+                                <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
+                                    <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                                    <circle cx="50" cy="50" r="42" fill="none"
+                                        stroke={healthScore.score >= 80 ? '#34d399' : healthScore.score >= 60 ? '#38bdf8' : healthScore.score >= 40 ? '#fbbf24' : '#f87171'}
+                                        strokeWidth="8" strokeLinecap="round"
+                                        strokeDasharray={`${healthScore.score * 2.64} 264`}
+                                    />
+                                </svg>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <span className="text-2xl font-bold text-white">{healthScore.score}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {/* İyileştirme önerileri */}
+                        <div className="space-y-2">
+                            {healthScore.improvements.map((tip, i) => (
+                                <p key={i} className="text-xs text-zinc-400 leading-relaxed">• {tip}</p>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Aktif Hedef */}
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Target className="w-5 h-5 text-purple-400" />
+                            <h3 className="font-semibold">Aktif Hedef</h3>
+                        </div>
+                        {activeGoal ? (
+                            <div>
+                                <h4 className="font-semibold text-white mb-2">{activeGoal.title}</h4>
+                                {activeGoal.description && <p className="text-xs text-zinc-500 mb-3">{activeGoal.description}</p>}
+                                <div className="w-full h-3 bg-white/5 rounded-full mb-3">
+                                    <div className="h-full bg-purple-400 rounded-full transition-all" style={{ width: `${activeGoal.progressPercent}%` }} />
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-zinc-400">{formatCurrency(activeGoal.currentAmount, 'TRY')}</span>
+                                    <span className="font-semibold text-white">{formatCurrency(activeGoal.targetAmount, 'TRY')}</span>
+                                </div>
+                                <p className="text-xs text-zinc-500 mt-2">%{activeGoal.progressPercent} tamamlandı</p>
+                            </div>
+                        ) : (
+                            <div className="text-center py-6">
+                                <p className="text-zinc-500 text-sm mb-3">Henüz aktif hedef yok</p>
+                                <Link href="/goals" className="text-sm text-purple-400 hover:text-purple-300">Hedef ekle →</Link>
+                            </div>
+                        )}
+                        <Link href="/goals" className="inline-flex items-center gap-2 text-sm text-white mt-4">
+                            Tüm hedefler <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+
+                    {/* Son İşlemler */}
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <div className="flex items-center gap-3">
+                                <BookOpen className="w-5 h-5 text-zinc-400" />
+                                <h3 className="font-semibold">Son İşlemler</h3>
+                            </div>
+                            <Link href="/transactions" className="text-xs text-zinc-500 hover:text-white">Tümü →</Link>
+                        </div>
+                        {dashData.recentTransactions.length === 0 ? (
+                            <p className="text-zinc-500 text-sm">Henüz işlem kaydı yok.</p>
+                        ) : (
+                            <div className="space-y-2">
+                                {dashData.recentTransactions.slice(0, 6).map((tx) => (
+                                    <div key={tx.id} className="flex items-center justify-between text-sm">
+                                        <div className="min-w-0">
+                                            <p className="text-zinc-300 truncate">{tx.description || tx.type}</p>
+                                            <p className="text-xs text-zinc-600">{new Date(tx.date).toLocaleDateString('tr-TR')}</p>
+                                        </div>
+                                        <span className={cn('font-semibold tabular-nums shrink-0', tx.amount > 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                            {tx.amount > 0 ? '+' : ''}{formatCurrency(tx.amount, tx.currency)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Hızlı Erişim Linkleri */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 mb-6">
+                    <Link href="/accounts" className="fintech-card p-4 flex items-center gap-3 hover:border-white/20 transition-all">
+                        <Landmark className="w-5 h-5 text-sky-400" />
+                        <span className="font-semibold text-sm">Hesaplar</span>
+                    </Link>
+                    <Link href="/people" className="fintech-card p-4 flex items-center gap-3 hover:border-white/20 transition-all">
+                        <Users className="w-5 h-5 text-amber-400" />
+                        <span className="font-semibold text-sm">Kişiler</span>
+                    </Link>
+                    <Link href="/payment-plan" className="fintech-card p-4 flex items-center gap-3 hover:border-white/20 transition-all">
+                        <ShieldAlert className="w-5 h-5 text-red-400" />
+                        <span className="font-semibold text-sm">Ödeme Planı</span>
+                    </Link>
+                    <Link href="/goals" className="fintech-card p-4 flex items-center gap-3 hover:border-white/20 transition-all">
+                        <Target className="w-5 h-5 text-purple-400" />
+                        <span className="font-semibold text-sm">Hedefler</span>
+                    </Link>
                 </div>
             </PageShell>
         </div>

@@ -8,26 +8,38 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String?
-  riskScore     Int       @default(100)
-  netWorth      Float     @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  riskScore Int      @default(100)
+  netWorth  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  assets        Asset[]
-  debts         Debt[]
-  transactions  Transaction[]
-  subscriptions Subscription[]
+  assets            Asset[]
+  debts             Debt[]
+  transactions      Transaction[]
+  subscriptions     Subscription[]
   recurringExpenses RecurringExpense[]
-  incomeSources IncomeSource[]
-  budgetMonths  BudgetMonth[]
-  budgetAlerts  BudgetAlert[]
-  snapshots     Snapshot[]
-  creditCards   CreditCard[]
-  insights      AIInsight[]
+  incomeSources     IncomeSource[]
+  budgetMonths      BudgetMonth[]
+  budgetAlerts      BudgetAlert[]
+  snapshots         Snapshot[]
+  creditCards       CreditCard[]
+  insights          AIInsight[]
+
+  // Yeni ilişkiler (Faz 1)
+  persons             Person[]
+  receivablesPayables ReceivablePayable[]
+  accounts            Account[]
+  ledgerEntries       LedgerEntry[]
+  cardFinanceSettings CardFinanceSettings?
+  appSettings         AppSettings[]
+  financialGoals      FinancialGoal[]
+  healthSnapshots     HealthSnapshot[]
+  aiRecommendations   AIRecommendation[]
+  savedPaymentPlans   SavedPaymentPlan[]
 }
 
 enum BillingCycle {
@@ -65,19 +77,63 @@ enum AssetType {
   RECEIVABLE
 }
 
+// ============================================================
+// Faz 1: Yeni Enum Tanımları
+// ============================================================
+
+enum RPType {
+  RECEIVABLE // Bana borçlu (alacak)
+  PAYABLE // Benim borçlu olduğum (verecek)
+}
+
+enum RPStatus {
+  OPEN
+  PARTIAL
+  CLOSED
+  OVERDUE
+}
+
+enum AccountType {
+  BANK_ACCOUNT
+  CASH
+  WALLET
+  INVESTMENT
+  OTHER_ACCOUNT
+}
+
+enum LedgerEntryType {
+  INCOME
+  EXPENSE
+  COLLECTION
+  PAYMENT_TO_PERSON
+  CARD_PAYMENT
+  SUBSCRIPTION_PAYMENT
+  DEBT_PAYMENT
+  DEBT_ADDITION
+  RECEIVABLE_ADDITION
+  TRANSFER
+  BALANCE_ADJUSTMENT
+}
+
+enum GoalStatus {
+  GOAL_ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
 model Asset {
-  id            String    @id @default(cuid())
-  userId        String?   // Optional for migration compatibility, should be required later
-  name          String
-  type          AssetType
-  amount        Float
-  unitPrice     Float?    // Maliyet
-  currency      String    @default("TRY")
-  lastValue     Float?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  user          User?     @relation(fields: [userId], references: [id])
+  id        String    @id @default(cuid())
+  userId    String? // Optional for migration compatibility, should be required later
+  name      String
+  type      AssetType
+  amount    Float
+  unitPrice Float? // Maliyet
+  currency  String    @default("TRY")
+  lastValue Float?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
 }
 
 enum DebtType {
@@ -89,210 +145,211 @@ enum DebtType {
 }
 
 model Debt {
-  id                String    @id @default(cuid())
-  userId            String?   // Optional for migration
-  name              String
-  type              DebtType
-  
+  id     String   @id @default(cuid())
+  userId String? // Optional for migration
+  name   String
+  type   DebtType
+
   // Kredi Kartı & KMH
-  limit             Float?
-  cutOffDay         Int?      // Hesap kesim (1-31)
-  paymentDueDay     Int?      // Son ödeme günü (1-31)
-  
+  limit         Float?
+  cutOffDay     Int? // Hesap kesim (1-31)
+  paymentDueDay Int? // Son ödeme günü (1-31)
+
   // Kredi
-  totalPrincipal    Float?    // Çekilen tutar
-  installments      Int?
+  totalPrincipal        Float? // Çekilen tutar
+  installments          Int?
   remainingInstallments Int?
-  
+
   // Güncel Durum
-  totalBalance      Float     // Kart için dönem borcu, Kredi için kalan anapara
-  remainingBalance  Float     // Ödenmesi gereken (Aktif borç)
-  interestRate      Float     @default(0)
-  minPaymentRate    Float     @default(0.20) // 0.20 or 0.40
-  
+  totalBalance     Float // Kart için dönem borcu, Kredi için kalan anapara
+  remainingBalance Float // Ödenmesi gereken (Aktif borç)
+  interestRate     Float @default(0)
+  minPaymentRate   Float @default(0.20) // 0.20 or 0.40
+
   // Vergi Oranları (Sabit ama değiştirilebilir)
-  kkdfRate          Float     @default(0.15)
-  bsmvRate          Float     @default(0.15)
+  kkdfRate Float @default(0.15)
+  bsmvRate Float @default(0.15)
 
-  dueDate           DateTime? // Tek seferlik borçlar için
-  lastPaymentDate   DateTime?
-  isPaid            Boolean   @default(false)
+  dueDate         DateTime? // Tek seferlik borçlar için
+  lastPaymentDate DateTime?
+  isPaid          Boolean   @default(false)
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  user              User?     @relation(fields: [userId], references: [id])
-  paymentPlan       PaymentPlan[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User?         @relation(fields: [userId], references: [id])
+  paymentPlan PaymentPlan[]
 }
 
 model PaymentPlan {
-  id            String    @id @default(cuid())
-  debtId        String
-  installmentNo Int
-  amount        Float     // Taksit tutarı
-  principalAmount Float   // Ana para kısmı
-  interestAmount  Float   // Faiz kısmı
-  taxAmount       Float   // Vergi kısmı
-  dueDate       DateTime
-  isPaid        Boolean   @default(false)
-  paidDate      DateTime?
-  
-  debt          Debt      @relation(fields: [debtId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  debtId          String
+  installmentNo   Int
+  amount          Float // Taksit tutarı
+  principalAmount Float // Ana para kısmı
+  interestAmount  Float // Faiz kısmı
+  taxAmount       Float // Vergi kısmı
+  dueDate         DateTime
+  isPaid          Boolean   @default(false)
+  paidDate        DateTime?
+
+  debt Debt @relation(fields: [debtId], references: [id], onDelete: Cascade)
 }
 
 model Transaction {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String?
   amount      Float
-  type        String    // INCOME, EXPENSE
+  type        String // INCOME, EXPENSE
   category    String
   description String?
-  date        DateTime  @default(now())
-  
-  assetId     String?
-  debtId      String?
-  
-  user        User?     @relation(fields: [userId], references: [id])
+  date        DateTime @default(now())
+
+  assetId String?
+  debtId  String?
+
+  user User? @relation(fields: [userId], references: [id])
 }
 
 model Subscription {
-  id            String    @id @default(cuid())
-  userId        String?
-  name          String
-  amount        Float
-  currency      String    @default("TRY")
-  billingCycle  BillingCycle
-  category      String    @default("Genel")
-  nextPayment   DateTime
-  isActive      Boolean   @default(true)
-  brandKey      String?
-  providerDomain String?
-  logoUrl       String?
-  color         String    @default("#27272A")
-  billingAnchorDay Int?
-  autopay       Boolean   @default(false)
-  status        RecordStatus @default(ACTIVE)
-  notes         String?   @db.Text
-  lastAmount    Float?
+  id                      String       @id @default(cuid())
+  userId                  String?
+  name                    String
+  amount                  Float
+  currency                String       @default("TRY")
+  billingCycle            BillingCycle
+  category                String       @default("Genel")
+  nextPayment             DateTime
+  isActive                Boolean      @default(true)
+  brandKey                String?
+  providerDomain          String?
+  logoUrl                 String?
+  color                   String       @default("#27272A")
+  billingAnchorDay        Int?
+  autopay                 Boolean      @default(false)
+  status                  RecordStatus @default(ACTIVE)
+  notes                   String?      @db.Text
+  lastAmount              Float?
   monthlyNormalizedAmount Float?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  user          User?     @relation(fields: [userId], references: [id])
+  isEssential             Boolean      @default(false)
+  linkedAccountId         String?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  user User? @relation(fields: [userId], references: [id])
 }
 
 model RecurringExpense {
-  id            String    @id @default(cuid())
-  userId        String
-  name          String
-  category      String
-  amount        Float
-  currency      String    @default("TRY")
-  billingCycle  BillingCycle
+  id               String       @id @default(cuid())
+  userId           String
+  name             String
+  category         String
+  amount           Float
+  currency         String       @default("TRY")
+  billingCycle     BillingCycle
   billingAnchorDay Int?
-  nextPayment   DateTime
-  autopay       Boolean   @default(false)
-  isEssential   Boolean   @default(true)
-  status        RecordStatus @default(ACTIVE)
-  notes         String?   @db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  nextPayment      DateTime
+  autopay          Boolean      @default(false)
+  isEssential      Boolean      @default(true)
+  status           RecordStatus @default(ACTIVE)
+  notes            String?      @db.Text
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model IncomeSource {
-  id            String    @id @default(cuid())
-  userId        String
-  name          String
-  amount        Float
-  currency      String    @default("TRY")
-  billingCycle  BillingCycle
-  payday        Int?
-  isPrimary     Boolean   @default(false)
-  status        RecordStatus @default(ACTIVE)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String       @id @default(cuid())
+  userId       String
+  name         String
+  amount       Float
+  currency     String       @default("TRY")
+  billingCycle BillingCycle
+  payday       Int?
+  isPrimary    Boolean      @default(false)
+  status       RecordStatus @default(ACTIVE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model BudgetMonth {
-  id               String    @id @default(cuid())
+  id               String   @id @default(cuid())
   userId           String
   month            DateTime
-  plannedIncome    Float     @default(0)
-  fixedCommitments Float     @default(0)
-  debtCommitments  Float     @default(0)
-  freeCash         Float     @default(0)
-  bufferTarget     Float     @default(0)
-  notes            String?   @db.Text
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  plannedIncome    Float    @default(0)
+  fixedCommitments Float    @default(0)
+  debtCommitments  Float    @default(0)
+  freeCash         Float    @default(0)
+  bufferTarget     Float    @default(0)
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, month])
 }
 
 model BudgetAlert {
-  id            String    @id @default(cuid())
-  userId        String
-  type          BudgetAlertType
-  state         BudgetAlertState @default(OPEN)
-  title         String
-  content       String    @db.Text
-  dueDate       DateTime?
-  channel       String    @default("IN_APP")
-  dedupeKey     String    @unique
-  metadata      Json?
-  dismissedAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String           @id @default(cuid())
+  userId      String
+  type        BudgetAlertType
+  state       BudgetAlertState @default(OPEN)
+  title       String
+  content     String           @db.Text
+  dueDate     DateTime?
+  channel     String           @default("IN_APP")
+  dedupeKey   String           @unique
+  metadata    Json?
+  dismissedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AIInsight {
-  id          String   @id @default(cuid())
-  userId      String?
-  title       String
-  content     String   @db.Text
-  type        String   @default("INFO") // INFO, WARNING, SUCCESS, RISK
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  
-  user        User?    @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  userId    String?
+  title     String
+  content   String   @db.Text
+  type      String   @default("INFO") // INFO, WARNING, SUCCESS, RISK
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
 }
 
-
 model FinanceJournal {
-  id        String    @id @default(cuid())
-  content   String    @db.Text
-  date      DateTime  @default(now())
-  isParsed  Boolean   @default(false)
+  id       String   @id @default(cuid())
+  content  String   @db.Text
+  date     DateTime @default(now())
+  isParsed Boolean  @default(false)
 }
 
 model Reminder {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
   dueDate     DateTime
-  isCompleted Boolean   @default(false)
-  priority    String    @default("NORMAL")
+  isCompleted Boolean  @default(false)
+  priority    String   @default("NORMAL")
 }
 
 model Snapshot {
-  id        String   @id @default(cuid())
-  userId    String
-  date      DateTime @default(now())
-  netWorth  Float
+  id          String   @id @default(cuid())
+  userId      String
+  date        DateTime @default(now())
+  netWorth    Float
   totalAssets Float
   totalDebts  Float
-  assets    Json     // Detailed breakdown
-  debts     Json     // Detailed breakdown
-  
-  user      User     @relation(fields: [userId], references: [id])
+  assets      Json // Detailed breakdown
+  debts       Json // Detailed breakdown
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 // ============================================================
@@ -336,162 +393,425 @@ enum InterestType {
 }
 
 model CreditCard {
-  id                  String    @id @default(cuid())
-  userId              String
-  
-  // Kart Kimliği
-  cardName            String    // "Akbank Axess Platinum"
-  bankName            String    // "Akbank"
-  last4Digits         String    // "4532"
-  cardNetwork         CardNetwork @default(VISA)
-  status              CardStatus  @default(ACTIVE)
-  color               String    @default("#6366F1")
-  
-  // Limitler
-  totalLimit          Float     // 50.000
-  cashAdvanceLimit    Float     @default(0)
-  
-  // Faturalama Döngüsü
-  cutOffDay           Int       // Hesap kesim günü (1-31)
-  paymentDueDay       Int       // Son ödeme günü (1-31)
-  
-  // Faiz Oranları (Aylık %)
-  contractualRate     Float     @default(4.42)  // Akdi faiz
-  defaultRate         Float     @default(5.42)  // Gecikme faizi
-  cashAdvanceRate     Float     @default(5.92)  // Nakit avans faizi
-  
-  // Vergi Oranları
-  kkdfRate            Float     @default(0.15)
-  bsmvRate            Float     @default(0.15)
-  
-  // Asgari Ödeme Oranı
-  minPaymentRate      Float     @default(0.20)  // limit<=50k: 0.20, >50k: 0.40
-  
-  // Puan / Ödül
-  rewardsPoints       Float     @default(0)
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id     String @id @default(cuid())
+  userId String
 
-  
-  user                User      @relation(fields: [userId], references: [id])
-  statements          CardStatement[]
-  transactions        CardTransaction[]
-  payments            CardPayment[]
-  interestAccruals    InterestAccrual[]
+  // Kart Kimliği
+  cardName    String // "Akbank Axess Platinum"
+  bankName    String // "Akbank"
+  last4Digits String // "4532"
+  cardNetwork CardNetwork @default(VISA)
+  status      CardStatus  @default(ACTIVE)
+  color       String      @default("#6366F1")
+
+  // Limitler
+  totalLimit       Float // 50.000
+  cashAdvanceLimit Float @default(0)
+
+  // Faturalama Döngüsü
+  cutOffDay     Int // Hesap kesim günü (1-31)
+  paymentDueDay Int // Son ödeme günü (1-31)
+
+  // Faiz Oranları (Aylık %)
+  contractualRate Float @default(4.42) // Akdi faiz
+  defaultRate     Float @default(5.42) // Gecikme faizi
+  cashAdvanceRate Float @default(5.92) // Nakit avans faizi
+
+  // Vergi Oranları
+  kkdfRate Float @default(0.15)
+  bsmvRate Float @default(0.15)
+
+  // Asgari Ödeme Oranı
+  minPaymentRate Float @default(0.20) // limit<=50k: 0.20, >50k: 0.40
+
+  // Puan / Ödül
+  rewardsPoints Float @default(0)
+
+  // Genel faiz ayarlarını mı kullan?
+  useGlobalRates Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id])
+  statements       CardStatement[]
+  transactions     CardTransaction[]
+  payments         CardPayment[]
+  interestAccruals InterestAccrual[]
 }
 
 model CardStatement {
-  id                  String    @id @default(cuid())
-  creditCardId        String
-  
+  id           String @id @default(cuid())
+  creditCardId String
+
   // Dönem Bilgileri
-  statementDate       DateTime  // Hesap kesim tarihi
-  dueDate             DateTime  // Son ödeme tarihi
-  periodStart         DateTime  // Dönem başlangıcı
-  periodEnd           DateTime  // Dönem sonu (= statementDate)
-  
+  statementDate DateTime // Hesap kesim tarihi
+  dueDate       DateTime // Son ödeme tarihi
+  periodStart   DateTime // Dönem başlangıcı
+  periodEnd     DateTime // Dönem sonu (= statementDate)
+
   // Tutarlar
-  previousBalance     Float     @default(0) // Önceki devreden borç
-  newCharges          Float     @default(0) // Bu dönem harcamalar
-  interestCharged     Float     @default(0) // Bu döneme yansıtılan faiz
-  taxCharged          Float     @default(0) // KKDF + BSMV
-  paymentsReceived    Float     @default(0) // Bu dönem gelen ödemeler
-  statementBalance    Float     @default(0) // Dönem sonu borç
-  minimumPayment      Float     @default(0) // Asgari ödeme
-  
+  previousBalance  Float @default(0) // Önceki devreden borç
+  newCharges       Float @default(0) // Bu dönem harcamalar
+  interestCharged  Float @default(0) // Bu döneme yansıtılan faiz
+  taxCharged       Float @default(0) // KKDF + BSMV
+  paymentsReceived Float @default(0) // Bu dönem gelen ödemeler
+  statementBalance Float @default(0) // Dönem sonu borç
+  minimumPayment   Float @default(0) // Asgari ödeme
+
   // Durum
-  status              StatementStatus @default(OPEN)
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  
-  creditCard          CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
-  transactions        CardTransaction[]
-  payments            CardPayment[]
-  interestAccruals    InterestAccrual[]
-  installments        CardInstallment[]
+  status StatementStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creditCard       CreditCard        @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  transactions     CardTransaction[]
+  payments         CardPayment[]
+  interestAccruals InterestAccrual[]
+  installments     CardInstallment[]
 }
 
 model CardTransaction {
-  id                  String    @id @default(cuid())
-  creditCardId        String
-  statementId         String?   // null = henüz ekstreye girmemiş
-  
+  id           String  @id @default(cuid())
+  creditCardId String
+  statementId  String? // null = henüz ekstreye girmemiş
+
   // İşlem Bilgileri
-  type                TransactionType
-  description         String
-  merchant            String?   // Harcama yapılan yer
-  amount              Float     // İşlem tutarı
-  remainingAmount     Float     // Kalan tutar (taksitlerde düşer)
-  transactionDate     DateTime  @default(now())
-  
+  type            TransactionType
+  description     String
+  merchant        String? // Harcama yapılan yer
+  amount          Float // İşlem tutarı
+  remainingAmount Float // Kalan tutar (taksitlerde düşer)
+  transactionDate DateTime        @default(now())
+
   // Taksit Bilgisi
-  totalInstallments   Int       @default(1) // 1 = tek çekim
-  currentInstallment  Int       @default(1) // Şu anki taksit no
-  
+  totalInstallments  Int @default(1) // 1 = tek çekim
+  currentInstallment Int @default(1) // Şu anki taksit no
+
   // Nakit Avans
-  isCashAdvance       Boolean   @default(false)
-  
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  
-  creditCard          CreditCard      @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
-  statement           CardStatement?  @relation(fields: [statementId], references: [id])
-  installments        CardInstallment[]
+  isCashAdvance Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creditCard   CreditCard        @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  statement    CardStatement?    @relation(fields: [statementId], references: [id])
+  installments CardInstallment[]
 }
 
 model CardInstallment {
-  id                  String    @id @default(cuid())
-  transactionId       String
-  statementId         String?   // Hangi ekstreye düştüğü
-  
-  installmentNo       Int       // Taksit numarası
-  amount              Float     // Bu taksitin tutarı
-  dueDate             DateTime  // Vade tarihi
-  isPaid              Boolean   @default(false)
-  paidDate            DateTime?
-  
-  createdAt           DateTime  @default(now())
-  
-  transaction         CardTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
-  statement           CardStatement?  @relation(fields: [statementId], references: [id])
+  id            String  @id @default(cuid())
+  transactionId String
+  statementId   String? // Hangi ekstreye düştüğü
+
+  installmentNo Int // Taksit numarası
+  amount        Float // Bu taksitin tutarı
+  dueDate       DateTime // Vade tarihi
+  isPaid        Boolean   @default(false)
+  paidDate      DateTime?
+
+  createdAt DateTime @default(now())
+
+  transaction CardTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  statement   CardStatement?  @relation(fields: [statementId], references: [id])
 }
 
 model CardPayment {
-  id                  String    @id @default(cuid())
-  creditCardId        String
-  statementId         String?   // Hangi ekstreye sayıldığı
-  
-  amount              Float     // Ödeme tutarı
-  paymentDate         DateTime  @default(now())
-  description         String?   // "Asgari Ödeme", "Tam Ödeme" vb.
-  
+  id           String  @id @default(cuid())
+  creditCardId String
+  statementId  String? // Hangi ekstreye sayıldığı
+
+  amount      Float // Ödeme tutarı
+  paymentDate DateTime @default(now())
+  description String? // "Asgari Ödeme", "Tam Ödeme" vb.
+
   // Dağıtım Detayı (JSON)
-  allocationDetail    Json?     // { overdueInterest, overduePrincipal, currentInterest, currentPrincipal, ... }
-  
-  createdAt           DateTime  @default(now())
-  
-  creditCard          CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
-  statement           CardStatement? @relation(fields: [statementId], references: [id])
+  allocationDetail Json? // { overdueInterest, overduePrincipal, currentInterest, currentPrincipal, ... }
+
+  createdAt DateTime @default(now())
+
+  creditCard CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  statement  CardStatement? @relation(fields: [statementId], references: [id])
 }
 
 model InterestAccrual {
-  id                  String    @id @default(cuid())
-  creditCardId        String
-  statementId         String?
-  
-  type                InterestType
-  baseAmount          Float     // Faiz hesaplanan anapara
-  rate                Float     // Aylık oran
-  dayCount            Int       // Gün sayısı
-  interest            Float     // Hesaplanan saf faiz
-  kkdf                Float     // KKDF tutarı
-  bsmv                Float     // BSMV tutarı
-  totalCost           Float     // Faiz + KKDF + BSMV
-  
-  calculatedAt        DateTime  @default(now())
-  
-  creditCard          CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
-  statement           CardStatement? @relation(fields: [statementId], references: [id])
+  id           String  @id @default(cuid())
+  creditCardId String
+  statementId  String?
+
+  type       InterestType
+  baseAmount Float // Faiz hesaplanan anapara
+  rate       Float // Aylık oran
+  dayCount   Int // Gün sayısı
+  interest   Float // Hesaplanan saf faiz
+  kkdf       Float // KKDF tutarı
+  bsmv       Float // BSMV tutarı
+  totalCost  Float // Faiz + KKDF + BSMV
+
+  calculatedAt DateTime @default(now())
+
+  creditCard CreditCard     @relation(fields: [creditCardId], references: [id], onDelete: Cascade)
+  statement  CardStatement? @relation(fields: [statementId], references: [id])
+}
+
+// ============================================================
+// 👤 KİŞİ YÖNETİMİ (Faz 1)
+// ============================================================
+
+model Person {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  phone     String?
+  email     String?
+  notes     String?  @db.Text
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user                User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  receivablesPayables ReceivablePayable[]
+
+  @@index([userId])
+}
+
+// ============================================================
+// 💰 ALACAK / VERECEK SİSTEMİ (Faz 1)
+// ============================================================
+
+model ReceivablePayable {
+  id               String    @id @default(cuid())
+  userId           String
+  personId         String
+  type             RPType
+  description      String
+  originalAmount   Float
+  remainingAmount  Float
+  currency         String    @default("TRY")
+  dueDate          DateTime?
+  status           RPStatus  @default(OPEN)
+  notes            String?   @db.Text
+  isInstallment    Boolean   @default(false)
+  installmentCount Int?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  person       Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
+  transactions RPTransaction[]
+
+  @@index([userId])
+  @@index([personId])
+  @@index([status])
+}
+
+model RPTransaction {
+  id                  String   @id @default(cuid())
+  receivablePayableId String
+  amount              Float
+  transactionDate     DateTime @default(now())
+  accountId           String?
+  description         String?
+  createdAt           DateTime @default(now())
+
+  receivablePayable ReceivablePayable @relation(fields: [receivablePayableId], references: [id], onDelete: Cascade)
+  account           Account?          @relation(fields: [accountId], references: [id])
+  ledgerEntries     LedgerEntry[]
+
+  @@index([receivablePayableId])
+}
+
+// ============================================================
+// 🏦 HESAP / CÜZDAN SİSTEMİ (Faz 1)
+// ============================================================
+
+model Account {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      AccountType
+  balance   Float       @default(0)
+  currency  String      @default("TRY")
+  bankName  String?
+  iban      String?
+  isDefault Boolean     @default(false)
+  isActive  Boolean     @default(true)
+  notes     String?     @db.Text
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rpTransactions RPTransaction[]
+  ledgerEntries  LedgerEntry[]
+
+  @@index([userId])
+}
+
+// ============================================================
+// 📒 BİRLEŞİK İŞLEM DEFTERİ (Faz 1)
+// ============================================================
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  userId      String
+  type        LedgerEntryType
+  amount      Float
+  currency    String          @default("TRY")
+  description String?
+  category    String?
+  date        DateTime        @default(now())
+
+  // İlişkiler (opsiyonel — işlem tipine göre)
+  accountId       String?
+  personId        String?
+  creditCardId    String?
+  debtId          String?
+  subscriptionId  String?
+  rpTransactionId String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       Account?       @relation(fields: [accountId], references: [id])
+  rpTransaction RPTransaction? @relation(fields: [rpTransactionId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+  @@index([date])
+  @@index([accountId])
+}
+
+// ============================================================
+// ⚙️ AYARLAR SİSTEMİ (Faz 1)
+// ============================================================
+
+model CardFinanceSettings {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  contractualRate        Float    @default(4.42)
+  defaultRate            Float    @default(5.42)
+  cashAdvanceRate        Float    @default(5.92)
+  minPaymentRateBelow50k Float    @default(0.20)
+  minPaymentRateAbove50k Float    @default(0.40)
+  kkdfRate               Float    @default(0.15)
+  bsmvRate               Float    @default(0.15)
+  lastUpdated            DateTime @default(now())
+  notes                  String?  @db.Text
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AppSettings {
+  id          String   @id @default(cuid())
+  userId      String
+  key         String
+  value       String   @db.Text
+  isEncrypted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+// ============================================================
+// 🎯 HEDEF & MOTİVASYON (Faz 1)
+// ============================================================
+
+model FinancialGoal {
+  id            String     @id @default(cuid())
+  userId        String
+  title         String
+  description   String?    @db.Text
+  targetAmount  Float
+  currentAmount Float      @default(0)
+  targetDate    DateTime
+  status        GoalStatus @default(GOAL_ACTIVE)
+  category      String?
+  relatedDebtId String?
+  relatedCardId String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================================================
+// 📊 FİNANSAL SAĞLIK (Faz 1)
+// ============================================================
+
+model HealthSnapshot {
+  id                 String   @id @default(cuid())
+  userId             String
+  score              Int
+  level              String
+  totalAssets        Float
+  totalDebts         Float
+  netWorth           Float
+  liquidityRatio     Float
+  leverageRatio      Float
+  creditUtilization  Float?
+  monthlyDebtService Float?
+  fixedExpenseRatio  Float?
+  improvementTips    Json?
+  breakdown          Json?
+  calculatedAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([calculatedAt])
+}
+
+// ============================================================
+// 🤖 AI ÖNERİLERİ (Faz 1)
+// ============================================================
+
+model AIRecommendation {
+  id              String   @id @default(cuid())
+  userId          String
+  type            String
+  title           String
+  content         String   @db.Text
+  reasoning       String?  @db.Text
+  risk            String?
+  suggestedAction String?  @db.Text
+  isRead          Boolean  @default(false)
+  isActedOn       Boolean  @default(false)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+}
+
+// ============================================================
+// 📋 KAYITLI ÖDEME PLANI (Faz 1)
+// ============================================================
+
+model SavedPaymentPlan {
+  id             String   @id @default(cuid())
+  userId         String
+  month          DateTime
+  strategy       String
+  totalAvailable Float
+  planData       Json
+  isApplied      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

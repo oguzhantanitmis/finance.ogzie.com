@@ -4,59 +4,33 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
+import { composeFinancialContext } from '@/lib/ai/context-composer'
+import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
+import { getSetting } from '@/lib/settings-service'
 
 export const dynamic = 'force-dynamic'
 
-type CommandType = 'ADD_EXPENSE' | 'ADD_INCOME' | 'QUERY_BALANCE' | 'QUERY_DEBT' | 'QUERY_CARDS' | 'GREETING' | 'UNKNOWN'
+type CommandType = 'ADD_EXPENSE' | 'ADD_INCOME' | 'QUERY_BALANCE' | 'QUERY_DEBT' | 'QUERY_CARDS' | 'QUERY_HEALTH' | 'QUERY_GOALS' | 'QUERY_ACCOUNTS' | 'QUERY_SUBSCRIPTIONS' | 'GREETING' | 'AI_CHAT' | 'UNKNOWN'
 
-interface ParsedCommand {
-    type: CommandType
-    amount?: number
-    currency?: string
-    category?: string
-}
-
-function parseCommand(text: string): ParsedCommand {
+function parseCommand(text: string): CommandType {
     const lowerText = text.toLowerCase()
 
-    if (['selam', 'merhaba', 'günaydın', 'iyi geceler', 'hey', 'naber'].some((word) => lowerText.includes(word))) {
-        return { type: 'GREETING' }
-    }
+    if (['selam', 'merhaba', 'günaydın', 'iyi geceler', 'hey', 'naber'].some((word) => lowerText.includes(word))) return 'GREETING'
 
     const incomeMatch = lowerText.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)
     const expenseMatch = lowerText.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)
+    if (incomeMatch) return 'ADD_INCOME'
+    if (expenseMatch) return 'ADD_EXPENSE'
 
-    if (lowerText.includes('kart') || lowerText.includes('ekstre') || lowerText.includes('asgari') || lowerText.includes('faiz')) {
-        return { type: 'QUERY_CARDS' }
-    }
+    if (lowerText.includes('sağlık') || lowerText.includes('puan') || lowerText.includes('skor')) return 'QUERY_HEALTH'
+    if (lowerText.includes('hedef')) return 'QUERY_GOALS'
+    if (lowerText.includes('hesap') || lowerText.includes('bakiye')) return 'QUERY_ACCOUNTS'
+    if (lowerText.includes('abonelik') || lowerText.includes('tasarruf')) return 'QUERY_SUBSCRIPTIONS'
+    if (lowerText.includes('kart') || lowerText.includes('ekstre') || lowerText.includes('asgari') || lowerText.includes('faiz')) return 'QUERY_CARDS'
+    if (lowerText.includes('borç') || lowerText.includes('borcum') || lowerText.includes('kredi') || lowerText.includes('ödemem')) return 'QUERY_DEBT'
+    if (lowerText.includes('durum') || lowerText.includes('analiz') || lowerText.includes('risk') || lowerText.includes('rapor') || lowerText.includes('özetle') || lowerText.includes('özet')) return 'QUERY_BALANCE'
 
-    if (lowerText.includes('borç') || lowerText.includes('borcum') || lowerText.includes('kredi') || lowerText.includes('ödemem')) {
-        return { type: 'QUERY_DEBT' }
-    }
-
-    if (lowerText.includes('durum') || lowerText.includes('analiz') || lowerText.includes('risk') || lowerText.includes('rapor') || lowerText.includes('bakiye')) {
-        return { type: 'QUERY_BALANCE' }
-    }
-
-    if (incomeMatch) {
-        return {
-            type: 'ADD_INCOME',
-            amount: Number(incomeMatch[1].replace(',', '.')),
-            currency: mapCurrency(incomeMatch[2]),
-            category: incomeMatch[3].trim() || 'Gelir',
-        }
-    }
-
-    if (expenseMatch) {
-        return {
-            type: 'ADD_EXPENSE',
-            amount: Number(expenseMatch[1].replace(',', '.')),
-            currency: mapCurrency(expenseMatch[2]),
-            category: expenseMatch[3].trim() || 'Genel',
-        }
-    }
-
-    return { type: 'UNKNOWN' }
+    return 'AI_CHAT'
 }
 
 function mapCurrency(input?: string) {
@@ -73,123 +47,117 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-        })
-
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
+        const user = await prisma.user.findUnique({ where: { email: session.user.email } })
+        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const { prompt } = (await req.json()) as { prompt: string }
-        const command = parseCommand(prompt)
+        const commandType = parseCommand(prompt)
+
+        // Context-aware: tüm finansal veriyi topla
+        const context = await composeFinancialContext(user.id)
         const summary = await getMonthlyBudgetSummary(user.id)
-        const creditCards = await prisma.creditCard.findMany({
-            where: { userId: user.id },
-            include: {
-                transactions: true,
-                payments: true,
-            },
-        })
-        const debts = await prisma.debt.findMany({
-            where: { userId: user.id },
-            include: {
-                paymentPlan: {
-                    where: { isPaid: false },
-                    orderBy: { dueDate: 'asc' },
-                    take: 3,
-                },
-            },
-        })
 
         let responseText = ''
 
-        switch (command.type) {
+        // OpenAI API key kontrolü
+        const apiKey = await getSetting(user.id, 'ai.openai_api_key') ?? process.env.OPENAI_API_KEY
+
+        switch (commandType) {
             case 'GREETING':
-                responseText = `Merhaba. Bu ay planlanan gelir ${summary.plannedIncome.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}, sabit yük ${summary.fixedCommitments.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}, serbest nakit ${summary.freeCash.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}.`
+                responseText = `Merhaba! Ben senin finans koçunum. ${context.split('\n').slice(0, 5).join(' ').substring(0, 200)}...
+
+Bana şunları sorabilirsin:
+• "Bu ayki durumumu özetle"
+• "Borç stratejisi öner"
+• "Abonelik analizi yap"
+• "Sağlık puanımı açıkla"`
                 break
 
-            case 'ADD_INCOME':
-                if (command.amount) {
+            case 'ADD_INCOME': {
+                const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)
+                if (match) {
+                    const amount = Number(match[1].replace(',', '.'))
+                    const currency = mapCurrency(match[2])
+                    const category = match[3].trim() || 'Gelir'
                     await prisma.transaction.create({
-                        data: {
-                            userId: user.id,
-                            amount: command.amount,
-                            type: 'INCOME',
-                            category: command.category ?? 'Gelir',
-                            description: `AI Chat: ${command.category ?? 'Gelir'}`,
-                        },
+                        data: { userId: user.id, amount, type: 'INCOME', category, description: `AI Chat: ${category}` },
                     })
-                    responseText = `Tamam. ${command.amount.toLocaleString('tr-TR', { style: 'currency', currency: command.currency ?? 'TRY' })} gelir olarak işlendi.`
+                    responseText = `✅ ${amount.toLocaleString('tr-TR', { style: 'currency', currency })} gelir olarak işlendi.`
                 }
-                break
-
-            case 'ADD_EXPENSE':
-                if (command.amount) {
-                    await prisma.transaction.create({
-                        data: {
-                            userId: user.id,
-                            amount: command.amount,
-                            type: 'EXPENSE',
-                            category: command.category ?? 'Gider',
-                            description: `AI Chat: ${command.category ?? 'Gider'}`,
-                        },
-                    })
-                    responseText = `Tamam. ${command.amount.toLocaleString('tr-TR', { style: 'currency', currency: command.currency ?? 'TRY' })} gider olarak işlendi.`
-                }
-                break
-
-            case 'QUERY_BALANCE':
-                responseText =
-                    `Finansal özet:\n` +
-                    `- Planlanan gelir: ${summary.plannedIncome.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}\n` +
-                    `- Sabit yük: ${summary.fixedCommitments.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}\n` +
-                    `- Borç baskısı: ${summary.debtCommitments.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}\n` +
-                    `- Serbest nakit: ${summary.freeCash.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}\n` +
-                    `- Net değer: ${summary.netWorth.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}`
-                break
-
-            case 'QUERY_DEBT': {
-                const totalDebt = debts.reduce((sum, debt) => sum + debt.remainingBalance, 0)
-                const nearest = debts
-                    .flatMap((debt) => debt.paymentPlan.map((plan) => ({ debtName: debt.name, plan })))
-                    .sort((left, right) => left.plan.dueDate.getTime() - right.plan.dueDate.getTime())[0]
-
-                responseText =
-                    `Borç raporu:\n` +
-                    `- Toplam borç: ${totalDebt.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}\n` +
-                    `- Bu ay ödeme baskısı: ${summary.debtCommitments.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}\n` +
-                    (nearest
-                        ? `- En yakın taksit: ${nearest.debtName} / ${nearest.plan.amount.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} / ${nearest.plan.dueDate.toLocaleDateString('tr-TR')}`
-                        : '- Kayıtlı yakın taksit görünmüyor')
                 break
             }
 
-            case 'QUERY_CARDS':
-                if (creditCards.length === 0) {
-                    responseText = 'Sistemde kayıtlı kredi kartı görünmüyor.'
-                    break
+            case 'ADD_EXPENSE': {
+                const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)
+                if (match) {
+                    const amount = Number(match[1].replace(',', '.'))
+                    const currency = mapCurrency(match[2])
+                    const category = match[3].trim() || 'Gider'
+                    await prisma.transaction.create({
+                        data: { userId: user.id, amount, type: 'EXPENSE', category, description: `AI Chat: ${category}` },
+                    })
+                    responseText = `✅ ${amount.toLocaleString('tr-TR', { style: 'currency', currency })} gider olarak işlendi.`
                 }
-
-                responseText = `Kredi kartı özeti (${creditCards.length} kart):\n\n`
-                creditCards.forEach((card) => {
-                    const charges = card.transactions
-                        .filter((transaction) => transaction.type !== 'REFUND')
-                        .reduce((sum, transaction) => sum + transaction.amount, 0)
-                    const refunds = card.transactions
-                        .filter((transaction) => transaction.type === 'REFUND')
-                        .reduce((sum, transaction) => sum + transaction.amount, 0)
-                    const payments = card.payments.reduce((sum, payment) => sum + payment.amount, 0)
-                    const debt = Math.max(charges - refunds - payments, 0)
-                    const utilization = card.totalLimit > 0 ? (debt / card.totalLimit) * 100 : 0
-
-                    responseText += `- ${card.cardName}: ${debt.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })} borç, limit kullanım ${utilization.toFixed(0)}%\n`
-                })
                 break
+            }
 
-            default:
-                responseText =
-                    "Şunu deneyebilirsin:\n- 'Durum analizi yap'\n- 'Borcum ne kadar?'\n- 'Kart analizi'\n- '500 TL harcadım'"
+            case 'AI_CHAT': {
+                // OpenAI varsa gerçek AI, yoksa context-based fallback
+                if (apiKey) {
+                    try {
+                        const model = await getSetting(user.id, 'ai.model') ?? 'gpt-4.1-mini'
+                        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                            body: JSON.stringify({
+                                model,
+                                messages: [
+                                    { role: 'system', content: buildSystemPrompt() },
+                                    { role: 'user', content: buildChatPrompt(context, prompt) },
+                                ],
+                                max_tokens: 1000,
+                                temperature: 0.7,
+                            }),
+                        })
+                        const aiData = await aiResponse.json()
+                        responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
+                    } catch (aiError) {
+                        console.error('OpenAI Error:', aiError)
+                        responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
+                    }
+                } else {
+                    responseText = generateFallbackAnalysis(context) + '\n\n💡 Daha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.'
+                }
+                break
+            }
+
+            default: {
+                // Diğer tüm sorgu türleri de context-aware
+                if (apiKey) {
+                    try {
+                        const model = await getSetting(user.id, 'ai.model') ?? 'gpt-4.1-mini'
+                        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                            body: JSON.stringify({
+                                model,
+                                messages: [
+                                    { role: 'system', content: buildSystemPrompt() },
+                                    { role: 'user', content: buildChatPrompt(context, prompt) },
+                                ],
+                                max_tokens: 1000,
+                                temperature: 0.7,
+                            }),
+                        })
+                        const aiData = await aiResponse.json()
+                        responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
+                    } catch {
+                        responseText = generateContextResponse(commandType, context, summary)
+                    }
+                } else {
+                    responseText = generateContextResponse(commandType, context, summary)
+                }
+            }
         }
 
         return NextResponse.json({ text: responseText, role: 'assistant' })
@@ -197,4 +165,38 @@ export async function POST(req: Request) {
         console.error('AI API Error:', error)
         return NextResponse.json({ error: `AI Service Unavailable: ${String(error)}` }, { status: 500 })
     }
+}
+
+function generateContextResponse(type: CommandType, context: string, summary: { plannedIncome: number; fixedCommitments: number; debtCommitments: number; freeCash: number; netWorth: number }) {
+    const fmt = (n: number) => n.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+
+    switch (type) {
+        case 'QUERY_BALANCE':
+            return `📊 Finansal Özet:\n\n• Planlanan gelir: ${fmt(summary.plannedIncome)}\n• Sabit yük: ${fmt(summary.fixedCommitments)}\n• Borç baskısı: ${fmt(summary.debtCommitments)}\n• Serbest nakit: ${fmt(summary.freeCash)}\n• Net değer: ${fmt(summary.netWorth)}`
+        case 'QUERY_HEALTH':
+            return extractSection(context, 'FİNANSAL SAĞLIK') || 'Sağlık puanı hesaplanamadı.'
+        case 'QUERY_GOALS':
+            return extractSection(context, 'AKTİF HEDEFLER') || 'Aktif hedef bulunamadı. /goals sayfasından hedef ekleyebilirsin.'
+        case 'QUERY_ACCOUNTS':
+            return extractSection(context, 'HESAPLAR') || 'Hesap bulunamadı. /accounts sayfasından hesap ekleyebilirsin.'
+        case 'QUERY_SUBSCRIPTIONS':
+            return extractSection(context, 'AYLIK GELİR-GİDER') || 'Abonelik verisi bulunamadı.'
+        case 'QUERY_CARDS':
+            return extractSection(context, 'KREDİ KARTLARI') || 'Kayıtlı kredi kartı bulunamadı.'
+        case 'QUERY_DEBT':
+            return (extractSection(context, 'BORÇLAR') || '') + '\n\n' + `Borç baskısı: ${fmt(summary.debtCommitments)}`
+        default:
+            return `Finansal verilerine göre:\n\n${context.split('\n').slice(0, 15).join('\n')}\n\nDaha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.`
+    }
+}
+
+function extractSection(context: string, sectionName: string): string | null {
+    const regex = new RegExp(`=== ${sectionName}.*?===\\n([\\s\\S]*?)(?=\\n===|$)`)
+    const match = context.match(regex)
+    return match ? match[1].trim() : null
+}
+
+function generateFallbackAnalysis(context: string): string {
+    const lines = context.split('\n').filter((l) => l.trim() && !l.startsWith('==='))
+    return lines.slice(0, 12).join('\n')
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff, MoreHorizontal, Repeat, ReceiptText, LogOut } from 'lucide-react'
+import { Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff, MoreHorizontal, Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen, Target, BarChart3, Activity, Wand2, Settings } from 'lucide-react'
 import { useFinance } from './FinanceContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -14,14 +14,23 @@ export default function Navbar() {
     const navItems = [
         { name: 'Genel Bakış', icon: Home, path: '/' },
         { name: 'Varlıklar', icon: Wallet, path: '/assets' },
+        { name: 'Hesaplar', icon: Landmark, path: '/accounts' },
+        { name: 'Kişiler', icon: Users, path: '/people' },
         { name: 'Borçlar', icon: CreditCard, path: '/debts' },
         { name: 'Kartlarım', icon: CreditCard, path: '/cards' },
         { name: 'Abonelikler', icon: MoreHorizontal, path: '/subscriptions' },
         { name: 'Sabit Giderler', icon: Repeat, path: '/recurring' },
         { name: 'Bütçe', icon: ReceiptText, path: '/budget' },
+        { name: 'İşlemler', icon: BookOpen, path: '/transactions' },
+        { name: 'Ödeme Planı', icon: CreditCard, path: '/payment-plan' },
+        { name: 'Hedefler', icon: Target, path: '/goals' },
+        { name: 'Raporlar', icon: BarChart3, path: '/reports' },
+        { name: 'Sağlık Puanı', icon: Activity, path: '/health' },
         { name: 'Analiz', icon: PieChart, path: '/analytics' },
+        { name: 'Simülasyon', icon: Wand2, path: '/simulations' },
 
         { name: 'Finans Asistanı', icon: MessageSquare, path: '/ai' },
+        { name: 'Ayarlar', icon: Settings, path: '/settings' },
     ]
 
     return (
