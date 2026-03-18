@@ -1,108 +1,60 @@
-import { prisma } from './prisma'
-import { calculateRiskScore } from './finance-risk-score'
-import { getMarketRates, calculateAssetValue } from './market-data'
+'use server'
 
-export type InsightType = 'INFO' | 'WARNING' | 'SUCCESS' | 'RISK'
+import { prisma } from '@/lib/prisma'
+import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
 
-export interface GeneratedInsight {
-    title: string
-    content: string
-    type: InsightType
-}
+/**
+ * Ücretsiz (0 API cost), deterministik çalışarak temel altyapı önerileri sunar.
+ * OpenAI'e gitmeden kullanıcının durumunu hızlıca değerlendirir.
+ */
+export async function generateLocalInsights(userId: string) {
+    const recommendations: { title: string, content: string, type: 'ALERT' | 'INFO' | 'SUCCESS', risk?: string, action?: string }[] = []
 
-export async function generateInsights(userId?: string): Promise<GeneratedInsight[]> {
-    const assets = await prisma.asset.findMany({ where: userId ? { userId } : {} })
-    const debts = await prisma.debt.findMany({ where: userId ? { userId } : {} })
-    const subscriptions = await prisma.subscription.findMany({ where: userId ? { userId } : {} })
-    const creditCards = await prisma.creditCard.findMany({
-        where: userId ? { userId } : {},
-        include: { transactions: true, payments: true }
-    })
-    const marketRates = await getMarketRates()
+    const [accounts, cards, debts, subscriptions] = await Promise.all([
+        prisma.account.findMany({ where: { userId, isActive: true } }),
+        prisma.creditCard.findMany({ where: { userId, status: 'ACTIVE' }, include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1 } } }),
+        prisma.debt.findMany({ where: { userId } }),
+        prisma.subscription.findMany({ where: { userId, isActive: true } })
+    ])
 
-    const insights: GeneratedInsight[] = []
-
-    // 1. Risk Skoru Analizi
-    const risk = calculateRiskScore(assets, debts, marketRates, creditCards)
-    if (risk.score < 40) {
-        insights.push({
-            title: "Yüksek Finansal Risk",
-            content: `Finansal risk skorun ${risk.score}/100 seviyesinde. Borç yükün varlıklarına göre çok yüksek. Acilen bir ödeme planı oluşturmalısın.`,
-            type: 'RISK'
-        })
-    } else if (risk.score > 80) {
-        insights.push({
-            title: "Mükemmel Finansal Sağlık",
-            content: `Tebrikler! ${risk.score} skor ile finansal olarak çok güvenli bir noktadasın. Yatırımlarını çeşitlendirmeyi düşünebilirsin.`,
-            type: 'SUCCESS'
+    // Nakit Akışı Riski (Cashflow Warning)
+    const availableCash = await getAvailableCash(userId)
+    const shortTermDebts = debts.filter(d => ['CREDIT_CARD', 'PERSONAL_LOAN'].includes(d.type)).reduce((sum, d) => sum + d.remainingBalance, 0)
+    if (shortTermDebts > availableCash && availableCash > 0) {
+        recommendations.push({
+            type: 'ALERT',
+            title: 'Nakit Akışı Riski',
+            content: `Kısa vadeli borç yükünüz (${shortTermDebts} TL) nakit varlığınızı (${availableCash} TL) aşıyor.`,
+            risk: 'Beklenmedik masraflarda likidite problemi yaşanabilir.',
+            action: 'Nakit akışınızı rahatlatmak için mevcut nakdinizi acil durumlara saklayın ve kredi kartı asgari tutarlarını düzenli ödeyin.'
         })
     }
 
-    // 2. Abonelik Analizi
-    const totalSubs = subscriptions.reduce((acc, s) => acc + s.amount, 0)
-    const totalAssets = assets.reduce((acc, a) => acc + calculateAssetValue(a.amount, a.type, a.currency, marketRates), 0)
-
-    if (totalSubs > 0) {
-        const subRatio = (totalSubs / (totalAssets || 1)) * 100
-        if (subRatio > 5) {
-            insights.push({
-                title: "Abonelik Yükü Uyarısı",
-                content: `Aboneliklerin aylık ${totalSubs.toLocaleString('tr-TR')} TL tutuyor. Bu, toplam varlığının %${subRatio.toFixed(1)}'ine denk geliyor. Gereksiz abonelikleri iptal etmeyi düşün.`,
-                type: 'WARNING'
+    // Limit Riski (High Credit Utilization)
+    for (const c of cards) {
+        const debt = c.statements[0]?.statementBalance ?? 0
+        if (c.totalLimit > 0 && (debt / c.totalLimit) > 0.8) {
+            recommendations.push({
+                type: 'ALERT',
+                title: 'Yüksek Kredi Kullanımı',
+                content: `${c.cardName} kartınızın limitini %80'in üzerinde kullanıyorsunuz.`,
+                risk: 'Kredi puanınızı olumsuz etkileyebilir.',
+                action: 'Yeni harcamaları nakit veya banka kartı ile yapın.'
             })
         }
     }
 
-    // 3. Likidite Analizi
-    if (risk.liquidityRatio < 1) {
-        insights.push({
-            title: "Nakit Akışı Sıkışıklığı",
-            content: "Kısa vadeli likidite oranını 1'in altında görüyorum. Ödemelerini yapmakta zorlanabilirsin, nakit rezervini artırmalısın.",
-            type: 'WARNING'
+    // Abonelik Mükerrerliği (Duplicate Subscriptions)
+    const subNames = subscriptions.map(s => s.name.toLowerCase().trim())
+    const duplicates = subNames.filter((item, index) => subNames.indexOf(item) !== index)
+    if (duplicates.length > 0) {
+        recommendations.push({
+            type: 'INFO',
+            title: 'Olası Çift Abonelik',
+            content: `"${duplicates[0]}" isimli aboneliğinize benzer birden fazla aktif abonelik tespit ettik.`,
+            action: 'Abonelikler sayfasından ilgili hizmeti iptal ederek tasarruf edebilirsiniz.'
         })
     }
 
-    // 4. Kart Kullanım Analizi
-    creditCards.forEach(card => {
-        const charges = card.transactions
-            .filter((t: any) => t.type !== 'REFUND')
-            .reduce((s: number, t: any) => s + t.amount, 0)
-        const payments = card.payments.reduce((s: number, p: any) => s + p.amount, 0)
-        const debt = Math.max(charges - payments, 0)
-        const utilization = (debt / (card.totalLimit || 1)) * 100
-
-        if (utilization > 80) {
-            insights.push({
-                title: `${card.cardName} Limit Uyarısı`,
-                content: `${card.cardName} kartının limitinin %${utilization.toFixed(0)} kadarını kullanmışsın. Bu durum kredi skorunu olumsuz etkileyebilir.`,
-                type: 'WARNING'
-            })
-        }
-    })
-
-    return insights
-}
-
-export async function refreshInsights(userId?: string) {
-    const newInsights = await generateInsights(userId)
-
-    // Eski okunmamış insightları temizle (isteğe bağlı, şimdilik sadece ekleyelim)
-    for (const insight of newInsights) {
-        // Aynı başlıkta yakın zamanda eklenmiş bir insight var mı kontrol et
-        const existing = await prisma.aIInsight.findFirst({
-            where: {
-                title: insight.title,
-                createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Son 24 saat
-            }
-        })
-
-        if (!existing) {
-            await prisma.aIInsight.create({
-                data: {
-                    ...insight,
-                    userId
-                }
-            })
-        }
-    }
+    return recommendations
 }

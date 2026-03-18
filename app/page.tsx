@@ -9,6 +9,7 @@ import InsightFeed from '@/components/InsightFeed'
 import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import SummaryCards from '@/components/SummaryCards'
+import AIRecommendationWidget from '@/components/AIRecommendationWidget'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
@@ -73,6 +74,12 @@ export default async function Home() {
         take: 3,
     })
 
+    const aiRecommendations = await prisma.aIRecommendation.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+    })
+
     return (
         <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
             <Navbar />
@@ -100,6 +107,8 @@ export default async function Home() {
                 <AIHeader
                     summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
                 />
+
+                <AIRecommendationWidget recommendations={aiRecommendations} />
 
                 <InsightFeed insights={insights} />
 
