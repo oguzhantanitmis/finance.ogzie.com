@@ -11,21 +11,32 @@ export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    let openAiKey = ''
-    let aiModel = ''
-    let aiBaseUrl = ''
+    let aiConnectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR' = 'BEKLENİYOR'
     let cardSettingsData: Parameters<typeof SettingsWorkspace>[0]['cardSettings'] = null
 
     try {
         const cardSettings = await getCardFinanceSettings(user.id)
     
-        // Opsiyonel AI ayarları
-        try {
-            const { getSetting } = await import('@/lib/settings-service')
-            openAiKey = await getSetting(user.id, 'ai.openai_api_key') ?? ''
-            aiModel = await getSetting(user.id, 'ai.model') ?? ''
-            aiBaseUrl = await getSetting(user.id, 'ai.base_url') ?? ''
-        } catch { /* ignore if unmigrated */ }
+        // AI Bağlantı Kontrolü (Sadece OPENAI_API_KEY var mı ve çalışıyor mu)
+        const apiKey = process.env.OPENAI_API_KEY
+        if (apiKey) {
+            try {
+                // OpenAI API'sini test et (Modelleri listele)
+                const res = await fetch('https://api.openai.com/v1/models', {
+                    headers: { 'Authorization': `Bearer ${apiKey}` },
+                    next: { revalidate: 3600 } // Saatte bir test et, her sayfaya girişte değil
+                })
+                if (res.ok) {
+                    aiConnectionStatus = 'HAZIR'
+                } else {
+                    aiConnectionStatus = 'BAĞLANTI HATASI'
+                }
+            } catch {
+                aiConnectionStatus = 'BAĞLANTI HATASI'
+            }
+        } else {
+            aiConnectionStatus = 'BEKLENİYOR'
+        }
         
         if (cardSettings) {
             cardSettingsData = {
@@ -55,7 +66,7 @@ export default async function SettingsPage() {
                         Genel kart faiz oranları ve uygulama ayarları.
                     </p>
                 </header>
-                <SettingsWorkspace cardSettings={cardSettingsData} openAiKey={openAiKey} aiModel={aiModel} aiBaseUrl={aiBaseUrl} />
+                <SettingsWorkspace cardSettings={cardSettingsData} aiConnectionStatus={aiConnectionStatus} />
             </PageShell>
         </div>
     )

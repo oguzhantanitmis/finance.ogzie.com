@@ -60,7 +60,7 @@ export async function POST(req: Request) {
         let responseText = ''
 
         // OpenAI API key kontrolü
-        const apiKey = await getSetting(user.id, 'ai.openai_api_key') ?? process.env.OPENAI_API_KEY
+        const apiKey = process.env.OPENAI_API_KEY
 
         switch (commandType) {
             case 'GREETING':
@@ -105,8 +105,8 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const model = await getSetting(user.id, 'ai.model') || 'gpt-4o-mini'
-                        const rawBaseUrl = await getSetting(user.id, 'ai.base_url')
+                        const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+                        const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
                         
                         const aiResponse = await fetch(`${baseUrl}/chat/completions`, {
@@ -138,8 +138,8 @@ Bana şunları sorabilirsin:
                 // Diğer tüm sorgu türleri de context-aware
                 if (apiKey) {
                     try {
-                        const model = await getSetting(user.id, 'ai.model') || 'gpt-4o-mini'
-                        const rawBaseUrl = await getSetting(user.id, 'ai.base_url')
+                        const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+                        const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
                         const aiResponse = await fetch(`${baseUrl}/chat/completions`, {

@@ -11,12 +11,10 @@ interface CardSettingsData {
 
 interface Props {
     cardSettings: CardSettingsData | null
-    openAiKey: string
-    aiModel: string
-    aiBaseUrl: string
+    aiConnectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
 }
 
-export default function SettingsWorkspace({ cardSettings, openAiKey, aiModel, aiBaseUrl }: Props) {
+export default function SettingsWorkspace({ cardSettings, aiConnectionStatus }: Props) {
     return (
         <div className="space-y-8">
             {/* Genel Kart Faiz Ayarları */}
@@ -80,48 +78,39 @@ export default function SettingsWorkspace({ cardSettings, openAiKey, aiModel, ai
                     <h2 className="text-xl font-bold text-white">Yapay Zeka Asistanı</h2>
                 </div>
                 <p className="text-sm text-zinc-400 mb-6">
-                    Finansal asistanın çalışabilmesi için OpenAI API anahtarınızı girin. Bu anahtar şifrelenerek veritabanında saklanır. Anahtar girmeden de `OPENAI_API_KEY` ortam değişkeniyle kullanabilirsiniz.
+                    Yapay zeka özellikleri için sistem <code>OPENAI_API_KEY</code> çevre değişkenini (environment variable) kullanır. Proje veya organizasyon kimliğine gerek yoktur.
                 </p>
-                <form action={async (formData) => {
-                    const { saveOpenAIApiKeyAction } = await import('@/app/settings/actions')
-                    await saveOpenAIApiKeyAction(formData)
-                }} className="space-y-4">
+                
+                <div className="bg-black border border-white/10 rounded-2xl p-4 flex items-center justify-between">
                     <div>
-                        <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">OpenAI API Key</label>
-                        <input 
-                            name="apiKey" 
-                            type="password" 
-                            placeholder="sk-proj-..." 
-                            defaultValue={openAiKey} 
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
-                        />
+                        <p className="text-sm font-medium text-white mb-1">OPENAI_API_KEY</p>
+                        <p className="text-xs text-zinc-500">
+                            {aiConnectionStatus === 'HAZIR' ? 'OpenAI servisi ile olan bağlantı başarılı.' : 
+                             aiConnectionStatus === 'BAĞLANTI HATASI' ? 'Anahtar geçersiz veya servis anlık olarak ulaşılamaz.' : 
+                             'Sistemde tanımlı bir anahtar bulunamadı.'}
+                        </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Model Adı</label>
-                            <input 
-                                name="aiModel" 
-                                type="text" 
-                                placeholder="gpt-4o-mini" 
-                                defaultValue={aiModel} 
-                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Base URL (Opsiyonel proxy)</label>
-                            <input 
-                                name="aiBaseUrl" 
-                                type="url" 
-                                placeholder="https://api.openai.com/v1" 
-                                defaultValue={aiBaseUrl} 
-                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
-                            />
-                        </div>
+                    <div className="shrink-0 flex items-center pr-2">
+                        {aiConnectionStatus === 'HAZIR' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium tracking-wide border border-emerald-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                BAĞLI
+                            </span>
+                        )}
+                        {aiConnectionStatus === 'BAĞLANTI HATASI' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-medium tracking-wide border border-red-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                HATA
+                            </span>
+                        )}
+                        {aiConnectionStatus === 'BEKLENİYOR' && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-500/10 text-zinc-400 text-xs font-medium tracking-wide border border-zinc-500/20">
+                                <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                                EKSİK
+                            </span>
+                        )}
                     </div>
-                    <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all">
-                        AI Ayarlarını Kaydet
-                    </button>
-                </form>
+                </div>
             </div>
 
             {/* Genel Bilgi */}
