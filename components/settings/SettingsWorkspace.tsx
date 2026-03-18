@@ -11,9 +11,10 @@ interface CardSettingsData {
 
 interface Props {
     cardSettings: CardSettingsData | null
+    openAiKey: string
 }
 
-export default function SettingsWorkspace({ cardSettings }: Props) {
+export default function SettingsWorkspace({ cardSettings, openAiKey }: Props) {
     return (
         <div className="space-y-8">
             {/* Genel Kart Faiz Ayarları */}
@@ -66,6 +67,39 @@ export default function SettingsWorkspace({ cardSettings }: Props) {
                 </form>
             </div>
 
+            {/* AI Asistan Ayarları */}
+            <div className="fintech-card p-6 md:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white">Yapay Zeka Asistanı</h2>
+                </div>
+                <p className="text-sm text-zinc-400 mb-6">
+                    Finansal asistanın çalışabilmesi için OpenAI API anahtarınızı girin. Bu anahtar şifrelenerek veritabanında saklanır. Anahtar girmeden de `OPENAI_API_KEY` ortam değişkeniyle kullanabilirsiniz.
+                </p>
+                <form action={async (formData) => {
+                    const { saveOpenAIApiKeyAction } = await import('@/app/settings/actions')
+                    await saveOpenAIApiKeyAction(formData)
+                }} className="space-y-4">
+                    <div>
+                        <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">OpenAI API Key</label>
+                        <input 
+                            name="apiKey" 
+                            type="password" 
+                            placeholder="sk-proj-..." 
+                            defaultValue={openAiKey} 
+                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white placeholder:text-zinc-600 focus:outline-none focus:border-blue-500/50 transition-colors" 
+                        />
+                    </div>
+                    <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all">
+                        API Anahtarını Kaydet
+                    </button>
+                </form>
+            </div>
+
             {/* Genel Bilgi */}
             <div className="fintech-card p-6">
                 <div className="flex items-center gap-3 mb-4">
@@ -76,7 +110,6 @@ export default function SettingsWorkspace({ cardSettings }: Props) {
                     <p>• Para birimi: TRY (varsayılan)</p>
                     <p>• Finansal hesaplamalar .toFixed(2) hassasiyetinde yapılır</p>
                     <p>• LedgerEntry kayıtları değiştirilemez (immutable)</p>
-                    <p>• API anahtarları ileride bu sayfadan yönetilebilir olacak</p>
                 </div>
             </div>
         </div>

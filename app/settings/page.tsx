@@ -11,10 +11,18 @@ export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
+    let openAiKey = ''
     let cardSettingsData: Parameters<typeof SettingsWorkspace>[0]['cardSettings'] = null
 
     try {
         const cardSettings = await getCardFinanceSettings(user.id)
+    
+        // Opsiyonel AI ayarları
+        try {
+            const { getSetting } = await import('@/lib/settings-service')
+            openAiKey = await getSetting(user.id, 'ai.openai_api_key') ?? ''
+        } catch { /* ignore if unmigrated */ }
+        
         if (cardSettings) {
             cardSettingsData = {
                 contractualRate: cardSettings.contractualRate,
@@ -43,7 +51,7 @@ export default async function SettingsPage() {
                         Genel kart faiz oranları ve uygulama ayarları.
                     </p>
                 </header>
-                <SettingsWorkspace cardSettings={cardSettingsData} />
+                <SettingsWorkspace cardSettings={cardSettingsData} openAiKey={openAiKey} />
             </PageShell>
         </div>
     )
