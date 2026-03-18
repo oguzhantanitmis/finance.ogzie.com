@@ -123,10 +123,15 @@ Bana şunları sorabilirsin:
                             }),
                         })
                         const aiData = await aiResponse.json()
-                        responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
+                        if (!aiResponse.ok) {
+                            console.error('OpenAI API Error:', aiData)
+                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen proxy/API hatası. (HTTP ' + aiResponse.status + ')'}`
+                        } else {
+                            responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
+                        }
                     } catch (aiError) {
                         console.error('OpenAI Error:', aiError)
-                        responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
+                        responseText = `⚠️ AI servisi şu an yanıt veremiyor (Base URL hatalı olabilir). Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
                     }
                 } else {
                     responseText = generateFallbackAnalysis(context) + '\n\n💡 Daha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.'
@@ -156,9 +161,15 @@ Bana şunları sorabilirsin:
                             }),
                         })
                         const aiData = await aiResponse.json()
-                        responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
-                    } catch {
-                        responseText = generateContextResponse(commandType, context, summary)
+                        if (!aiResponse.ok) {
+                            console.error('OpenAI API Error:', aiData)
+                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen proxy/API hatası. (HTTP ' + aiResponse.status + ')'}`
+                        } else {
+                            responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
+                        }
+                    } catch (aiError) {
+                        console.error('OpenAI Error:', aiError)
+                        responseText = `⚠️ AI servisi şu an yanıt veremiyor (Base URL hatalı olabilir). Hataya rağmen verilerine bakayım:\n\n${generateContextResponse(commandType, context, summary)}`
                     }
                 } else {
                     responseText = generateContextResponse(commandType, context, summary)
