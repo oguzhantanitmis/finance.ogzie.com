@@ -11,7 +11,20 @@ export default async function GoalsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const goals = await getGoals(user.id)
+    let serializedGoals: Array<{ id: string; title: string; description: string | null; targetAmount: number; currentAmount: number; targetDate: string; status: string; category: string | null; createdAt: string; updatedAt: string; progressPercent: number }> = []
+
+    try {
+        const goals = await getGoals(user.id)
+        serializedGoals = goals.map((g) => ({
+            ...g,
+            targetDate: g.targetDate.toISOString(),
+            createdAt: g.createdAt.toISOString(),
+            updatedAt: g.updatedAt.toISOString(),
+            progressPercent: g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0,
+        }))
+    } catch (e) {
+        console.error('GoalsPage data fetch error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
@@ -24,7 +37,7 @@ export default async function GoalsPage() {
                         Borç kapatma, tasarruf ve birikim hedefleri belirle. İlerlemeni takip et.
                     </p>
                 </header>
-                <GoalsWorkspace goals={goals.map((g) => ({ ...g, targetDate: g.targetDate.toISOString(), createdAt: g.createdAt.toISOString(), updatedAt: g.updatedAt.toISOString() }))} />
+                <GoalsWorkspace goals={serializedGoals} />
             </PageShell>
         </div>
     )

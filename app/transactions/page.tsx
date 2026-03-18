@@ -12,21 +12,32 @@ export default async function TransactionsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const [{ entries, total }, summary] = await Promise.all([
-        getLedgerEntries(user.id, undefined, 100),
-        getLedgerSummary(user.id),
-    ])
+    let serializedEntries: Array<{ id: string; type: string; amount: number; currency: string; description: string | null; category: string | null; date: string; account: { name: string } | null }> = []
+    let totalIncome = 0
+    let totalExpense = 0
+    let total = 0
 
-    const serializedEntries = entries.map((e) => ({
-        id: e.id,
-        type: e.type,
-        amount: e.amount,
-        currency: e.currency,
-        description: e.description,
-        category: e.category,
-        date: e.date.toISOString(),
-        account: e.account ? { name: e.account.name } : null,
-    }))
+    try {
+        const [{ entries, total: t }, summary] = await Promise.all([
+            getLedgerEntries(user.id, undefined, 100),
+            getLedgerSummary(user.id),
+        ])
+        total = t
+        totalIncome = summary.totalIncome
+        totalExpense = summary.totalExpense
+        serializedEntries = entries.map((e) => ({
+            id: e.id,
+            type: e.type,
+            amount: e.amount,
+            currency: e.currency,
+            description: e.description,
+            category: e.category,
+            date: e.date.toISOString(),
+            account: e.account ? { name: e.account.name } : null,
+        }))
+    } catch (e) {
+        console.error('TransactionsPage data fetch error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
@@ -41,8 +52,8 @@ export default async function TransactionsPage() {
                 </header>
                 <TransactionsWorkspace
                     entries={serializedEntries}
-                    totalIncome={summary.totalIncome}
-                    totalExpense={summary.totalExpense}
+                    totalIncome={totalIncome}
+                    totalExpense={totalExpense}
                     total={total}
                 />
             </PageShell>

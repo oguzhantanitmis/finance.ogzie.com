@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import { Users } from 'lucide-react'
 
 import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
@@ -13,10 +12,17 @@ export default async function PeoplePage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const [people, summary] = await Promise.all([
-        getPeople(user.id),
-        getRPSummary(user.id),
-    ])
+    let people: Awaited<ReturnType<typeof getPeople>> = []
+    let summary: { totalReceivable: number; totalPayable: number; net: number; overdueCount: number } = { totalReceivable: 0, totalPayable: 0, net: 0, overdueCount: 0 }
+
+    try {
+        ;[people, summary] = await Promise.all([
+            getPeople(user.id),
+            getRPSummary(user.id),
+        ])
+    } catch (e) {
+        console.error('PeoplePage data fetch error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">

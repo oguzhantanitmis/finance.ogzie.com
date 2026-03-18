@@ -11,11 +11,19 @@ export default async function ReportsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const [monthly, expenses, netWorthHistory] = await Promise.all([
-        getMonthlyReports(user.id, 6),
-        getExpenseBreakdown(user.id),
-        getNetWorthHistory(user.id),
-    ])
+    let monthly: Awaited<ReturnType<typeof getMonthlyReports>> = []
+    let expenses: Awaited<ReturnType<typeof getExpenseBreakdown>> = []
+    let netWorthHistory: Awaited<ReturnType<typeof getNetWorthHistory>> = []
+
+    try {
+        ;[monthly, expenses, netWorthHistory] = await Promise.all([
+            getMonthlyReports(user.id, 6),
+            getExpenseBreakdown(user.id),
+            getNetWorthHistory(user.id),
+        ])
+    } catch (e) {
+        console.error('ReportsPage error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">

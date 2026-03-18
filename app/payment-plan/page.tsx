@@ -8,17 +8,24 @@ import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
+const emptyPlan: PaymentPlan = { strategy: 'SAFE', items: [], totalMinPayment: 0, totalAvailable: 0, surplus: 0, riskLevel: 'LOW', warnings: [] }
+
 export default async function PaymentPlanPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const [safe, avalanche, snowball] = await Promise.all([
-        generatePaymentPlan(user.id, 'SAFE'),
-        generatePaymentPlan(user.id, 'AVALANCHE'),
-        generatePaymentPlan(user.id, 'SNOWBALL'),
-    ])
+    let plans: Record<Strategy, PaymentPlan> = { SAFE: { ...emptyPlan, strategy: 'SAFE' }, AVALANCHE: { ...emptyPlan, strategy: 'AVALANCHE' }, SNOWBALL: { ...emptyPlan, strategy: 'SNOWBALL' } }
 
-    const plans: Record<Strategy, PaymentPlan> = { SAFE: safe, AVALANCHE: avalanche, SNOWBALL: snowball }
+    try {
+        const [safe, avalanche, snowball] = await Promise.all([
+            generatePaymentPlan(user.id, 'SAFE'),
+            generatePaymentPlan(user.id, 'AVALANCHE'),
+            generatePaymentPlan(user.id, 'SNOWBALL'),
+        ])
+        plans = { SAFE: safe, AVALANCHE: avalanche, SNOWBALL: snowball }
+    } catch (e) {
+        console.error('PaymentPlanPage error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">

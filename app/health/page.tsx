@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import HealthScoreWorkspace from '@/components/health/HealthScoreWorkspace'
-import { calculateHealthScore, saveHealthSnapshot } from '@/lib/health-score-service'
+import { calculateHealthScore, saveHealthSnapshot, type HealthScoreResult } from '@/lib/health-score-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -11,10 +11,25 @@ export default async function HealthPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const result = await calculateHealthScore(user.id)
+    let result: HealthScoreResult = {
+        score: 0, level: 'MODERATE',
+        breakdown: {
+            creditUtilization: { score: 0, weight: 25, detail: 'Veri yok' },
+            debtToIncomeRatio: { score: 0, weight: 20, detail: 'Veri yok' },
+            minPaymentDependency: { score: 0, weight: 15, detail: 'Veri yok' },
+            overduePayments: { score: 0, weight: 15, detail: 'Veri yok' },
+            fixedExpenseRatio: { score: 0, weight: 15, detail: 'Veri yok' },
+            monthlyCashSurplus: { score: 0, weight: 10, detail: 'Veri yok' },
+        },
+        improvements: [], trend: 'stable',
+    }
 
-    // Snapshot kaydet
-    await saveHealthSnapshot(user.id, result)
+    try {
+        result = await calculateHealthScore(user.id)
+        await saveHealthSnapshot(user.id, result)
+    } catch (e) {
+        console.error('HealthPage error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">

@@ -16,11 +16,19 @@ export default async function AccountsPage() {
         redirect('/login')
     }
 
-    const [accounts, totalBalance, availableCash] = await Promise.all([
-        getAccounts(user.id),
-        getTotalBalance(user.id),
-        getAvailableCash(user.id),
-    ])
+    let accounts: Awaited<ReturnType<typeof getAccounts>> = []
+    let totalBalance = 0
+    let availableCash = 0
+
+    try {
+        ;[accounts, totalBalance, availableCash] = await Promise.all([
+            getAccounts(user.id),
+            getTotalBalance(user.id),
+            getAvailableCash(user.id),
+        ])
+    } catch (e) {
+        console.error('AccountsPage data fetch error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">

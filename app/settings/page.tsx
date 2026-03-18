@@ -11,7 +11,26 @@ export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const cardSettings = await getCardFinanceSettings(user.id)
+    let cardSettingsData: Parameters<typeof SettingsWorkspace>[0]['cardSettings'] = null
+
+    try {
+        const cardSettings = await getCardFinanceSettings(user.id)
+        if (cardSettings) {
+            cardSettingsData = {
+                contractualRate: cardSettings.contractualRate,
+                defaultRate: cardSettings.defaultRate,
+                cashAdvanceRate: cardSettings.cashAdvanceRate,
+                minPaymentRateBelow50k: cardSettings.minPaymentRateBelow50k,
+                minPaymentRateAbove50k: cardSettings.minPaymentRateAbove50k,
+                kkdfRate: cardSettings.kkdfRate,
+                bsmvRate: cardSettings.bsmvRate,
+                notes: cardSettings.notes,
+                lastUpdated: cardSettings.lastUpdated.toISOString(),
+            }
+        }
+    } catch (e) {
+        console.error('SettingsPage error:', e)
+    }
 
     return (
         <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
@@ -24,17 +43,7 @@ export default async function SettingsPage() {
                         Genel kart faiz oranları ve uygulama ayarları.
                     </p>
                 </header>
-                <SettingsWorkspace cardSettings={cardSettings ? {
-                    contractualRate: cardSettings.contractualRate,
-                    defaultRate: cardSettings.defaultRate,
-                    cashAdvanceRate: cardSettings.cashAdvanceRate,
-                    minPaymentRateBelow50k: cardSettings.minPaymentRateBelow50k,
-                    minPaymentRateAbove50k: cardSettings.minPaymentRateAbove50k,
-                    kkdfRate: cardSettings.kkdfRate,
-                    bsmvRate: cardSettings.bsmvRate,
-                    notes: cardSettings.notes,
-                    lastUpdated: cardSettings.lastUpdated.toISOString(),
-                } : null} />
+                <SettingsWorkspace cardSettings={cardSettingsData} />
             </PageShell>
         </div>
     )
