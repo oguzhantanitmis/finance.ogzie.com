@@ -24,7 +24,16 @@ import { getActiveGoalForDashboard } from '@/lib/goal-service'
 export const dynamic = 'force-dynamic'
 
 async function DashboardContent({ userId }: { userId: string }) {
-    const summary = await getMonthlyBudgetSummary(userId)
+    const defaultSummary = {
+        plannedIncome: 0, fixedCommitments: 0,
+        debtCommitments: 0, subscriptionLoad: 0, recurringLoad: 0,
+        freeCash: 0, upcomingObligations: [], incomeSources: [],
+    } as unknown as Awaited<ReturnType<typeof getMonthlyBudgetSummary>>
+
+    let summary = defaultSummary
+    try {
+        summary = await getMonthlyBudgetSummary(userId)
+    } catch { /* sessizce devam */ }
 
     const defaultDashData: Awaited<ReturnType<typeof getDashboardData>> = {
         totalBalance: 0, availableCash: 0, totalDebt: 0, totalReceivable: 0,
@@ -41,7 +50,7 @@ async function DashboardContent({ userId }: { userId: string }) {
             fixedExpenseRatio: { score: 0, weight: 15, detail: 'Veri yok' },
             monthlyCashSurplus: { score: 0, weight: 10, detail: 'Veri yok' },
         },
-        improvements: ['Veriler yüklenemedi — veritabanı migration gerekli olabilir.'],
+        improvements: ['Veriler yüklenemedi — veritabanı bağlantı hatası.'],
         trend: 'stable',
     }
 
