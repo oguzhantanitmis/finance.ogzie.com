@@ -117,9 +117,7 @@ Bana şunları sorabilirsin:
                                 messages: [
                                     { role: 'system', content: buildSystemPrompt() },
                                     { role: 'user', content: buildChatPrompt(context, prompt) },
-                                ],
-                                max_tokens: 1000,
-                                temperature: 0.7,
+                                ]
                             }),
                         })
 
@@ -136,9 +134,7 @@ Bana şunları sorabilirsin:
                                     messages: [
                                         { role: 'system', content: buildSystemPrompt() },
                                         { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ],
-                                    max_tokens: 1000,
-                                    temperature: 0.7,
+                                    ]
                                 }),
                             })
                             aiData = await aiResponse.json()
@@ -176,9 +172,7 @@ Bana şunları sorabilirsin:
                                 messages: [
                                     { role: 'system', content: buildSystemPrompt() },
                                     { role: 'user', content: buildChatPrompt(context, prompt) },
-                                ],
-                                max_tokens: 1000,
-                                temperature: 0.7,
+                                ]
                             }),
                         })
                         let aiData = await aiResponse.json()
@@ -193,9 +187,7 @@ Bana şunları sorabilirsin:
                                     messages: [
                                         { role: 'system', content: buildSystemPrompt() },
                                         { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ],
-                                    max_tokens: 1000,
-                                    temperature: 0.7,
+                                    ]
                                 }),
                             })
                             aiData = await aiResponse.json()
