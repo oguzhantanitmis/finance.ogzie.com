@@ -28,12 +28,43 @@ export default async function Home() {
         redirect('/login')
     }
 
-    const [summary, dashData, healthScore, activeGoal] = await Promise.all([
-        getMonthlyBudgetSummary(user.id),
-        getDashboardData(user.id),
-        calculateHealthScore(user.id),
-        getActiveGoalForDashboard(user.id),
-    ])
+    const summary = await getMonthlyBudgetSummary(user.id)
+
+    // Yeni servisler: tablolar henüz migrate edilmemiş olabilir, güvenli fallback
+    const defaultDashData: Awaited<ReturnType<typeof getDashboardData>> = {
+        totalBalance: 0, availableCash: 0, totalDebt: 0, totalReceivable: 0,
+        totalPayable: 0, netPosition: 0, totalCardDebt: 0, totalSubscriptionMonthly: 0,
+        totalRecurringMonthly: 0, overdueCount: 0, recentTransactions: [], upcomingPayments: [],
+    }
+    const defaultHealth: { score: number; level: string; breakdown: Record<string, { score: number; weight: number; detail: string }>; improvements: string[]; trend: string } = {
+        score: 0, level: 'MODERATE',
+        breakdown: {
+            creditUtilization: { score: 0, weight: 25, detail: 'Veri yok' },
+            debtToIncomeRatio: { score: 0, weight: 20, detail: 'Veri yok' },
+            minPaymentDependency: { score: 0, weight: 15, detail: 'Veri yok' },
+            overduePayments: { score: 0, weight: 15, detail: 'Veri yok' },
+            fixedExpenseRatio: { score: 0, weight: 15, detail: 'Veri yok' },
+            monthlyCashSurplus: { score: 0, weight: 10, detail: 'Veri yok' },
+        },
+        improvements: ['Veriler yüklenemedi — veritabanı migration gerekli olabilir.'],
+        trend: 'stable',
+    }
+
+    let dashData = defaultDashData
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let healthScore: any = defaultHealth
+    let activeGoal: Awaited<ReturnType<typeof getActiveGoalForDashboard>> | null = null
+
+    try {
+        const [d, h, g] = await Promise.all([
+            getDashboardData(user.id).catch(() => defaultDashData),
+            calculateHealthScore(user.id).catch(() => defaultHealth),
+            getActiveGoalForDashboard(user.id).catch(() => null),
+        ])
+        dashData = d
+        healthScore = h
+        activeGoal = g
+    } catch { /* tablolar yoksa sessizce devam */ }
 
     const alerts = await syncBudgetAlerts(user.id, summary)
     const insights = await prisma.aIInsight.findMany({
@@ -263,7 +294,7 @@ export default async function Home() {
                         </div>
                         {/* İyileştirme önerileri */}
                         <div className="space-y-2">
-                            {healthScore.improvements.map((tip, i) => (
+                            {healthScore.improvements.map((tip: string, i: number) => (
                                 <p key={i} className="text-xs text-zinc-400 leading-relaxed">• {tip}</p>
                             ))}
                         </div>
