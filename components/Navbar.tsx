@@ -37,14 +37,14 @@ export default function Navbar() {
         <>
             {/* Desktop Sidebar */}
             <nav className="hidden lg:flex flex-col fixed left-0 top-0 h-full w-72 bg-[#0a0a0a] border-r border-[#1a1a1a] p-6 z-50">
-                <div className="flex items-center gap-3 mb-10">
+                <div className="flex items-center gap-3 mb-10 shrink-0">
                     <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
                         <div className="w-4 h-4 bg-black rounded-sm" />
                     </div>
                     <span className="font-bold text-xl tracking-tight">OGZIE FINANS</span>
                 </div>
 
-                <div className="space-y-1 mb-auto">
+                <div className="space-y-1 mb-6 flex-1 overflow-y-auto pr-2">
                     {navItems.map((item) => (
                         <Link
                             key={item.path}
@@ -56,13 +56,13 @@ export default function Navbar() {
                                     : "text-zinc-400 hover:text-white hover:bg-zinc-900"
                             )}
                         >
-                            <item.icon className={cn("w-5 h-5", pathname === item.path ? "text-black" : "text-zinc-500 group-hover:text-white")} />
+                            <item.icon className={cn("w-5 h-5 shrink-0", pathname === item.path ? "text-black" : "text-zinc-500 group-hover:text-white")} />
                             {item.name}
                         </Link>
                     ))}
                 </div>
 
-                <div className="space-y-2 pt-6 border-t border-[#1a1a1a]">
+                <div className="space-y-2 pt-6 border-t border-[#1a1a1a] shrink-0">
                     <button
                         onClick={toggleHideAmounts}
                         className="flex items-center gap-3 px-4 py-3 rounded-xl w-full text-zinc-400 hover:text-white hover:bg-zinc-900 transition-all"
