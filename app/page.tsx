@@ -67,18 +67,27 @@ export default async function Home() {
         activeGoal = g
     } catch { /* tablolar yoksa sessizce devam */ }
 
-    const alerts = await syncBudgetAlerts(user.id, summary)
+    const alerts = await syncBudgetAlerts(user.id, summary).catch(() => [])
     const insights = await prisma.aIInsight.findMany({
         where: { userId: user.id, isRead: false },
         orderBy: { createdAt: 'desc' },
         take: 3,
-    })
+    }).catch(() => [])
 
     const aiRecommendations = await prisma.aIRecommendation.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
         take: 3,
-    })
+        select: {
+            id: true,
+            type: true,
+            title: true,
+            content: true,
+            reasoning: true,
+            suggestedAction: true,
+            risk: true
+        }
+    }).catch(() => [])
 
     return (
         <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
