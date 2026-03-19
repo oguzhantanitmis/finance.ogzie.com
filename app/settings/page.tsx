@@ -19,7 +19,7 @@ export default async function SettingsPage() {
         hasOrg: boolean
     } = {
         connectionStatus: 'BEKLENİYOR',
-        model: process.env.OPENAI_MODEL ?? 'gpt-5-mini',
+        model: process.env.OPENAI_MODEL ?? 'gpt-5.4-mini',
         baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
         hasProject: !!process.env.OPENAI_PROJECT,
         hasOrg: !!process.env.OPENAI_ORG
