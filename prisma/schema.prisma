@@ -778,23 +778,28 @@ model HealthSnapshot {
 // ============================================================
 
 model AIRecommendation {
-  id              String   @id @default(cuid())
-  userId          String
-  type            String
-  title           String
-  content         String   @db.Text
-  reasoning       String?  @db.Text
-  risk            String?
-  suggestedAction String?  @db.Text
-  isRead          Boolean  @default(false)
-  isActedOn       Boolean  @default(false)
-  metadata        Json?
-  createdAt       DateTime @default(now())
+  id                String    @id @default(cuid())
+  userId            String
+  type              String    // STRATEGY, SAVING, WARNING, OPPORTUNITY, MILESTONE, ALERT
+  priority          Int       @default(50) // 1-100, higher = more urgent
+  title             String
+  content           String    @db.Text
+  reasoning         String?   @db.Text
+  risk              String?
+  suggestedAction   String?   @db.Text
+  relatedEntityId   String?   // İlişkili hedef, borç, kart vb. ID'si
+  relatedEntityType String?   // "goal", "debt", "card", "subscription"
+  isRead            Boolean   @default(false)
+  isActedOn         Boolean   @default(false)
+  expiresAt         DateTime? // Zaman hassas öneriler için son geçerlilik
+  metadata          Json?
+  createdAt         DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([type])
+  @@index([priority])
 }
 
 // ============================================================

@@ -4,13 +4,18 @@ import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { getSetting } from '@/lib/settings-service'
 
+type RecommendationType = 'STRATEGY' | 'SAVING' | 'WARNING' | 'OPPORTUNITY' | 'MILESTONE' | 'ALERT'
+
 interface ParsedRecommendation {
-    type: 'STRATEGY' | 'SAVING' | 'WARNING'
+    type: RecommendationType
+    priority: number
     title: string
     content: string
     reasoning?: string
     risk?: string
     suggestedAction?: string
+    relatedEntityType?: string
+    relatedEntityId?: string
 }
 
 /**
@@ -46,7 +51,7 @@ export async function runProactiveAiAnalysis(userId: string) {
         where: { userId }
     })
 
-    // 3) Finansal veriyi derle
+    // 3) Finansal veriyi derle (tarihsel veriler dahil)
     const context = await composeFinancialContext(userId)
 
     // 4) OpenAI'dan Yapılandırılmış Yanıt İste
@@ -54,20 +59,41 @@ export async function runProactiveAiAnalysis(userId: string) {
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-    const systemPrompt = `Sen Ogzie Finans için çalışan arka plan zeka motorusun.
-Kullanıcının detaylı finansal durumu verilecektir.
-Bunu analiz et ve 3 farklı öneri oluştur (STRATEGY, SAVING, WARNING).
+    const systemPrompt = `Sen Ogzie Finans için çalışan gelişmiş yapay zeka analiz motorusun.
+Kullanıcının detaylı finansal durumu, tarihsel trendleri ve hedef hızı verilecektir.
+Bunu derinlemesine analiz et ve 5-6 farklı, KİŞİSELLEŞTİRİLMİŞ öneri oluştur.
+
+ÖNERİ TİPLERİ (hepsinden en az 1 tane olmalı):
+🎯 STRATEGY (priority: 70-90): Borç ödeme stratejisi, bütçe optimizasyonu
+💰 SAVING (priority: 50-70): Abonelik iptali, tasarruf fırsatları
+⚠️ WARNING (priority: 80-100): Riskler, tehlikeler, dikkat gerektiren durumlar
+🚀 OPPORTUNITY (priority: 40-60): Yatırım fırsatı, ekstra ödeme avantajı, büyüme
+🏆 MILESTONE (priority: 30-50): Hedef kutlaması, başarı, pozitif gelişme
+🚨 ALERT (priority: 90-100): Acil durumlar, kritik vadeler
+
+KURALLAR:
+1. VERİ UYDURMAK YASAKTIR - sadece verilen gerçek verileri kullan
+2. Tarihsel trendleri MUTLAKAdikkate al (son 3 ay değişimleri)
+3. Pattern tespitlerini değerlendir (harcama artışları, yeni abonelikler)
+4. Hedef hızı analizini kullan
+5. Türkiye ekonomik bağlamını göz önünde bulundur
+6. Somut rakamlar ve aksiyon adımları ver
+7. Priority değeri: 1-100 arası (yüksek = daha acil)
+
 SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
 
 {
   "recommendations": [
     {
       "type": "STRATEGY",
-      "title": "Strateji Başlığı",
-      "content": "Açıklama",
-      "reasoning": "Neden bunu öneriyoruz",
-      "suggestedAction": "Yapılması gereken",
-      "risk": ""
+      "priority": 75,
+      "title": "Kısa ve net başlık",
+      "content": "Detaylı açıklama (rakamlarla)",
+      "reasoning": "Neden bu öneriyi veriyoruz",
+      "suggestedAction": "Hemen yapılabilecek somut adım",
+      "risk": "Yapılmazsa ne olur (varsa)",
+      "relatedEntityType": "debt|goal|card|subscription (opsiyonel)",
+      "relatedEntityId": "ilgili entity id (opsiyonel)"
     }
   ]
 }`
@@ -84,14 +110,17 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
                     items: {
                         type: "object",
                         properties: {
-                            type: { type: "string", enum: ["STRATEGY", "SAVING", "WARNING"] },
+                            type: { type: "string", enum: ["STRATEGY", "SAVING", "WARNING", "OPPORTUNITY", "MILESTONE", "ALERT"] },
+                            priority: { type: "number" },
                             title: { type: "string" },
                             content: { type: "string" },
                             reasoning: { type: "string" },
                             suggestedAction: { type: "string" },
-                            risk: { type: "string" }
+                            risk: { type: "string" },
+                            relatedEntityType: { type: "string" },
+                            relatedEntityId: { type: "string" }
                         },
-                        required: ["type", "title", "content", "reasoning", "suggestedAction", "risk"],
+                        required: ["type", "priority", "title", "content", "reasoning", "suggestedAction", "risk"],
                         additionalProperties: false
                     }
                 }
@@ -126,7 +155,7 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
                     type: 'json_schema',
                     json_schema: jsonSchema
                 },
-                max_completion_tokens: 2000
+                max_completion_tokens: 3000
             }),
         })
 
@@ -145,7 +174,7 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
                         { role: 'user', content: context },
                     ],
                     response_format: { type: 'json_object' },
-                    max_completion_tokens: 2000
+                    max_completion_tokens: 3000
                 }),
             })
             aiData = await aiResponse.json()
@@ -177,17 +206,20 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
         const cleanedContent = cleanJsonResponse(rawContent)
         const parsed = JSON.parse(cleanedContent) as { recommendations: ParsedRecommendation[] }
 
-        // Veritabanına toplu kaydet
+        // Veritabanına toplu kaydet (yeni alanlarla)
         if (parsed.recommendations && parsed.recommendations.length > 0) {
             await prisma.aIRecommendation.createMany({
                 data: parsed.recommendations.map(rec => ({
                     userId,
                     type: rec.type,
+                    priority: rec.priority ?? 50,
                     title: rec.title,
                     content: rec.content,
                     reasoning: rec.reasoning ?? null,
                     risk: rec.risk ?? null,
                     suggestedAction: rec.suggestedAction ?? null,
+                    relatedEntityId: rec.relatedEntityId ?? null,
+                    relatedEntityType: rec.relatedEntityType ?? null,
                     isRead: false,
                     isActedOn: false
                 }))
