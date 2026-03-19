@@ -34,7 +34,7 @@ export async function runProactiveAiAnalysis(userId: string) {
     const context = await composeFinancialContext(userId)
 
     // 4) OpenAI'dan Yapılandırılmış Yanıt İste (JSON format)
-    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini' // veya gpt-5-mini
+    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
@@ -71,21 +71,7 @@ Lütfen kesinlikle aşağıdaki JSON yapısında dön (herhangi bir markdown blo
     
     let aiData = await aiResponse.json()
 
-    if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-        aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({
-                model: 'gpt-3.5-turbo',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: context },
-                ],
-                response_format: { type: 'json_object' }
-            }),
-        })
-        aiData = await aiResponse.json()
-    }
+
 
     if (!aiResponse.ok) {
         throw new Error(`OpenAI Hatası: ${aiData?.error?.message || aiResponse.statusText}`)

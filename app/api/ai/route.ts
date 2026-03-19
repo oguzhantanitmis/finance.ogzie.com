@@ -105,7 +105,7 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini'
+                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
                         const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
                         
@@ -123,22 +123,7 @@ Bana şunları sorabilirsin:
 
                         let aiData = await aiResponse.json()
                         
-                        // Fallback mekanizması: Eğer model erişim hatası veya bulunamadı hatası verirse herkesçe erişilebilen gpt-3.5-turbo'yu dene
-                        if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-                            console.warn(`Model ${requestedModel} failed, falling back to gpt-3.5-turbo...`)
-                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                                body: JSON.stringify({
-                                    model: 'gpt-3.5-turbo',
-                                    messages: [
-                                        { role: 'system', content: buildSystemPrompt() },
-                                        { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ]
-                                }),
-                            })
-                            aiData = await aiResponse.json()
-                        }
+
 
                         if (!aiResponse.ok) {
                             console.error('OpenAI API Error:', aiData)
