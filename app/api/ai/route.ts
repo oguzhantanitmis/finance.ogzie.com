@@ -105,52 +105,51 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-3.5-turbo'
                         const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-                        let aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                            body: JSON.stringify({
-                                model: requestedModel,
-                                messages: [
-                                    { role: 'system', content: buildSystemPrompt() },
-                                    { role: 'user', content: buildChatPrompt(context, prompt) },
-                                ],
-                                max_completion_tokens: 4096
-                            }),
-                        })
+                        // Denenecek modeller
+                        const modelsToTry = [requestedModel]
+                        if (requestedModel !== 'gpt-3.5-turbo') modelsToTry.push('gpt-3.5-turbo')
 
-                        let aiData = await aiResponse.json()
+                        let aiResponse: Response | null = null
+                        let aiData: any = null
 
-                        // Fallback: Model erişim hatası varsa gpt-4o-mini dene
-                        if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-                            console.warn(`Model ${requestedModel} failed, falling back to gpt-4o-mini...`)
+                        for (const model of modelsToTry) {
                             aiResponse = await fetch(`${baseUrl}/chat/completions`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                                 body: JSON.stringify({
-                                    model: 'gpt-4o-mini',
+                                    model,
                                     messages: [
                                         { role: 'system', content: buildSystemPrompt() },
                                         { role: 'user', content: buildChatPrompt(context, prompt) },
                                     ],
-                                    max_completion_tokens: 4096
+                                    max_tokens: 4096
                                 }),
                             })
                             aiData = await aiResponse.json()
+
+                            if (aiResponse.ok) break
+
+                            const errorMsg = aiData?.error?.message || ''
+                            if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
+                                console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
+                                continue
+                            }
+                            break
                         }
 
-                        if (!aiResponse.ok) {
+                        if (!aiResponse?.ok) {
                             console.error('OpenAI API Error:', aiData)
-                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen proxy/API hatası. (HTTP ' + aiResponse.status + ')'}`
+                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen hata'}`
                         } else {
                             responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
                         }
                     } catch (aiError) {
                         console.error('OpenAI Error:', aiError)
-                        responseText = `⚠️ AI servisi şu an yanıt veremiyor (Base URL hatalı olabilir). Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
+                        responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
                     }
                 } else {
                     responseText = generateFallbackAnalysis(context) + '\n\n💡 Daha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.'
@@ -162,30 +161,23 @@ Bana şunları sorabilirsin:
                 // Diğer tüm sorgu türleri de context-aware
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-3.5-turbo'
                         const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-                        let aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                            body: JSON.stringify({
-                                model: requestedModel,
-                                messages: [
-                                    { role: 'system', content: buildSystemPrompt() },
-                                    { role: 'user', content: buildChatPrompt(context, prompt) },
-                                ]
-                            }),
-                        })
-                        let aiData = await aiResponse.json()
+                        // Denenecek modeller
+                        const modelsToTry = [requestedModel]
+                        if (requestedModel !== 'gpt-3.5-turbo') modelsToTry.push('gpt-3.5-turbo')
 
-                        if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-                            console.warn(`Model ${requestedModel} failed, falling back to gpt-4o-mini...`)
+                        let aiResponse: Response | null = null
+                        let aiData: any = null
+
+                        for (const model of modelsToTry) {
                             aiResponse = await fetch(`${baseUrl}/chat/completions`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                                 body: JSON.stringify({
-                                    model: 'gpt-4o-mini',
+                                    model,
                                     messages: [
                                         { role: 'system', content: buildSystemPrompt() },
                                         { role: 'user', content: buildChatPrompt(context, prompt) },
@@ -193,17 +185,26 @@ Bana şunları sorabilirsin:
                                 }),
                             })
                             aiData = await aiResponse.json()
+
+                            if (aiResponse.ok) break
+
+                            const errorMsg = aiData?.error?.message || ''
+                            if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
+                                console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
+                                continue
+                            }
+                            break
                         }
 
-                        if (!aiResponse.ok) {
+                        if (!aiResponse?.ok) {
                             console.error('OpenAI API Error:', aiData)
-                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen proxy/API hatası. (HTTP ' + aiResponse.status + ')'}`
+                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen hata'}`
                         } else {
                             responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
                         }
                     } catch (aiError) {
                         console.error('OpenAI Error:', aiError)
-                        responseText = `⚠️ AI servisi şu an yanıt veremiyor (Base URL hatalı olabilir). Hataya rağmen verilerine bakayım:\n\n${generateContextResponse(commandType, context, summary)}`
+                        responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateContextResponse(commandType, context, summary)}`
                     }
                 } else {
                     responseText = generateContextResponse(commandType, context, summary)

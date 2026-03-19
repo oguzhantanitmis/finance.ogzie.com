@@ -34,7 +34,7 @@ export async function runProactiveAiAnalysis(userId: string) {
     const context = await composeFinancialContext(userId)
 
     // 4) OpenAI'dan Yapılandırılmış Yanıt İste (JSON format)
-    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-3.5-turbo'
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
@@ -56,28 +56,52 @@ Lütfen kesinlikle aşağıdaki JSON yapısında dön (herhangi bir markdown blo
   ]
 }`
 
-    let aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({
-            model: requestedModel,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: context },
-            ],
-            response_format: { type: 'json_object' },
-            max_completion_tokens: 2000
-        }),
-    })
-    
-    let aiData = await aiResponse.json()
+    // Denenecek modeller sırası: env model -> gpt-3.5-turbo
+    const modelsToTry = [requestedModel]
+    if (requestedModel !== 'gpt-3.5-turbo') {
+        modelsToTry.push('gpt-3.5-turbo')
+    }
 
+    let aiResponse: Response | null = null
+    let aiData: any = null
+    let lastError: string = ''
 
+    for (const model of modelsToTry) {
+        aiResponse = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            body: JSON.stringify({
+                model,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: context },
+                ],
+                response_format: { type: 'json_object' },
+                max_tokens: 2000
+            }),
+        })
 
+        aiData = await aiResponse.json()
 
+        if (aiResponse.ok) {
+            break // Başarılı, döngüden çık
+        }
 
-    if (!aiResponse.ok) {
-        throw new Error(`OpenAI Hatası: ${aiData?.error?.message || aiResponse.statusText}`)
+        // Model erişim hatası varsa sonraki modeli dene
+        const errorMsg = aiData?.error?.message || ''
+        if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
+            console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
+            lastError = errorMsg
+            continue
+        }
+
+        // Başka bir hata varsa döngüden çık
+        lastError = errorMsg
+        break
+    }
+
+    if (!aiResponse?.ok) {
+        throw new Error(`OpenAI Hatası: ${lastError || aiResponse?.statusText || 'Bilinmeyen hata'}`)
     }
 
     try {
