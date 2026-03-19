@@ -126,7 +126,7 @@ Bana şunları sorabilirsin:
                                         { role: 'system', content: buildSystemPrompt() },
                                         { role: 'user', content: buildChatPrompt(context, prompt) },
                                     ],
-                                    max_tokens: 4096
+                                    max_completion_tokens: 4096
                                 }),
                             })
                             aiData = await aiResponse.json()
