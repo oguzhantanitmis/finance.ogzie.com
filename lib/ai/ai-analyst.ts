@@ -65,7 +65,8 @@ Lütfen kesinlikle aşağıdaki JSON yapısında dön (herhangi bir markdown blo
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: context },
             ],
-            response_format: { type: 'json_object' }
+            response_format: { type: 'json_object' },
+            max_completion_tokens: 2000
         }),
     })
     
