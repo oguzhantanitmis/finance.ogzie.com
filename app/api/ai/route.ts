@@ -105,10 +105,10 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini'
+                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
                         const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
-                        
+
                         let aiResponse = await fetch(`${baseUrl}/chat/completions`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -124,8 +124,23 @@ Bana şunları sorabilirsin:
 
                         let aiData = await aiResponse.json()
 
-                        
-
+                        // Fallback: Model erişim hatası varsa gpt-4o-mini dene
+                        if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
+                            console.warn(`Model ${requestedModel} failed, falling back to gpt-4o-mini...`)
+                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                                body: JSON.stringify({
+                                    model: 'gpt-4o-mini',
+                                    messages: [
+                                        { role: 'system', content: buildSystemPrompt() },
+                                        { role: 'user', content: buildChatPrompt(context, prompt) },
+                                    ],
+                                    max_completion_tokens: 4096
+                                }),
+                            })
+                            aiData = await aiResponse.json()
+                        }
 
                         if (!aiResponse.ok) {
                             console.error('OpenAI API Error:', aiData)
@@ -147,7 +162,7 @@ Bana şunları sorabilirsin:
                 // Diğer tüm sorgu türleri de context-aware
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
+                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
                         const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
@@ -165,12 +180,12 @@ Bana şunları sorabilirsin:
                         let aiData = await aiResponse.json()
 
                         if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-                            console.warn(`Model ${requestedModel} failed, falling back to gpt-3.5-turbo...`)
+                            console.warn(`Model ${requestedModel} failed, falling back to gpt-4o-mini...`)
                             aiResponse = await fetch(`${baseUrl}/chat/completions`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                                 body: JSON.stringify({
-                                    model: 'gpt-3.5-turbo',
+                                    model: 'gpt-4o-mini',
                                     messages: [
                                         { role: 'system', content: buildSystemPrompt() },
                                         { role: 'user', content: buildChatPrompt(context, prompt) },

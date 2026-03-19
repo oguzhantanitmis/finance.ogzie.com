@@ -34,7 +34,7 @@ export async function runProactiveAiAnalysis(userId: string) {
     const context = await composeFinancialContext(userId)
 
     // 4) OpenAI'dan Yapılandırılmış Yanıt İste (JSON format)
-    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini'
+    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
@@ -84,23 +84,21 @@ Lütfen kesinlikle aşağıdaki JSON yapısında dön (herhangi bir markdown blo
         const rawContent = aiData.choices[0].message.content
         const parsed = JSON.parse(rawContent) as { recommendations: ParsedRecommendation[] }
 
-        // 5) Veritabanına kaydet
+        // 5) Veritabanına toplu kaydet (batch processing)
         if (parsed.recommendations && parsed.recommendations.length > 0) {
-            for (const rec of parsed.recommendations) {
-                await prisma.aIRecommendation.create({
-                    data: {
-                        userId,
-                        type: rec.type,
-                        title: rec.title,
-                        content: rec.content,
-                        reasoning: rec.reasoning ?? null,
-                        risk: rec.risk ?? null,
-                        suggestedAction: rec.suggestedAction ?? null,
-                        isRead: false,
-                        isActedOn: false
-                    }
-                })
-            }
+            await prisma.aIRecommendation.createMany({
+                data: parsed.recommendations.map(rec => ({
+                    userId,
+                    type: rec.type,
+                    title: rec.title,
+                    content: rec.content,
+                    reasoning: rec.reasoning ?? null,
+                    risk: rec.risk ?? null,
+                    suggestedAction: rec.suggestedAction ?? null,
+                    isRead: false,
+                    isActedOn: false
+                }))
+            })
         }
         
         return { success: true, count: parsed.recommendations?.length || 0 }
