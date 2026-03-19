@@ -34,7 +34,7 @@ export async function runProactiveAiAnalysis(userId: string) {
     const context = await composeFinancialContext(userId)
 
     // 4) OpenAI'dan Yapılandırılmış Yanıt İste (JSON format)
-    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-4o-mini' // veya gpt-5-mini
+    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini' // veya gpt-5-mini
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 

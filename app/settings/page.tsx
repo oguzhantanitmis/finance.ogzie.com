@@ -11,31 +11,41 @@ export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    let aiConnectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR' = 'BEKLENİYOR'
-    let cardSettingsData: Parameters<typeof SettingsWorkspace>[0]['cardSettings'] = null
+    let aiSettings: {
+        connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
+        model: string
+        baseUrl: string
+        hasProject: boolean
+        hasOrg: boolean
+    } = {
+        connectionStatus: 'BEKLENİYOR',
+        model: process.env.OPENAI_MODEL ?? 'gpt-5.4-mini',
+        baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+        hasProject: !!process.env.OPENAI_PROJECT,
+        hasOrg: !!process.env.OPENAI_ORG
+    }
+    let cardSettingsData: any = null
 
     try {
         const cardSettings = await getCardFinanceSettings(user.id)
     
-        // AI Bağlantı Kontrolü (Sadece OPENAI_API_KEY var mı ve çalışıyor mu)
+        // AI Bağlantı Kontrolü
         const apiKey = process.env.OPENAI_API_KEY
         if (apiKey) {
             try {
-                // OpenAI API'sini test et (Modelleri listele)
-                const res = await fetch('https://api.openai.com/v1/models', {
+                // OpenAI API'sini test et
+                const res = await fetch(`${aiSettings.baseUrl}/models`, {
                     headers: { 'Authorization': `Bearer ${apiKey}` },
-                    next: { revalidate: 3600 } // Saatte bir test et, her sayfaya girişte değil
+                    next: { revalidate: 3600 }
                 })
                 if (res.ok) {
-                    aiConnectionStatus = 'HAZIR'
+                    aiSettings.connectionStatus = 'HAZIR'
                 } else {
-                    aiConnectionStatus = 'BAĞLANTI HATASI'
+                    aiSettings.connectionStatus = 'BAĞLANTI HATASI'
                 }
             } catch {
-                aiConnectionStatus = 'BAĞLANTI HATASI'
+                aiSettings.connectionStatus = 'BAĞLANTI HATASI'
             }
-        } else {
-            aiConnectionStatus = 'BEKLENİYOR'
         }
         
         if (cardSettings) {
@@ -66,7 +76,7 @@ export default async function SettingsPage() {
                         Genel kart faiz oranları ve uygulama ayarları.
                     </p>
                 </header>
-                <SettingsWorkspace cardSettings={cardSettingsData} aiConnectionStatus={aiConnectionStatus} />
+                <SettingsWorkspace cardSettings={cardSettingsData} aiSettings={aiSettings} />
             </PageShell>
         </div>
     )

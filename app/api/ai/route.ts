@@ -105,7 +105,7 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
+                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5.4-mini'
                         const rawBaseUrl = process.env.OPENAI_BASE_URL
                         const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
                         

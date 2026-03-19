@@ -25,7 +25,11 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
         setIsAnalyzing(true)
         setError(null)
         try {
-            await triggerAiAnalysisAction()
+            const res = await triggerAiAnalysisAction()
+            if (!res.success) {
+                setError(res.error || 'Analiz sırasında hata oluştu.')
+                return
+            }
             router.refresh()
         } catch (err: any) {
             setError(err.message || 'Analiz sırasında hata oluştu.')

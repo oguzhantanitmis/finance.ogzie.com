@@ -1,6 +1,7 @@
 'use client'
 
 import { CreditCard, Settings2 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
 
 interface CardSettingsData {
@@ -11,10 +12,16 @@ interface CardSettingsData {
 
 interface Props {
     cardSettings: CardSettingsData | null
-    aiConnectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
+    aiSettings: {
+        connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
+        model: string
+        baseUrl: string
+        hasProject: boolean
+        hasOrg: boolean
+    }
 }
 
-export default function SettingsWorkspace({ cardSettings, aiConnectionStatus }: Props) {
+export default function SettingsWorkspace({ cardSettings, aiSettings }: Props) {
     return (
         <div className="space-y-8">
             {/* Genel Kart Faiz Ayarları */}
@@ -69,46 +76,66 @@ export default function SettingsWorkspace({ cardSettings, aiConnectionStatus }: 
 
             {/* AI Asistan Ayarları */}
             <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                <div className="flex items-center gap-3 mb-8">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                        <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
                         </svg>
                     </div>
-                    <h2 className="text-xl font-bold text-white">Yapay Zeka Asistanı</h2>
+                    <h2 className="text-2xl font-bold text-white tracking-tight">Çalışma durumu</h2>
                 </div>
-                <p className="text-sm text-zinc-400 mb-6">
-                    Yapay zeka özellikleri için sistem <code>OPENAI_API_KEY</code> çevre değişkenini (environment variable) kullanır. Proje veya organizasyon kimliğine gerek yoktur.
-                </p>
                 
-                <div className="bg-black border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-white mb-1">OPENAI_API_KEY</p>
-                        <p className="text-xs text-zinc-500">
-                            {aiConnectionStatus === 'HAZIR' ? 'OpenAI servisi ile olan bağlantı başarılı.' : 
-                             aiConnectionStatus === 'BAĞLANTI HATASI' ? 'Anahtar geçersiz veya servis anlık olarak ulaşılamaz.' : 
-                             'Sistemde tanımlı bir anahtar bulunamadı.'}
-                        </p>
+                <div className="space-y-3">
+                    {/* Efektif Sağlayıcı */}
+                    <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                        <span className="text-zinc-400 font-medium">Efektif sağlayıcı</span>
+                        <span className="px-4 py-1.5 rounded-full bg-white text-black text-[10px] font-black tracking-widest uppercase">
+                            OPENAI
+                        </span>
                     </div>
-                    <div className="shrink-0 flex items-center pr-2">
-                        {aiConnectionStatus === 'HAZIR' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium tracking-wide border border-emerald-500/20">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                BAĞLI
+
+                    {/* API Key Durumu */}
+                    <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                        <span className="text-zinc-400 font-medium">OPENAI_API_KEY</span>
+                        <span className={cn(
+                            "px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase",
+                            aiSettings.connectionStatus === 'HAZIR' ? "bg-zinc-800 text-zinc-100" : "bg-red-500/20 text-red-400"
+                        )}>
+                            {aiSettings.connectionStatus === 'HAZIR' ? 'HAZIR' : 'HATA'}
+                        </span>
+                    </div>
+
+                    {/* Model Bilgisi */}
+                    <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                        <span className="text-zinc-400 font-medium">Aktif Model</span>
+                        <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase">
+                            {aiSettings.model}
+                        </span>
+                    </div>
+
+                    {/* Base URL (varsayılansa gizle veya göster) */}
+                    {aiSettings.baseUrl !== 'https://api.openai.com/v1' && (
+                        <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                            <span className="text-zinc-400 font-medium">Proxy/Gateway</span>
+                            <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase truncate max-w-[150px]">
+                                VAR
                             </span>
-                        )}
-                        {aiConnectionStatus === 'BAĞLANTI HATASI' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-medium tracking-wide border border-red-500/20">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                                HATA
-                            </span>
-                        )}
-                        {aiConnectionStatus === 'BEKLENİYOR' && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-500/10 text-zinc-400 text-xs font-medium tracking-wide border border-zinc-500/20">
-                                <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
-                                EKSİK
-                            </span>
-                        )}
+                        </div>
+                    )}
+
+                    {/* Project & Org */}
+                    <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                        <span className="text-zinc-400 font-medium">OPENAI_PROJECT</span>
+                        <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase">
+                            {aiSettings.hasProject ? 'VAR' : 'YOK'}
+                        </span>
+                    </div>
+
+                    <div className="bg-white/[0.03] border border-white/5 rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
+                        <span className="text-zinc-400 font-medium">OPENAI_ORG</span>
+                        <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase">
+                            {aiSettings.hasOrg ? 'VAR' : 'YOK'}
+                        </span>
                     </div>
                 </div>
             </div>
