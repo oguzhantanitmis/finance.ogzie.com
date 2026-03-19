@@ -117,7 +117,8 @@ Bana şunları sorabilirsin:
                                 messages: [
                                     { role: 'system', content: buildSystemPrompt() },
                                     { role: 'user', content: buildChatPrompt(context, prompt) },
-                                ]
+                                ],
+                                max_completion_tokens: 4096
                             }),
                         })
 
