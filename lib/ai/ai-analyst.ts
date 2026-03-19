@@ -34,7 +34,7 @@ export async function runProactiveAiAnalysis(userId: string) {
     const context = await composeFinancialContext(userId)
 
     // 4) OpenAI'dan Yapılandırılmış Yanıt İste (JSON format)
-    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-3.5-turbo'
+    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
@@ -56,10 +56,10 @@ Lütfen kesinlikle aşağıdaki JSON yapısında dön (herhangi bir markdown blo
   ]
 }`
 
-    // Denenecek modeller sırası: env model -> gpt-3.5-turbo
+    // Denenecek modeller sırası: env model -> gpt-5-mini
     const modelsToTry = [requestedModel]
-    if (requestedModel !== 'gpt-3.5-turbo') {
-        modelsToTry.push('gpt-3.5-turbo')
+    if (requestedModel !== 'gpt-5-mini') {
+        modelsToTry.push('gpt-5-mini')
     }
 
     let aiResponse: Response | null = null
