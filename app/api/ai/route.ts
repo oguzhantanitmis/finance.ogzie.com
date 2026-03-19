@@ -122,24 +122,7 @@ Bana şunları sorabilirsin:
                         })
 
                         let aiData = await aiResponse.json()
-                        
-                        // Fallback: Model erişim hatasında gpt-4o-mini'ye dön
-                        if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-                            console.warn(`Model ${requestedModel} access denied, falling back to gpt-4o-mini...`)
-                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                                body: JSON.stringify({
-                                    model: 'gpt-4o-mini',
-                                    messages: [
-                                        { role: 'system', content: buildSystemPrompt() },
-                                        { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ],
-                                    max_completion_tokens: 4096
-                                }),
-                            })
-                            aiData = await aiResponse.json()
-                        }
+
                         
 
 

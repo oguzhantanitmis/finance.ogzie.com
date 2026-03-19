@@ -72,23 +72,7 @@ Lütfen kesinlikle aşağıdaki JSON yapısında dön (herhangi bir markdown blo
     
     let aiData = await aiResponse.json()
 
-    // Fallback: Eğer model erişimi yoksa gpt-4o-mini dene
-    if (!aiResponse.ok && (aiData?.error?.message?.includes('access to model') || aiData?.error?.message?.includes('does not exist'))) {
-        console.warn(`Model ${requestedModel} access denied, falling back to gpt-4o-mini...`)
-        aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-            body: JSON.stringify({
-                model: 'gpt-4o-mini',
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    { role: 'user', content: context },
-                ],
-                response_format: { type: 'json_object' }
-            }),
-        })
-        aiData = await aiResponse.json()
-    }
+
 
 
 
