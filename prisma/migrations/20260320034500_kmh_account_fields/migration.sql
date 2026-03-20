@@ -1,0 +1,6 @@
+ALTER TABLE `Account`
+    ADD COLUMN `hasKmh` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `kmhLimit` DOUBLE NULL,
+    ADD COLUMN `kmhInterestRate` DOUBLE NULL,
+    ADD COLUMN `kmhCutOffDay` INTEGER NULL,
+    ADD COLUMN `kmhPaymentDueDay` INTEGER NULL;

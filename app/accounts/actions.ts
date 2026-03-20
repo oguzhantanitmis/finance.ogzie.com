@@ -15,6 +15,7 @@ import {
     createSuccessResult,
     getActionErrorResult,
     resolveFormData,
+    toOptionalNumber,
     toOptionalString,
     toRequiredString,
 } from '@/lib/action-result'
@@ -27,6 +28,11 @@ type AccountField =
     | 'currency'
     | 'bankName'
     | 'iban'
+    | 'hasKmh'
+    | 'kmhLimit'
+    | 'kmhInterestRate'
+    | 'kmhCutOffDay'
+    | 'kmhPaymentDueDay'
     | 'notes'
     | 'newBalance'
     | 'fromAccountId'
@@ -64,6 +70,11 @@ export async function createAccountActionState(
             currency: String(data.get('currency') ?? 'TRY'),
             bankName: toOptionalString(data.get('bankName')),
             iban: toOptionalString(data.get('iban')),
+            hasKmh: data.get('hasKmh') === 'on',
+            kmhLimit: toOptionalNumber(data.get('kmhLimit')) ?? null,
+            kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate')) ?? null,
+            kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay')) ?? null,
+            kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay')) ?? null,
             isDefault: data.get('isDefault') === 'on',
             notes: toOptionalString(data.get('notes')),
         })
@@ -90,6 +101,11 @@ export async function updateAccountAction(
             type: parseAccountType(data.get('type')),
             bankName: toOptionalString(data.get('bankName')) ?? null,
             iban: toOptionalString(data.get('iban')) ?? null,
+            hasKmh: data.get('hasKmh') === 'on',
+            kmhLimit: toOptionalNumber(data.get('kmhLimit')) ?? null,
+            kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate')) ?? null,
+            kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay')) ?? null,
+            kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay')) ?? null,
             isDefault: data.get('isDefault') === 'on',
             notes: toOptionalString(data.get('notes')) ?? null,
         })

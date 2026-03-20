@@ -1,40 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { AlertCircle, Banknote, Calendar, ChevronDown, ChevronUp, CreditCard, Landmark, Pencil, Trash2 } from 'lucide-react'
 
 import { calculateAccumulatedInterest, calculateMinPayment } from '@/lib/banking-engine'
 import { formatCategoryLabel } from '@/lib/ui-text'
+import type { DebtView } from '@/lib/debt-views'
 import { cn, formatCurrency } from '@/lib/utils'
-
-export interface DebtView {
-    id: string
-    name: string
-    type: 'CREDIT_CARD' | 'LOAN' | 'KMH' | 'PERSONAL' | 'MANUAL'
-    limit?: number | null
-    cutOffDay?: number | null
-    paymentDueDay?: number | null
-    totalBalance: number
-    remainingBalance: number
-    interestRate: number
-    minPaymentRate: number
-    kkdfRate: number
-    bsmvRate: number
-    totalPrincipal?: number | null
-    installments?: number | null
-    remainingInstallments?: number | null
-    dueDate?: string | null
-    paymentPlan?: Array<{
-        id: string
-        installmentNo: number
-        amount: number
-        principalAmount: number
-        interestAmount: number
-        taxAmount: number
-        dueDate: string
-        isPaid: boolean
-    }>
-}
 
 export default function DebtTable({
     debts,
@@ -79,8 +52,10 @@ export default function DebtTable({
                                         <h3 className="font-bold text-lg">{debt.name}</h3>
                                         <div className="flex items-center gap-2 text-xs text-zinc-400">
                                             <span className="bg-white/10 px-2 py-0.5 rounded text-white">{formatCategoryLabel(debt.type)}</span>
+                                            <span>{debt.sourceLabel}</span>
                                             {debt.interestRate > 0 ? <span>Faiz: %{debt.interestRate}</span> : null}
                                         </div>
+                                        {debt.subtitle ? <p className="text-xs text-zinc-500 mt-1">{debt.subtitle}</p> : null}
                                     </div>
                                 </div>
 
@@ -102,12 +77,21 @@ export default function DebtTable({
                             </button>
 
                             <div className="flex items-center gap-2">
-                                <button onClick={() => onEdit(debt)} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10">
-                                    <Pencil className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => onDelete(debt.id)} className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10">
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                                {debt.navigateHref && debt.navigateLabel ? (
+                                    <Link href={debt.navigateHref} className="px-3 py-2 rounded-xl text-xs text-zinc-300 border border-white/10 hover:bg-white/5">
+                                        {debt.navigateLabel}
+                                    </Link>
+                                ) : null}
+                                {debt.canEdit ? (
+                                    <button onClick={() => onEdit(debt)} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10">
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                ) : null}
+                                {debt.canDelete ? (
+                                    <button onClick={() => onDelete(debt.id)} className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
 

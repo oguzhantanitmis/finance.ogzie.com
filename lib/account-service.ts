@@ -30,6 +30,11 @@ export async function createAccount(
         currency?: string
         bankName?: string
         iban?: string
+        hasKmh?: boolean
+        kmhLimit?: number | null
+        kmhInterestRate?: number | null
+        kmhCutOffDay?: number | null
+        kmhPaymentDueDay?: number | null
         isDefault?: boolean
         notes?: string
     }
@@ -51,6 +56,11 @@ export async function createAccount(
             currency: data.currency ?? 'TRY',
             bankName: data.bankName ?? null,
             iban: data.iban ?? null,
+            hasKmh: data.hasKmh ?? false,
+            kmhLimit: data.hasKmh ? (data.kmhLimit ?? null) : null,
+            kmhInterestRate: data.hasKmh ? (data.kmhInterestRate ?? null) : null,
+            kmhCutOffDay: data.hasKmh ? (data.kmhCutOffDay ?? null) : null,
+            kmhPaymentDueDay: data.hasKmh ? (data.kmhPaymentDueDay ?? null) : null,
             isDefault: data.isDefault ?? false,
             notes: data.notes ?? null,
         },
@@ -65,6 +75,11 @@ export async function updateAccount(
         type?: AccountType
         bankName?: string | null
         iban?: string | null
+        hasKmh?: boolean
+        kmhLimit?: number | null
+        kmhInterestRate?: number | null
+        kmhCutOffDay?: number | null
+        kmhPaymentDueDay?: number | null
         isDefault?: boolean
         notes?: string | null
     }
@@ -83,7 +98,13 @@ export async function updateAccount(
 
     return prisma.account.update({
         where: { id: accountId },
-        data,
+        data: {
+            ...data,
+            kmhLimit: data.hasKmh ? (data.kmhLimit ?? null) : null,
+            kmhInterestRate: data.hasKmh ? (data.kmhInterestRate ?? null) : null,
+            kmhCutOffDay: data.hasKmh ? (data.kmhCutOffDay ?? null) : null,
+            kmhPaymentDueDay: data.hasKmh ? (data.kmhPaymentDueDay ?? null) : null,
+        },
     })
 }
 

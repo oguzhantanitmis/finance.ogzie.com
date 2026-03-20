@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from 'react'
 import { Plus, ArrowDownLeft, ArrowUpRight, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
-import { createPersonAction, deletePersonAction, updatePersonAction } from '@/app/people/actions'
+import { createPersonAction, createRPAction, deletePersonAction, updatePersonAction } from '@/app/people/actions'
 import FormMessage from '@/components/ui/FormMessage'
 import Modal from '@/components/ui/Modal'
 import SubmitButton from '@/components/ui/SubmitButton'
@@ -19,11 +19,14 @@ interface Props {
 
 export default function PeopleWorkspace({ people, summary }: Props) {
     const [showAdd, setShowAdd] = useState(false)
+    const [showAddRecord, setShowAddRecord] = useState(false)
+    const [selectedPersonId, setSelectedPersonId] = useState<string | null>(people[0]?.id ?? null)
     const [editingPerson, setEditingPerson] = useState<PersonWithSummary | null>(null)
     const [filter, setFilter] = useState<'all' | 'receivable' | 'payable'>('all')
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [, startDeleteTransition] = useTransition()
     const [createState, createAction] = useActionState(createPersonAction, EMPTY_ACTION_RESULT)
+    const [createRecordState, createRecordAction] = useActionState(createRPAction, EMPTY_ACTION_RESULT)
     const [updateState, updateAction] = useActionState(updatePersonAction, EMPTY_ACTION_RESULT)
 
     const filtered = people.filter((person) => {
@@ -53,6 +56,17 @@ export default function PeopleWorkspace({ people, summary }: Props) {
 
         return () => window.clearTimeout(timeoutId)
     }, [updateState, editingPerson])
+
+    useEffect(() => {
+        if (!createRecordState.success || !showAddRecord) return
+
+        const timeoutId = window.setTimeout(() => {
+            setShowAddRecord(false)
+            setFeedback(createRecordState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [createRecordState, showAddRecord])
 
     function handleDelete(personId: string) {
         if (!confirm('Bu kisiyi silmek istediginize emin misiniz?')) return
@@ -104,6 +118,15 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                 >
                     <Plus className="w-4 h-4" /> Kişi Ekle
                 </button>
+                <button
+                    onClick={() => {
+                        setSelectedPersonId(people[0]?.id ?? null)
+                        setShowAddRecord(true)
+                    }}
+                    className="flex items-center gap-2 px-5 py-3 border border-white/10 text-zinc-300 rounded-2xl hover:bg-white/5 transition-all"
+                >
+                    <ArrowUpRight className="w-4 h-4" /> Alacak / Verecek Kaydı
+                </button>
                 <div className="flex gap-1 bg-white/5 rounded-2xl p-1">
                     {(['all', 'receivable', 'payable'] as const).map((item) => (
                         <button
@@ -117,6 +140,15 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             {item === 'all' ? 'Tümü' : item === 'receivable' ? 'Bana Borçlu' : 'Benim Borçlarım'}
                         </button>
                     ))}
+                </div>
+            </div>
+
+            <div className="fintech-card p-5 mb-6">
+                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-3">Bu sayfa ne işe yarar?</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-zinc-400">
+                    <p>1. Kişiyi oluştur. Bu kişi arkadaş, aile, tedarikçi veya borç aldığın biri olabilir.</p>
+                    <p>2. Bu kişi için alacak ya da verecek kaydı aç. Şahsi borçlar burada kişiyle bağlı kalır.</p>
+                    <p>3. Tahsilat ve ödeme girdikçe hesap bakiyesi ve kişi durumu birlikte güncellenir.</p>
                 </div>
             </div>
 
@@ -160,6 +192,15 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setSelectedPersonId(person.id)
+                                            setShowAddRecord(true)
+                                        }}
+                                        className="px-3 py-2 rounded-xl text-xs text-zinc-300 border border-white/10 hover:bg-white/5 transition-colors"
+                                    >
+                                        Kayıt ekle
+                                    </button>
                                     <button
                                         onClick={() => setEditingPerson(person)}
                                         className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
@@ -209,6 +250,66 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                         <FormMessage success={updateState.success} message={updateState.message} />
                         <SubmitButton label="Kişiyi Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
+                </Modal>
+            ) : null}
+
+            {showAddRecord ? (
+                <Modal title="Alacak / Verecek Kaydı Ekle" onClose={() => setShowAddRecord(false)}>
+                    {people.length === 0 ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                            Önce kişi eklemen gerekiyor. Kişi kaydı olmadan şahsi alacak veya verecek açılmaz.
+                        </div>
+                    ) : (
+                        <form action={createRecordAction} className="space-y-4">
+                            <div>
+                                <label className="text-sm text-zinc-400 mb-2 block">Kişi</label>
+                                <select
+                                    name="personId"
+                                    defaultValue={selectedPersonId ?? people[0]?.id}
+                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                    required
+                                >
+                                    {people.map((person) => (
+                                        <option key={person.id} value={person.id}>{person.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-zinc-400 mb-2 block">Kayıt türü</label>
+                                    <select name="type" defaultValue="PAYABLE" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                                        <option value="PAYABLE">Benim borcum</option>
+                                        <option value="RECEIVABLE">Bana borçlu</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm text-zinc-400 mb-2 block">Tutar</label>
+                                    <input name="amount" type="number" min="0.01" step="0.01" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm text-zinc-400 mb-2 block">Açıklama</label>
+                                <input name="description" placeholder="Örn: Ahmet'e elden verilen borç" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-zinc-400 mb-2 block">Para birimi</label>
+                                    <select name="currency" defaultValue="TRY" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                                        <option value="TRY">TRY</option>
+                                        <option value="USD">USD</option>
+                                        <option value="EUR">EUR</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-sm text-zinc-400 mb-2 block">Vade</label>
+                                    <input name="dueDate" type="date" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                                </div>
+                            </div>
+                            <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <FormMessage success={createRecordState.success} message={createRecordState.message} />
+                            <SubmitButton label="Kaydı Oluştur" pendingLabel="Kaydediliyor..." />
+                        </form>
+                    )}
                 </Modal>
             ) : null}
         </div>

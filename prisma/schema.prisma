@@ -635,6 +635,11 @@ model Account {
   currency  String      @default("TRY")
   bankName  String?
   iban      String?
+  hasKmh    Boolean     @default(false)
+  kmhLimit  Float?
+  kmhInterestRate Float?
+  kmhCutOffDay Int?
+  kmhPaymentDueDay Int?
   isDefault Boolean     @default(false)
   isActive  Boolean     @default(true)
   notes     String?     @db.Text

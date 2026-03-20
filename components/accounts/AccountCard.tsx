@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Building2, Wallet, Landmark, TrendingUp, Banknote, MoreHorizontal, Pencil, Trash2, ArrowLeftRight, Settings } from 'lucide-react'
+import { Building2, Wallet, TrendingUp, Banknote, MoreHorizontal, Pencil, Trash2, ArrowLeftRight, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/utils'
 import type { Account } from '@prisma/client'
@@ -27,6 +27,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
     const meta = ACCOUNT_TYPE_META[account.type] ?? ACCOUNT_TYPE_META.OTHER_ACCOUNT
     const Icon = meta.icon
     const isNegative = account.balance < 0
+    const kmhUsage = account.hasKmh ? Math.max(account.balance * -1, 0) : 0
 
     return (
         <div className={cn(
@@ -44,6 +45,18 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                     <div>
                         <h3 className="font-semibold text-white">{account.name}</h3>
                         <p className="text-xs text-zinc-500">{meta.label}{account.bankName ? ` • ${account.bankName}` : ''}</p>
+                        {account.hasKmh ? (
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                                <span className="text-[10px] uppercase tracking-[0.25em] text-amber-300 px-2 py-1 rounded-lg bg-amber-500/10">
+                                    KMH Açık
+                                </span>
+                                {account.kmhLimit ? (
+                                    <span className="text-[10px] text-zinc-500">
+                                        Limit {formatCurrency(account.kmhLimit, account.currency)}
+                                    </span>
+                                ) : null}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 
@@ -100,6 +113,33 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
             {account.iban && (
                 <p className="text-xs text-zinc-600 mt-3 font-mono">{account.iban}</p>
             )}
+
+            {account.hasKmh ? (
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex items-center justify-between gap-4 mb-2">
+                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">KMH Durumu</p>
+                        <p className={cn('text-sm font-semibold', kmhUsage > 0 ? 'text-amber-300' : 'text-emerald-400')}>
+                            {kmhUsage > 0 ? 'Kullanım Var' : 'Kullanım Yok'}
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p className="text-zinc-500 mb-1">Kullanılan Tutar</p>
+                            <p className={cn('font-semibold', kmhUsage > 0 ? 'text-red-300' : 'text-white')}>
+                                {formatCurrency(kmhUsage, account.currency)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-zinc-500 mb-1">Kesim / Son Ödeme</p>
+                            <p className="font-semibold text-white">
+                                {account.kmhCutOffDay ? `${account.kmhCutOffDay}. gün` : 'Kesim yok'}
+                                {' / '}
+                                {account.kmhPaymentDueDay ? `${account.kmhPaymentDueDay}. gün` : 'Son ödeme yok'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     )
 }

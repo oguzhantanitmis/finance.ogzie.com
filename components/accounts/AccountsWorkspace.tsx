@@ -183,78 +183,12 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
 
             {(modal === 'add' || modal === 'edit') && (
                 <Modal title={modal === 'add' ? 'Yeni Hesap Ekle' : 'Hesabi Düzenle'} onClose={() => setModal('closed')}>
-                    <form action={modal === 'add' ? createAction : updateAction} className="space-y-4">
-                        {modal === 'edit' && selectedAccount ? (
-                            <input type="hidden" name="accountId" value={selectedAccount.id} />
-                        ) : null}
-                        <input
-                            name="name"
-                            placeholder="Hesap adi (Ziraat Vadesiz, Nakit Cuzdan)"
-                            defaultValue={selectedAccount?.name ?? ''}
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                            required
-                        />
-                        <div className="grid grid-cols-2 gap-4">
-                            <select
-                                name="type"
-                                defaultValue={selectedAccount?.type ?? 'BANK_ACCOUNT'}
-                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                            >
-                                <option value="BANK_ACCOUNT">Banka Hesabi</option>
-                                <option value="CASH">Nakit</option>
-                                <option value="WALLET">Cuzdan</option>
-                                <option value="INVESTMENT">Yatirim</option>
-                                <option value="OTHER_ACCOUNT">Diger</option>
-                            </select>
-                            <select
-                                name="currency"
-                                defaultValue={selectedAccount?.currency ?? 'TRY'}
-                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                            >
-                                <option value="TRY">TRY</option>
-                                <option value="USD">USD</option>
-                                <option value="EUR">EUR</option>
-                            </select>
-                        </div>
-                        {modal === 'add' ? (
-                            <input
-                                name="balance"
-                                type="number"
-                                step="0.01"
-                                placeholder="Baslangic bakiyesi"
-                                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                            />
-                        ) : null}
-                        <input
-                            name="bankName"
-                            placeholder="Banka adi (opsiyonel)"
-                            defaultValue={selectedAccount?.bankName ?? ''}
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                        />
-                        <input
-                            name="iban"
-                            placeholder="IBAN (opsiyonel)"
-                            defaultValue={selectedAccount?.iban ?? ''}
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                        />
-                        <textarea
-                            name="notes"
-                            placeholder="Not (opsiyonel)"
-                            defaultValue={selectedAccount?.notes ?? ''}
-                            className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
-                        />
-                        <label className="flex items-center gap-2 text-sm text-zinc-400">
-                            <input
-                                name="isDefault"
-                                type="checkbox"
-                                defaultChecked={selectedAccount?.isDefault ?? false}
-                                className="rounded border-white/20 bg-black"
-                            />
-                            Varsayilan hesap
-                        </label>
-                        <FormMessage success={activeFormState.success} message={activeFormState.message} />
-                        <SubmitButton label={modal === 'add' ? 'Hesabi Kaydet' : 'Guncelle'} pendingLabel={modal === 'add' ? 'Kaydediliyor...' : 'Guncelleniyor...'} />
-                    </form>
+                    <AccountForm
+                        account={modal === 'edit' ? selectedAccount : null}
+                        mode={modal}
+                        action={modal === 'add' ? createAction : updateAction}
+                        state={activeFormState}
+                    />
                 </Modal>
             )}
 
@@ -324,5 +258,157 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                 </Modal>
             ) : null}
         </div>
+    )
+}
+
+function AccountForm({
+    account,
+    mode,
+    action,
+    state,
+}: {
+    account: Account | null
+    mode: 'add' | 'edit'
+    action: (payload: FormData) => void
+    state: ActionResult
+}) {
+    const [accountType, setAccountType] = useState(account?.type ?? 'BANK_ACCOUNT')
+    const [hasKmh, setHasKmh] = useState(account?.hasKmh ?? false)
+    const showKmhFields = accountType === 'BANK_ACCOUNT' && hasKmh
+
+    return (
+        <form action={action} className="space-y-4">
+            {mode === 'edit' && account ? <input type="hidden" name="accountId" value={account.id} /> : null}
+            <input
+                name="name"
+                placeholder="Hesap adi (Ziraat Vadesiz, Nakit Cuzdan)"
+                defaultValue={account?.name ?? ''}
+                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                required
+            />
+            <div className="grid grid-cols-2 gap-4">
+                <select
+                    name="type"
+                    defaultValue={account?.type ?? 'BANK_ACCOUNT'}
+                    onChange={(event) => setAccountType(event.target.value as Account['type'])}
+                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                >
+                    <option value="BANK_ACCOUNT">Banka Hesabi</option>
+                    <option value="CASH">Nakit</option>
+                    <option value="WALLET">Cuzdan</option>
+                    <option value="INVESTMENT">Yatirim</option>
+                    <option value="OTHER_ACCOUNT">Diger</option>
+                </select>
+                <select
+                    name="currency"
+                    defaultValue={account?.currency ?? 'TRY'}
+                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                >
+                    <option value="TRY">TRY</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                </select>
+            </div>
+            {mode === 'add' ? (
+                <input
+                    name="balance"
+                    type="number"
+                    step="0.01"
+                    placeholder="Baslangic bakiyesi"
+                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                />
+            ) : null}
+            <input
+                name="bankName"
+                placeholder="Banka adi (opsiyonel)"
+                defaultValue={account?.bankName ?? ''}
+                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+            />
+            <input
+                name="iban"
+                placeholder="IBAN (opsiyonel)"
+                defaultValue={account?.iban ?? ''}
+                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+            />
+
+            {accountType === 'BANK_ACCOUNT' ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
+                    <label className="flex items-center gap-2 text-sm text-zinc-300">
+                        <input
+                            name="hasKmh"
+                            type="checkbox"
+                            defaultChecked={account?.hasKmh ?? false}
+                            onChange={(event) => setHasKmh(event.target.checked)}
+                            className="rounded border-white/20 bg-black"
+                        />
+                        Bu hesapta KMH / Avans Hesap var
+                    </label>
+
+                    {showKmhFields ? (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input
+                                    name="kmhLimit"
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={account?.kmhLimit ?? ''}
+                                    placeholder="KMH limiti"
+                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                />
+                                <input
+                                    name="kmhInterestRate"
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={account?.kmhInterestRate ?? 4.25}
+                                    placeholder="KMH faiz oranı (%)"
+                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <input
+                                    name="kmhCutOffDay"
+                                    type="number"
+                                    min="1"
+                                    max="31"
+                                    defaultValue={account?.kmhCutOffDay ?? ''}
+                                    placeholder="Hesap kesim günü"
+                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                />
+                                <input
+                                    name="kmhPaymentDueDay"
+                                    type="number"
+                                    min="1"
+                                    max="31"
+                                    defaultValue={account?.kmhPaymentDueDay ?? ''}
+                                    placeholder="Son ödeme günü"
+                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                />
+                            </div>
+                            <p className="text-xs text-zinc-500">
+                                KMH borcu hesaba eksi bakiyeye düştüğünde borç ekranına otomatik yansır. Garanti BBVA Avans Hesap örneğine göre yalnızca kullanılan tutar için faiz işletilir.
+                            </p>
+                        </>
+                    ) : null}
+                </div>
+            ) : null}
+
+            <textarea
+                name="notes"
+                placeholder="Not (opsiyonel)"
+                defaultValue={account?.notes ?? ''}
+                className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+            />
+            <label className="flex items-center gap-2 text-sm text-zinc-400">
+                <input
+                    name="isDefault"
+                    type="checkbox"
+                    defaultChecked={account?.isDefault ?? false}
+                    className="rounded border-white/20 bg-black"
+                />
+                Varsayilan hesap
+            </label>
+            <FormMessage success={state.success} message={state.message} />
+            <SubmitButton label={mode === 'add' ? 'Hesabi Kaydet' : 'Guncelle'} pendingLabel={mode === 'add' ? 'Kaydediliyor...' : 'Guncelleniyor...'} />
+        </form>
     )
 }
