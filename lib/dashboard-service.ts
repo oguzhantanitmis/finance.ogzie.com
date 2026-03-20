@@ -1,5 +1,6 @@
 'use server'
 
+import { getCardFinancialSnapshot } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
 import { getRPSummary } from '@/lib/people-service'
@@ -40,7 +41,15 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
         prisma.debt.findMany({ where: { userId }, select: { remainingBalance: true } }),
         prisma.creditCard.findMany({
             where: { userId, status: 'ACTIVE' },
-            include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1, select: { statementBalance: true, dueDate: true } } },
+            include: {
+                transactions: { select: { type: true, amount: true } },
+                payments: { select: { amount: true } },
+                statements: {
+                    orderBy: { periodEnd: 'desc' },
+                    take: 1,
+                    select: { statementBalance: true, minimumPayment: true, dueDate: true, paymentsReceived: true, status: true },
+                },
+            },
         }),
         prisma.subscription.findMany({
             where: { userId, isActive: true, status: 'ACTIVE' },
@@ -59,7 +68,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     ])
 
     const totalDebt = debts.reduce((sum, d) => sum + d.remainingBalance, 0)
-    const totalCardDebt = cards.reduce((sum, c) => sum + (c.statements[0]?.statementBalance ?? 0), 0)
+    const totalCardDebt = cards.reduce((sum, card) => sum + getCardFinancialSnapshot(card).currentDebt, 0)
     const totalSubscriptionMonthly = subscriptions.reduce((sum, s) => sum + (s.monthlyNormalizedAmount ?? s.amount), 0)
     const totalRecurringMonthly = recurringExpenses.reduce((sum, r) => sum + (r.billingCycle === 'YEARLY' ? r.amount / 12 : r.amount), 0)
 

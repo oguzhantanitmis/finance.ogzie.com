@@ -40,6 +40,7 @@ async function DashboardContent({ userId }: { userId: string }) {
     }
     const defaultHealth: HealthScoreResult = {
         score: 0, level: 'MODERATE',
+        isReady: false,
         breakdown: {
             creditUtilization: { score: 0, weight: 25, detail: 'Veri yok' },
             debtToIncomeRatio: { score: 0, weight: 20, detail: 'Veri yok' },
@@ -89,7 +90,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                     </div>
                     <div className="fintech-card px-6 py-5 min-w-0 w-full sm:w-auto sm:min-w-[320px] bg-gradient-to-br from-emerald-500/10 to-black">
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Serbest nakit</p>
-                        <p className={`text-3xl font-bold ${summary.freeCash < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                        <p className={`text-3xl font-bold privacy-blur ${summary.freeCash < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                             {formatCurrency(summary.freeCash, 'TRY')}
                         </p>
                         <p className="text-sm text-zinc-400 mt-2">Bu ay sabit yüklerden sonra kalan alan</p>
@@ -135,7 +136,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                                             </p>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-bold">{formatCurrency(obligation.amount, obligation.currency)}</p>
+                                            <p className="font-bold privacy-blur">{formatCurrency(obligation.amount, obligation.currency)}</p>
                                             <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{formatObligationSourceLabel(obligation.source)}</p>
                                         </div>
                                     </div>
@@ -150,7 +151,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                                 <Landmark className="w-5 h-5 text-amber-400" />
                                 <h3 className="font-semibold">Abonelik yükü</h3>
                             </div>
-                            <p className="text-3xl font-bold">{formatCurrency(summary.subscriptionLoad, 'TRY')}</p>
+                            <p className="text-3xl font-bold privacy-blur">{formatCurrency(summary.subscriptionLoad, 'TRY')}</p>
                             <p className="text-sm text-zinc-400 mt-2">Aylık normalize abonelik etkisi</p>
                             <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-white mt-5">
                                 Aboneliklere git <ArrowRight className="w-4 h-4" />
@@ -161,7 +162,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                                 <Wallet className="w-5 h-5 text-sky-400" />
                                 <h3 className="font-semibold">Sabit gider yükü</h3>
                             </div>
-                            <p className="text-3xl font-bold">{formatCurrency(summary.recurringLoad, 'TRY')}</p>
+                            <p className="text-3xl font-bold privacy-blur">{formatCurrency(summary.recurringLoad, 'TRY')}</p>
                             <p className="text-sm text-zinc-400 mt-2">Kira, fatura, sigorta vb.</p>
                             <Link href="/recurring" className="inline-flex items-center gap-2 text-sm text-white mt-5">
                                 Sabit giderleri aç <ArrowRight className="w-4 h-4" />
@@ -217,35 +218,35 @@ async function DashboardContent({ userId }: { userId: string }) {
             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 mt-8">
                 <div className="fintech-card p-4">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Toplam Bakiye</p>
-                    <p className={cn('text-lg font-bold', dashData.totalBalance < 0 ? 'text-red-400' : 'text-white')}>
+                    <p className={cn('text-lg font-bold privacy-blur', dashData.totalBalance < 0 ? 'text-red-400' : 'text-white')}>
                         {formatCurrency(dashData.totalBalance, 'TRY')}
                     </p>
                 </div>
                 <div className="fintech-card p-4">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Kullanılabilir Nakit</p>
-                    <p className="text-lg font-bold text-emerald-400">{formatCurrency(dashData.availableCash, 'TRY')}</p>
+                    <p className="text-lg font-bold text-emerald-400 privacy-blur">{formatCurrency(dashData.availableCash, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-4">
                     <div className="flex items-center gap-1 mb-1">
                         <ArrowDownLeft className="w-3 h-3 text-emerald-400" />
                         <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Alacak</p>
                     </div>
-                    <p className="text-lg font-bold text-emerald-400">{formatCurrency(dashData.totalReceivable, 'TRY')}</p>
+                    <p className="text-lg font-bold text-emerald-400 privacy-blur">{formatCurrency(dashData.totalReceivable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-4">
                     <div className="flex items-center gap-1 mb-1">
                         <ArrowUpRight className="w-3 h-3 text-red-400" />
                         <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">Verecek</p>
                     </div>
-                    <p className="text-lg font-bold text-red-400">{formatCurrency(dashData.totalPayable, 'TRY')}</p>
+                    <p className="text-lg font-bold text-red-400 privacy-blur">{formatCurrency(dashData.totalPayable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-4">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Kart Borcu</p>
-                    <p className="text-lg font-bold text-amber-400">{formatCurrency(dashData.totalCardDebt, 'TRY')}</p>
+                    <p className="text-lg font-bold text-amber-400 privacy-blur">{formatCurrency(dashData.totalCardDebt, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-4">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-zinc-500 mb-1">Net Pozisyon</p>
-                    <p className={cn('text-lg font-bold', dashData.netPosition >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-lg font-bold privacy-blur', dashData.netPosition >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                         {formatCurrency(dashData.netPosition, 'TRY')}
                     </p>
                 </div>
@@ -260,15 +261,19 @@ async function DashboardContent({ userId }: { userId: string }) {
                             <h3 className="font-semibold">Finansal Sağlık</h3>
                         </div>
                         <div className="flex items-center gap-2">
-                            {healthScore.trend === 'improving' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
-                            {healthScore.trend === 'declining' && <TrendingDown className="w-4 h-4 text-red-400" />}
+                            {healthScore.isReady && healthScore.trend === 'improving' && <TrendingUp className="w-4 h-4 text-emerald-400" />}
+                            {healthScore.isReady && healthScore.trend === 'declining' && <TrendingDown className="w-4 h-4 text-red-400" />}
                             <span className={cn(
                                 'text-xs uppercase tracking-[0.25em] px-2 py-0.5 rounded-lg',
-                                healthScore.score >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
-                                healthScore.score >= 60 ? 'text-sky-400 bg-sky-500/10' :
-                                healthScore.score >= 40 ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
+                                !healthScore.isReady
+                                    ? 'text-zinc-400 bg-white/5'
+                                    : healthScore.score >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
+                                        healthScore.score >= 60 ? 'text-sky-400 bg-sky-500/10' :
+                                            healthScore.score >= 40 ? 'text-amber-400 bg-amber-500/10' : 'text-red-400 bg-red-500/10'
                             )}>
-                                {healthScore.level === 'EXCELLENT' ? 'Mükemmel' : healthScore.level === 'GOOD' ? 'İyi' : healthScore.level === 'MODERATE' ? 'Orta' : healthScore.level === 'HIGH' ? 'Yüksek Risk' : 'Kritik'}
+                                {!healthScore.isReady
+                                    ? 'Veri Yetersiz'
+                                    : healthScore.level === 'EXCELLENT' ? 'Mükemmel' : healthScore.level === 'GOOD' ? 'İyi' : healthScore.level === 'MODERATE' ? 'Orta' : healthScore.level === 'HIGH' ? 'Yüksek Risk' : 'Kritik'}
                             </span>
                         </div>
                     </div>
@@ -277,13 +282,13 @@ async function DashboardContent({ userId }: { userId: string }) {
                             <svg className="w-28 h-28 -rotate-90" viewBox="0 0 100 100">
                                 <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
                                 <circle cx="50" cy="50" r="42" fill="none"
-                                    stroke={healthScore.score >= 80 ? '#34d399' : healthScore.score >= 60 ? '#38bdf8' : healthScore.score >= 40 ? '#fbbf24' : '#f87171'}
+                                    stroke={!healthScore.isReady ? '#71717a' : healthScore.score >= 80 ? '#34d399' : healthScore.score >= 60 ? '#38bdf8' : healthScore.score >= 40 ? '#fbbf24' : '#f87171'}
                                     strokeWidth="8" strokeLinecap="round"
                                     strokeDasharray={`${healthScore.score * 2.64} 264`}
                                 />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-2xl font-bold text-white">{healthScore.score}</span>
+                                <span className="text-2xl font-bold text-white privacy-blur">{healthScore.isReady ? healthScore.score : '--'}</span>
                             </div>
                         </div>
                     </div>
@@ -307,8 +312,8 @@ async function DashboardContent({ userId }: { userId: string }) {
                                 <div className="h-full bg-purple-400 rounded-full transition-all" style={{ width: `${activeGoal.progressPercent}%` }} />
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-zinc-400">{formatCurrency(activeGoal.currentAmount, 'TRY')}</span>
-                                <span className="font-semibold text-white">{formatCurrency(activeGoal.targetAmount, 'TRY')}</span>
+                                <span className="text-zinc-400 privacy-blur">{formatCurrency(activeGoal.currentAmount, 'TRY')}</span>
+                                <span className="font-semibold text-white privacy-blur">{formatCurrency(activeGoal.targetAmount, 'TRY')}</span>
                             </div>
                             <p className="text-xs text-zinc-500 mt-2">%{activeGoal.progressPercent} tamamlandı</p>
                         </div>
@@ -341,7 +346,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                                         <p className="text-zinc-300 truncate">{tx.description || tx.type}</p>
                                         <p className="text-xs text-zinc-600">{new Date(tx.date).toLocaleDateString('tr-TR')}</p>
                                     </div>
-                                    <span className={cn('font-semibold tabular-nums shrink-0', tx.amount > 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                    <span className={cn('font-semibold tabular-nums shrink-0 privacy-blur', tx.amount > 0 ? 'text-emerald-400' : 'text-red-400')}>
                                         {tx.amount > 0 ? '+' : ''}{formatCurrency(tx.amount, tx.currency)}
                                     </span>
                                 </div>

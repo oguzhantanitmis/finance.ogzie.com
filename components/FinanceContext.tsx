@@ -10,30 +10,31 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined)
 
+function applyPrivacyMode(value: boolean) {
+    document.body.classList.toggle('privacy-active', value)
+    document.documentElement.classList.toggle('privacy-active', value)
+}
+
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-    const [hideAmounts, setHideAmountsState] = useState(false)
+    const [hideAmounts, setHideAmountsState] = useState(() => {
+        if (typeof window === 'undefined') {
+            return false
+        }
+
+        return window.localStorage.getItem('hideAmounts') === 'true'
+    })
 
     useEffect(() => {
-        const saved = localStorage.getItem('hideAmounts')
-        if (saved) {
-            const isHidden = saved === 'true'
-            setHideAmountsState(isHidden)
-            if (isHidden) document.body.classList.add('privacy-active')
-        }
-    }, [])
+        window.localStorage.setItem('hideAmounts', String(hideAmounts))
+        applyPrivacyMode(hideAmounts)
+    }, [hideAmounts])
 
     const setHideAmounts = (value: boolean) => {
         setHideAmountsState(value)
-        localStorage.setItem('hideAmounts', String(value))
-        if (value) {
-            document.body.classList.add('privacy-active')
-        } else {
-            document.body.classList.remove('privacy-active')
-        }
     }
 
     const toggleHideAmounts = () => {
-        setHideAmounts(!hideAmounts)
+        setHideAmountsState((current) => !current)
     }
 
     return (

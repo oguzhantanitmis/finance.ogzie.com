@@ -96,7 +96,7 @@ export async function getDashboardInsights(
         })
     }
 
-    if (healthScore.score < 45) {
+    if (healthScore.isReady && healthScore.score < 45) {
         insights.push({
             id: 'health-risk',
             type: 'WARNING',

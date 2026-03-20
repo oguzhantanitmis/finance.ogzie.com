@@ -22,7 +22,7 @@ export default function AIHeader({ summary }: { summary: string }) {
                     <Sparkles className="w-24 h-24 text-white" />
                 </div>
 
-                <p className="text-xl md:text-2xl font-semibold leading-snug max-w-3xl relative z-10">
+                <p className="text-xl md:text-2xl font-semibold leading-snug max-w-3xl relative z-10 privacy-blur">
                     {summary}
                 </p>
 

@@ -1,5 +1,6 @@
 import type { DebtType } from '@prisma/client'
 
+import { calculateCurrentCardDebt } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 
 export type DebtSourceKind = 'DEBT' | 'CREDIT_CARD' | 'KMH_ACCOUNT' | 'PERSONAL_RP'
@@ -59,23 +60,6 @@ function toNextMonthlyDate(day: number | null | undefined) {
     }
 
     return new Date(now.getFullYear(), now.getMonth() + 1, Math.min(day, 28))
-}
-
-function calculateCardCurrentDebt(card: {
-    transactions: Array<{ type: string; amount: number }>
-    payments: Array<{ amount: number }>
-}) {
-    const charges = card.transactions
-        .filter((transaction) => transaction.type !== 'REFUND')
-        .reduce((sum, transaction) => sum + transaction.amount, 0)
-
-    const refunds = card.transactions
-        .filter((transaction) => transaction.type === 'REFUND')
-        .reduce((sum, transaction) => sum + transaction.amount, 0)
-
-    const payments = card.payments.reduce((sum, payment) => sum + payment.amount, 0)
-
-    return Math.max(charges - refunds - payments, 0)
 }
 
 export async function getDebtWorkspaceData(userId: string): Promise<{
@@ -171,7 +155,7 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
     }))
 
     const creditCardDebtViews: DebtView[] = creditCards.flatMap((card) => {
-            const currentDebt = calculateCardCurrentDebt(card)
+            const currentDebt = calculateCurrentCardDebt(card)
             const latestStatement = card.statements[0] ?? null
 
             if (currentDebt <= 0 && !latestStatement?.statementBalance) {

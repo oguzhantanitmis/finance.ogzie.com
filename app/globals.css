@@ -19,7 +19,14 @@ body {
 }
 
 /* Privacy Mode Blur Effect */
-body.privacy-active .privacy-blur {
+html.privacy-active .privacy-blur,
+body.privacy-active .privacy-blur,
+html.privacy-active [data-sensitive="true"],
+body.privacy-active [data-sensitive="true"],
+html.privacy-active .font-mono,
+body.privacy-active .font-mono,
+html.privacy-active .tabular-nums,
+body.privacy-active .tabular-nums {
   filter: blur(10px);
   transition: filter 0.3s ease;
   user-select: none;

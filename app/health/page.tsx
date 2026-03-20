@@ -12,6 +12,7 @@ export default async function HealthPage() {
 
     let result: HealthScoreResult = {
         score: 0, level: 'MODERATE',
+        isReady: false,
         breakdown: {
             creditUtilization: { score: 0, weight: 25, detail: 'Veri yok' },
             debtToIncomeRatio: { score: 0, weight: 20, detail: 'Veri yok' },
@@ -25,7 +26,9 @@ export default async function HealthPage() {
 
     try {
         result = await calculateHealthScore(user.id)
-        await saveHealthSnapshot(user.id, result)
+        if (result.isReady) {
+            await saveHealthSnapshot(user.id, result)
+        }
     } catch (e) {
         console.error('HealthPage error:', e)
     }

@@ -11,6 +11,7 @@ interface Props {
     result: {
         score: number
         level: string
+        isReady: boolean
         breakdown: Record<string, BreakdownItem>
         improvements: string[]
         trend: 'improving' | 'declining' | 'stable'
@@ -37,6 +38,25 @@ const LEVEL_LABELS: Record<string, { text: string; color: string }> = {
 export default function HealthScoreWorkspace({ result }: Props) {
     const levelMeta = LEVEL_LABELS[result.level] ?? LEVEL_LABELS.MODERATE
 
+    if (!result.isReady) {
+        return (
+            <div className="fintech-card p-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-5">
+                    <Activity className="w-7 h-7 text-zinc-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-3">Sağlık puanı için veri yetersiz</h2>
+                <p className="text-zinc-400 max-w-2xl mx-auto leading-7">
+                    Gelir, borç, kart, hesap veya düzenli gider verisi olmadan gerçek zamanlı finansal sağlık puanı üretmiyorum.
+                </p>
+                <div className="mt-6 space-y-2">
+                    {result.improvements.map((tip, i) => (
+                        <p key={i} className="text-sm text-zinc-300">• {tip}</p>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div>
             {/* Ana Skor */}
@@ -51,7 +71,7 @@ export default function HealthScoreWorkspace({ result }: Props) {
                         />
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-4xl font-bold text-white">{result.score}</span>
+                        <span className="text-4xl font-bold text-white privacy-blur">{result.score}</span>
                         <span className="text-xs text-zinc-500">/100</span>
                     </div>
                 </div>
@@ -77,8 +97,8 @@ export default function HealthScoreWorkspace({ result }: Props) {
                                 <div className={cn('h-full rounded-full', barColor)} style={{ width: `${item.score}%` }} />
                             </div>
                             <div className="flex items-center justify-between text-xs">
-                                <span className="text-zinc-400">{item.detail}</span>
-                                <span className="font-semibold text-white">{item.score}/100</span>
+                                <span className="text-zinc-400 privacy-blur">{item.detail}</span>
+                                <span className="font-semibold text-white privacy-blur">{item.score}/100</span>
                             </div>
                         </div>
                     )
