@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "test": "vitest run",
+    "loan:sync:structured": "node scripts/sync-structured-loan.mjs",
     "db:generate": "prisma generate",
     "db:update": "prisma migrate deploy && prisma generate",
     "db:push": "prisma db push && prisma generate",

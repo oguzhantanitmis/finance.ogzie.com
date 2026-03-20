@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
-const emptyPlan: PaymentPlan = { strategy: 'SAFE', items: [], totalMinPayment: 0, totalAvailable: 0, surplus: 0, riskLevel: 'LOW', warnings: [] }
+const emptyPlan: PaymentPlan = { strategy: 'SAFE', items: [], totalRequiredPayment: 0, totalAvailable: 0, surplus: 0, riskLevel: 'LOW', warnings: [] }
 
 export default async function PaymentPlanPage() {
     const user = await getCurrentUser()

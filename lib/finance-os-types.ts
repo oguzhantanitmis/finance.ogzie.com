@@ -58,6 +58,52 @@ export interface UpcomingObligation {
     note?: string
 }
 
+export type MonthlyPaymentStatus = 'PAID' | 'OPEN' | 'OVERDUE' | 'PLANNED'
+
+export type MonthlyPaymentSource =
+    | 'loan_installment'
+    | 'card_statement'
+    | 'manual_debt'
+    | 'subscription'
+    | 'recurring'
+
+export interface MonthlyPaymentItem {
+    id: string
+    source: MonthlyPaymentSource
+    name: string
+    amount: number
+    currency: string
+    dueDate: Date
+    status: MonthlyPaymentStatus
+    isEstimated: boolean
+    detail?: {
+        installmentNo?: number
+        principalAmount?: number
+        interestAmount?: number
+        taxAmount?: number
+        paidDate?: Date | null
+        statementBalance?: number
+        minimumPayment?: number
+        cardStatus?: string
+        billingCycle?: BillingCycle
+        autopay?: boolean
+        category?: string
+        note?: string
+        currentStatus?: string
+    }
+    navigateHref?: string
+}
+
+export interface MonthlyPaymentForecast {
+    month: Date
+    items: MonthlyPaymentItem[]
+    totalScheduled: number
+    totalPaid: number
+    totalOpen: number
+    totalOverdue: number
+    totalPlanned: number
+}
+
 export interface FinanceAlertView {
     id: string
     type: BudgetAlertType

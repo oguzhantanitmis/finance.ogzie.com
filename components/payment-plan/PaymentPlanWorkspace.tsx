@@ -32,8 +32,8 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
             {/* Özet */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Asgari</p>
-                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
+                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Zorunlu</p>
+                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(plan.totalRequiredPayment, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Kullanılabilir</p>
@@ -115,8 +115,8 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                                     <p className="font-bold text-white privacy-blur">{formatCurrency(item.balance, 'TRY')}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-xs text-zinc-500">Asgari</p>
-                                    <p className="font-semibold text-zinc-400 privacy-blur">{formatCurrency(item.minPayment, 'TRY')}</p>
+                                    <p className="text-xs text-zinc-500">Zorunlu</p>
+                                    <p className="font-semibold text-zinc-400 privacy-blur">{formatCurrency(item.requiredPayment, 'TRY')}</p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-zinc-600" />
                                 <div className="text-right">

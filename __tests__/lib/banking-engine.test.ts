@@ -103,6 +103,14 @@ describe('calculateLoanSchedule', () => {
         const totalPrincipalPaid = result.plan.reduce((s, i) => s + i.principal, 0)
         expect(totalPrincipalPaid).toBeCloseTo(60000, 0)
     })
+
+    it('özel kkdf/bsmv oranları taksit hesabını etkiler', () => {
+        const lowTax = calculateLoanSchedule(100000, 3, 12, { KKDF: 0.1, BSMV: 0.1 })
+        const highTax = calculateLoanSchedule(100000, 3, 12, { KKDF: 0.2, BSMV: 0.2 })
+
+        expect(highTax.monthlyPayment).toBeGreaterThan(lowTax.monthlyPayment)
+        expect(highTax.plan[0].tax).toBeGreaterThan(lowTax.plan[0].tax)
+    })
 })
 
 describe('TAX_RATES', () => {

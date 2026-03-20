@@ -1,19 +1,20 @@
-import { formatDistanceToNowStrict } from 'date-fns'
-import { tr } from 'date-fns/locale'
+import { addMonths } from 'date-fns'
 import { redirect } from 'next/navigation'
-import { ArrowRight, CalendarClock, Landmark, ShieldAlert, Sparkles, Wallet, TrendingUp, TrendingDown, Target, BookOpen, Users, ArrowDownLeft, ArrowUpRight, Activity } from 'lucide-react'
+import { ArrowRight, Landmark, ShieldAlert, Sparkles, Wallet, TrendingUp, TrendingDown, Target, BookOpen, Users, ArrowDownLeft, ArrowUpRight, Activity } from 'lucide-react'
 import Link from 'next/link'
 import { Suspense } from 'react'
 
 import AIHeader from '@/components/AIHeader'
+import MonthlyPaymentsPanel from '@/components/dashboard/MonthlyPaymentsPanel'
 import DashboardInsights from '@/components/DashboardInsights'
 import PageShell from '@/components/PageShell'
 import SummaryCards from '@/components/SummaryCards'
 import { getDashboardInsights } from '@/lib/dashboard-insights'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
+import { getMonthQueryValue, getMonthlyPaymentForecast, resolveDashboardMonth } from '@/lib/monthly-payment-forecast'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { getCurrentUser } from '@/lib/server-auth'
-import { formatAlertTypeLabel, formatCategoryLabel, formatObligationSourceLabel } from '@/lib/ui-text'
+import { formatAlertTypeLabel } from '@/lib/ui-text'
 import { formatCurrency, cn } from '@/lib/utils'
 import { getDashboardData } from '@/lib/dashboard-service'
 import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score-service'
@@ -21,17 +22,37 @@ import { getActiveGoalForDashboard } from '@/lib/goal-service'
 
 export const dynamic = 'force-dynamic'
 
-async function DashboardContent({ userId }: { userId: string }) {
+async function DashboardContent({
+    userId,
+    selectedMonth,
+}: {
+    userId: string
+    selectedMonth: Date
+}) {
     const defaultSummary = {
         plannedIncome: 0, fixedCommitments: 0,
         debtCommitments: 0, subscriptionLoad: 0, recurringLoad: 0,
         freeCash: 0, upcomingObligations: [], incomeSources: [],
     } as unknown as Awaited<ReturnType<typeof getMonthlyBudgetSummary>>
+    const defaultPaymentForecast: Awaited<ReturnType<typeof getMonthlyPaymentForecast>> = {
+        month: selectedMonth,
+        items: [],
+        totalScheduled: 0,
+        totalPaid: 0,
+        totalOpen: 0,
+        totalOverdue: 0,
+        totalPlanned: 0,
+    }
 
     let summary = defaultSummary
     try {
         summary = await getMonthlyBudgetSummary(userId)
     } catch { /* sessizce devam */ }
+    const paymentForecast = await getMonthlyPaymentForecast(userId, selectedMonth).catch(() => defaultPaymentForecast)
+    const currentMonth = resolveDashboardMonth(undefined)
+    const canGoPrevious = selectedMonth.getTime() > currentMonth.getTime()
+    const previousMonth = canGoPrevious ? addMonths(selectedMonth, -1) : currentMonth
+    const nextMonth = addMonths(selectedMonth, 1)
 
     const defaultDashData: Awaited<ReturnType<typeof getDashboardData>> = {
         totalBalance: 0, availableCash: 0, totalDebt: 0, totalReceivable: 0,
@@ -84,8 +105,8 @@ async function DashboardContent({ userId }: { userId: string }) {
                         <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
                         <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3">Aylık kontrol merkezi</h1>
                         <p className="text-zinc-400 max-w-3xl">
-                            Gelir, sabit gider, abonelik ve borç baskısını tek ekranda gör. Önümüzdeki 14 günün
-                            ödeme akışını buradan yönet.
+                            Gelir, sabit gider, abonelik ve borç baskısını tek ekranda gör. Seçtiğin ayın ödeme
+                            akışını ve canlı finans görünümünü aynı panelde yönet.
                         </p>
                     </div>
                     <div className="fintech-card px-6 py-5 min-w-0 w-full sm:w-auto sm:min-w-[320px] bg-gradient-to-br from-emerald-500/10 to-black">
@@ -115,35 +136,14 @@ async function DashboardContent({ userId }: { userId: string }) {
 
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] gap-6 mt-6">
                 <div className="space-y-6">
-                    <div className="fintech-card p-6 md:p-7">
-                        <div className="flex items-center justify-between gap-4 mb-6">
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Önümüzdeki 14 gün</p>
-                                <h2 className="text-2xl font-bold">Yaklaşan ödemeler</h2>
-                            </div>
-                            <CalendarClock className="w-5 h-5 text-zinc-500" />
-                        </div>
-                        {summary.upcomingObligations.length === 0 ? (
-                            <p className="text-zinc-400">Önümüzdeki 14 günde zorlayıcı bir ödeme yok.</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {summary.upcomingObligations.slice(0, 8).map((obligation) => (
-                                    <div key={`${obligation.source}-${obligation.id}`} className="rounded-3xl border border-white/8 bg-white/[0.03] px-4 py-4 flex items-center justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <p className="font-semibold truncate">{obligation.name}</p>
-                                            <p className="text-sm text-zinc-500 truncate">
-                                                {formatCategoryLabel(obligation.category)} • {formatDistanceToNowStrict(new Date(obligation.dueDate), { addSuffix: true, locale: tr })}
-                                            </p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="font-bold privacy-blur">{formatCurrency(obligation.amount, obligation.currency)}</p>
-                                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">{formatObligationSourceLabel(obligation.source)}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <MonthlyPaymentsPanel
+                        forecast={paymentForecast}
+                        currentMonthHref={`/?month=${getMonthQueryValue(currentMonth)}`}
+                        nextMonthHref={`/?month=${getMonthQueryValue(nextMonth)}`}
+                        previousMonthHref={`/?month=${getMonthQueryValue(previousMonth)}`}
+                        canGoPrevious={canGoPrevious}
+                        minMonth={currentMonth}
+                    />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="fintech-card p-6 bg-gradient-to-br from-zinc-950 to-black">
@@ -205,7 +205,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                                 ? 'Bütçe merkezi daha sağlıklı çalışsın diye önce düzenli gelirlerini ekle. Gelir kaydı olmadan serbest nakit hesapları eksik kalır.'
                                 : summary.freeCash < 0
                                     ? 'Bu ay eksiye düşüyorsun. Sabit giderlerden kritik olmayanları ayır, yıllık yenilemeleri kontrol et ve kredi kartı minimum ödemelerini yeniden planla.'
-                                    : `Önümüzdeki 14 günde ${summary.upcomingObligations.length} ödeme var. Tampon hedefini ${formatCurrency(Math.max(summary.fixedCommitments * 0.2, 0), 'TRY')} bandına çekmek mantıklı.`}
+                                    : `Seçili ayda ${paymentForecast.items.length} ödeme kalemi var. Tampon hedefini ${formatCurrency(Math.max(summary.fixedCommitments * 0.2, 0), 'TRY')} bandına çekmek mantıklı.`}
                         </p>
                         <Link href="/budget" className="inline-flex items-center gap-2 text-sm text-white mt-5">
                             Bütçe merkezine geç <ArrowRight className="w-4 h-4" />
@@ -412,17 +412,25 @@ function DashboardSkeleton() {
     )
 }
 
-export default async function Home() {
+export default async function Home({
+    searchParams,
+}: {
+    searchParams?: Promise<{ month?: string | string[] }>
+}) {
     const user = await getCurrentUser()
 
     if (!user) {
         redirect('/login')
     }
 
+    const params = searchParams ? await searchParams : undefined
+    const rawMonth = Array.isArray(params?.month) ? params?.month[0] : params?.month
+    const selectedMonth = resolveDashboardMonth(rawMonth)
+
     return (
         <PageShell width="genis">
             <Suspense fallback={<DashboardSkeleton />}>
-                <DashboardContent userId={user.id} />
+                <DashboardContent userId={user.id} selectedMonth={selectedMonth} />
             </Suspense>
         </PageShell>
     )

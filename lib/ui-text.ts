@@ -54,6 +54,38 @@ export function formatObligationSourceLabel(value: string) {
     }
 }
 
+export function formatMonthlyPaymentStatusLabel(value: string) {
+    switch (value) {
+        case 'PAID':
+            return 'Ödendi'
+        case 'OPEN':
+            return 'Açık'
+        case 'OVERDUE':
+            return 'Gecikmiş'
+        case 'PLANNED':
+            return 'Tahmini'
+        default:
+            return value
+    }
+}
+
+export function formatMonthlyPaymentSourceLabel(value: string) {
+    switch (value) {
+        case 'loan_installment':
+            return 'Kredi taksiti'
+        case 'card_statement':
+            return 'Kart ekstresi'
+        case 'manual_debt':
+            return 'Borç kaydı'
+        case 'subscription':
+            return 'Abonelik'
+        case 'recurring':
+            return 'Sabit gider'
+        default:
+            return value.replaceAll('_', ' ')
+    }
+}
+
 export function formatCategoryLabel(value: string) {
     switch (value) {
         case 'CREDIT_CARD':

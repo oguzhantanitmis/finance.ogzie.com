@@ -5,7 +5,7 @@ describe('buildSystemPrompt', () => {
     it('Türkçe finans koçu prompt döndürür', () => {
         const prompt = buildSystemPrompt()
         expect(prompt).toContain('finans koçu')
-        expect(prompt).toContain('TRY')
+        expect(prompt).toContain('TL')
     })
 
     it('hallüsinasyon yasağı içerir', () => {
@@ -29,7 +29,7 @@ describe('buildSystemPrompt', () => {
     it('uzmanlık alanlarını listeler', () => {
         const prompt = buildSystemPrompt()
         expect(prompt).toContain('Kredi kartı')
-        expect(prompt).toContain('Bütçe')
+        expect(prompt.toLowerCase()).toContain('bütçe')
     })
 })
 
