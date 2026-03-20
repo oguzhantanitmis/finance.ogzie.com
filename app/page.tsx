@@ -6,19 +6,17 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 
 import AIHeader from '@/components/AIHeader'
-import InsightFeed from '@/components/InsightFeed'
-import Navbar from '@/components/Navbar'
+import DashboardInsights from '@/components/DashboardInsights'
 import PageShell from '@/components/PageShell'
 import SummaryCards from '@/components/SummaryCards'
-import AIRecommendationWidget from '@/components/AIRecommendationWidget'
+import { getDashboardInsights } from '@/lib/dashboard-insights'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
-import { prisma } from '@/lib/prisma'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { getCurrentUser } from '@/lib/server-auth'
 import { formatAlertTypeLabel, formatCategoryLabel, formatObligationSourceLabel } from '@/lib/ui-text'
 import { formatCurrency, cn } from '@/lib/utils'
 import { getDashboardData } from '@/lib/dashboard-service'
-import { calculateHealthScore } from '@/lib/health-score-service'
+import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score-service'
 import { getActiveGoalForDashboard } from '@/lib/goal-service'
 
 export const dynamic = 'force-dynamic'
@@ -40,7 +38,7 @@ async function DashboardContent({ userId }: { userId: string }) {
         totalPayable: 0, netPosition: 0, totalCardDebt: 0, totalSubscriptionMonthly: 0,
         totalRecurringMonthly: 0, overdueCount: 0, recentTransactions: [], upcomingPayments: [],
     }
-    const defaultHealth = {
+    const defaultHealth: HealthScoreResult = {
         score: 0, level: 'MODERATE',
         breakdown: {
             creditUtilization: { score: 0, weight: 25, detail: 'Veri yok' },
@@ -55,7 +53,7 @@ async function DashboardContent({ userId }: { userId: string }) {
     }
 
     let dashData = defaultDashData
-    let healthScore: any = defaultHealth
+    let healthScore: HealthScoreResult = defaultHealth
     let activeGoal: Awaited<ReturnType<typeof getActiveGoalForDashboard>> | null = null
 
     try {
@@ -70,21 +68,11 @@ async function DashboardContent({ userId }: { userId: string }) {
     } catch { /* tablolar yoksa sessizce devam */ }
 
     const alerts = await syncBudgetAlerts(userId, summary).catch(() => [])
-    const insights = await prisma.aIInsight.findMany({
-        where: { userId, isRead: false },
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-        select: { id: true, title: true, content: true, type: true, isRead: true }
-    }).catch(() => [])
-
-    const aiRecommendations = await prisma.aIRecommendation.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-        select: {
-            id: true, type: true, title: true, content: true,
-            reasoning: true, suggestedAction: true, risk: true
-        }
+    const insights = await getDashboardInsights(userId, {
+        summary,
+        dashboardData: dashData,
+        healthScore,
+        activeGoal,
     }).catch(() => [])
 
     return (
@@ -113,9 +101,7 @@ async function DashboardContent({ userId }: { userId: string }) {
                 summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
             />
 
-            <AIRecommendationWidget recommendations={aiRecommendations} />
-
-            <InsightFeed insights={insights} />
+            <DashboardInsights insights={insights} />
 
             <SummaryCards
                 data={{
@@ -429,13 +415,10 @@ export default async function Home() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <Suspense fallback={<DashboardSkeleton />}>
-                    <DashboardContent userId={user.id} />
-                </Suspense>
-            </PageShell>
-        </div>
+        <PageShell width="genis">
+            <Suspense fallback={<DashboardSkeleton />}>
+                <DashboardContent userId={user.id} />
+            </Suspense>
+        </PageShell>
     )
 }

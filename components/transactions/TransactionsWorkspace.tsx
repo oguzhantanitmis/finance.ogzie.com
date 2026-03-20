@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard, ReceiptText, Settings, Search } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
@@ -27,6 +28,8 @@ interface EntryData {
     category: string | null
     date: string
     account: { name: string } | null
+    sourceLabel: string | null
+    sourceHref: string | null
 }
 
 interface Props {
@@ -111,6 +114,14 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                             {entry.account && <span>• {entry.account.name}</span>}
                                             <span>• {new Date(entry.date).toLocaleDateString('tr-TR')}</span>
                                         </div>
+                                        {entry.sourceHref && entry.sourceLabel ? (
+                                            <Link
+                                                href={entry.sourceHref}
+                                                className="inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-white mt-2"
+                                            >
+                                                {entry.sourceLabel} →
+                                            </Link>
+                                        ) : null}
                                     </div>
                                 </div>
                                 <p className={cn('font-bold tabular-nums', isPositive ? 'text-emerald-400' : 'text-red-400')}>

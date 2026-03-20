@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import SimulationsWorkspace from '@/components/simulations/SimulationsWorkspace'
 import { getCurrentUser } from '@/lib/server-auth'
@@ -33,23 +32,20 @@ export default async function SimulationsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <header className="mb-10">
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Simülasyon</h1>
-                    <p className="text-zinc-400 max-w-3xl">
-                        &quot;Ne olurdu?&quot; senaryoları ile kararlarının etkisini önceden gör.
-                    </p>
-                </header>
-                <SimulationsWorkspace
-                    subscriptions={subs}
-                    debts={debtsList}
-                    currentCash={cash}
-                    currentMonthlyIncome={monthlyIncome}
-                />
-            </PageShell>
-        </div>
+        <PageShell width="genis">
+            <header className="mb-10">
+                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Simülasyon</h1>
+                <p className="text-zinc-400 max-w-3xl">
+                    &quot;Ne olurdu?&quot; senaryoları ile kararlarının etkisini önceden gör.
+                </p>
+            </header>
+            <SimulationsWorkspace
+                subscriptions={subs}
+                debts={debtsList}
+                currentCash={cash}
+                currentMonthlyIncome={monthlyIncome}
+            />
+        </PageShell>
     )
 }

@@ -1,7 +1,20 @@
 'use server'
 
 import { RPStatus, type ReceivablePayable } from '@prisma/client'
+import { ActionError } from '@/lib/action-result'
 import { prisma } from '@/lib/prisma'
+
+function resolveRPStatus(originalAmount: number, remainingAmount: number, dueDate?: Date | null): RPStatus {
+    if (remainingAmount <= 0) {
+        return 'CLOSED'
+    }
+
+    if (dueDate && dueDate < new Date()) {
+        return remainingAmount < originalAmount ? 'PARTIAL' : 'OVERDUE'
+    }
+
+    return remainingAmount < originalAmount ? 'PARTIAL' : 'OPEN'
+}
 
 /**
  * Alacak veya verecek kaydı oluşturur.
@@ -20,6 +33,11 @@ export async function createRP(
         installmentCount?: number
     }
 ): Promise<ReceivablePayable> {
+    await prisma.person.findFirstOrThrow({
+        where: { id: data.personId, userId },
+        select: { id: true },
+    })
+
     return prisma.receivablePayable.create({
         data: {
             userId,
@@ -38,6 +56,51 @@ export async function createRP(
     })
 }
 
+export async function updateRP(
+    userId: string,
+    rpId: string,
+    data: {
+        type: 'RECEIVABLE' | 'PAYABLE'
+        description: string
+        originalAmount: number
+        remainingAmount: number
+        currency?: string
+        dueDate?: Date | null
+        notes?: string
+    },
+): Promise<ReceivablePayable> {
+    const existing = await prisma.receivablePayable.findFirstOrThrow({
+        where: { id: rpId, userId },
+        select: { id: true },
+    })
+
+    if (!existing) {
+        throw new ActionError('Kayit bulunamadi.')
+    }
+
+    return prisma.receivablePayable.update({
+        where: { id: rpId },
+        data: {
+            type: data.type,
+            description: data.description,
+            originalAmount: data.originalAmount,
+            remainingAmount: data.remainingAmount,
+            currency: data.currency ?? 'TRY',
+            dueDate: data.dueDate ?? null,
+            notes: data.notes ?? null,
+            status: resolveRPStatus(data.originalAmount, data.remainingAmount, data.dueDate),
+        },
+    })
+}
+
+export async function deleteRP(userId: string, rpId: string): Promise<void> {
+    await prisma.receivablePayable.findFirstOrThrow({
+        where: { id: rpId, userId },
+        select: { id: true },
+    })
+    await prisma.receivablePayable.delete({ where: { id: rpId } })
+}
+
 /**
  * Tahsilat girişi (alacak tahsil etme).
  * 1. RPTransaction oluştur
@@ -54,44 +117,51 @@ export async function recordCollection(
     accountId: string,
     description?: string
 ): Promise<void> {
-    if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    if (amount <= 0) throw new ActionError('Tutar sifirdan buyuk olmalidir.')
 
-    const rp = await prisma.receivablePayable.findUniqueOrThrow({ where: { id: rpId } })
-    if (amount > rp.remainingAmount) throw new Error('Tahsilat tutarı kalan alacaktan büyük olamaz.')
+    const [rp, account] = await Promise.all([
+        prisma.receivablePayable.findFirstOrThrow({ where: { id: rpId, userId } }),
+        prisma.account.findFirstOrThrow({ where: { id: accountId, userId } }),
+    ])
+
+    if (amount > rp.remainingAmount) throw new ActionError('Tahsilat tutari kalan alacaktan buyuk olamaz.')
 
     const newRemaining = +(rp.remainingAmount - amount).toFixed(2)
     const newStatus: RPStatus = newRemaining <= 0 ? 'CLOSED' : 'PARTIAL'
 
-    await prisma.$transaction([
-        prisma.rPTransaction.create({
+    await prisma.$transaction(async (tx) => {
+        const transaction = await tx.rPTransaction.create({
             data: {
                 receivablePayableId: rpId,
                 amount,
                 accountId,
                 description: description || 'Tahsilat',
             },
-        }),
-        prisma.receivablePayable.update({
+        })
+
+        await tx.receivablePayable.update({
             where: { id: rpId },
             data: { remainingAmount: newRemaining, status: newStatus },
-        }),
-        prisma.account.update({
-            where: { id: accountId },
+        })
+
+        await tx.account.update({
+            where: { id: account.id },
             data: { balance: { increment: amount } },
-        }),
-        prisma.ledgerEntry.create({
+        })
+
+        await tx.ledgerEntry.create({
             data: {
                 userId,
                 type: 'COLLECTION',
                 amount,
                 currency: rp.currency,
                 description: description || `Tahsilat: ${rp.description}`,
-                accountId,
-                rpTransactionId: undefined,
+                accountId: account.id,
+                rpTransactionId: transaction.id,
                 date: new Date(),
             },
-        }),
-    ])
+        })
+    })
 }
 
 /**
@@ -109,41 +179,49 @@ export async function recordPaymentToPerson(
     accountId: string,
     description?: string
 ): Promise<void> {
-    if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    if (amount <= 0) throw new ActionError('Tutar sifirdan buyuk olmalidir.')
 
-    const rp = await prisma.receivablePayable.findUniqueOrThrow({ where: { id: rpId } })
-    if (amount > rp.remainingAmount) throw new Error('Ödeme tutarı kalan borçtan büyük olamaz.')
+    const [rp, account] = await Promise.all([
+        prisma.receivablePayable.findFirstOrThrow({ where: { id: rpId, userId } }),
+        prisma.account.findFirstOrThrow({ where: { id: accountId, userId } }),
+    ])
+
+    if (amount > rp.remainingAmount) throw new ActionError('Odeme tutari kalan borctan buyuk olamaz.')
 
     const newRemaining = +(rp.remainingAmount - amount).toFixed(2)
     const newStatus: RPStatus = newRemaining <= 0 ? 'CLOSED' : 'PARTIAL'
 
-    await prisma.$transaction([
-        prisma.rPTransaction.create({
+    await prisma.$transaction(async (tx) => {
+        const transaction = await tx.rPTransaction.create({
             data: {
                 receivablePayableId: rpId,
                 amount,
                 accountId,
                 description: description || 'Ödeme',
             },
-        }),
-        prisma.receivablePayable.update({
+        })
+
+        await tx.receivablePayable.update({
             where: { id: rpId },
             data: { remainingAmount: newRemaining, status: newStatus },
-        }),
-        prisma.account.update({
-            where: { id: accountId },
+        })
+
+        await tx.account.update({
+            where: { id: account.id },
             data: { balance: { decrement: amount } },
-        }),
-        prisma.ledgerEntry.create({
+        })
+
+        await tx.ledgerEntry.create({
             data: {
                 userId,
                 type: 'PAYMENT_TO_PERSON',
                 amount: -amount,
                 currency: rp.currency,
                 description: description || `Ödeme: ${rp.description}`,
-                accountId,
+                accountId: account.id,
+                rpTransactionId: transaction.id,
                 date: new Date(),
             },
-        }),
-    ])
+        })
+    })
 }

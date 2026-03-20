@@ -1,18 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, ArrowLeftRight, Building2, Banknote, Wallet, TrendingUp, MoreHorizontal } from 'lucide-react'
+import { useActionState, useEffect, useState, useTransition } from 'react'
+import { Plus, ArrowLeftRight } from 'lucide-react'
 import type { Account } from '@prisma/client'
-import { formatCurrency } from '@/lib/utils'
-import { cn } from '@/lib/utils'
-import AccountCard from './AccountCard'
-import AccountSelect from './AccountSelect'
+
 import {
-    createAccountAction,
+    createAccountActionState,
+    updateAccountAction,
     deleteAccountAction,
     adjustBalanceAction,
     transferAction,
 } from '@/app/accounts/actions'
+import AccountCard from './AccountCard'
+import AccountSelect from './AccountSelect'
+import FormMessage from '@/components/ui/FormMessage'
+import Modal from '@/components/ui/Modal'
+import SubmitButton from '@/components/ui/SubmitButton'
+import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
+import { cn, formatCurrency } from '@/lib/utils'
 
 type ModalState = 'closed' | 'add' | 'edit' | 'adjust' | 'transfer'
 
@@ -25,6 +30,12 @@ interface Props {
 export default function AccountsWorkspace({ initialAccounts, totalBalance, availableCash }: Props) {
     const [modal, setModal] = useState<ModalState>('closed')
     const [selectedAccount, setSelectedAccount] = useState<Account | null>(null)
+    const [feedback, setFeedback] = useState<ActionResult | null>(null)
+    const [, startDeleteTransition] = useTransition()
+    const [createState, createAction] = useActionState(createAccountActionState, EMPTY_ACTION_RESULT)
+    const [updateState, updateAction] = useActionState(updateAccountAction, EMPTY_ACTION_RESULT)
+    const [adjustState, adjustAction] = useActionState(adjustBalanceAction, EMPTY_ACTION_RESULT)
+    const [transferState, transferFormAction] = useActionState(transferAction, EMPTY_ACTION_RESULT)
 
     function handleEdit(account: Account) {
         setSelectedAccount(account)
@@ -41,14 +52,74 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
         setModal('transfer')
     }
 
-    async function handleDelete(accountId: string) {
-        if (!confirm('Bu hesabı silmek istediğinizden emin misiniz?')) return
-        await deleteAccountAction(accountId)
+    function handleDelete(accountId: string) {
+        if (!confirm('Bu hesabi silmek istediginizden emin misiniz?')) return
+        startDeleteTransition(async () => {
+            const result = await deleteAccountAction(accountId)
+            setFeedback(result)
+        })
     }
+
+    useEffect(() => {
+        if (!createState.success || modal !== 'add') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setFeedback(createState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [createState, modal])
+
+    useEffect(() => {
+        if (!updateState.success || modal !== 'edit') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setSelectedAccount(null)
+            setFeedback(updateState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [updateState, modal])
+
+    useEffect(() => {
+        if (!adjustState.success || modal !== 'adjust') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setSelectedAccount(null)
+            setFeedback(adjustState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [adjustState, modal])
+
+    useEffect(() => {
+        if (!transferState.success || modal !== 'transfer') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setSelectedAccount(null)
+            setFeedback(transferState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [transferState, modal])
+
+    const activeFormState =
+        modal === 'add'
+            ? createState
+            : modal === 'edit'
+                ? updateState
+                : modal === 'adjust'
+                    ? adjustState
+                    : transferState
 
     return (
         <div>
-            {/* Özet Kartları */}
+            <FormMessage success={feedback?.success} message={feedback?.message} />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Bakiye</p>
@@ -68,17 +139,22 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                 </div>
             </div>
 
-            {/* Aksiyon Butonları */}
             <div className="flex flex-wrap gap-3 mb-6">
                 <button
-                    onClick={() => setModal('add')}
+                    onClick={() => {
+                        setSelectedAccount(null)
+                        setModal('add')
+                    }}
                     className="flex items-center gap-2 px-5 py-3 bg-white text-black font-semibold rounded-2xl hover:bg-zinc-200 transition-all"
                 >
                     <Plus className="w-4 h-4" /> Hesap Ekle
                 </button>
                 {initialAccounts.length >= 2 && (
                     <button
-                        onClick={() => { setSelectedAccount(null); setModal('transfer') }}
+                        onClick={() => {
+                            setSelectedAccount(null)
+                            setModal('transfer')
+                        }}
                         className="flex items-center gap-2 px-5 py-3 border border-white/10 text-zinc-300 rounded-2xl hover:bg-white/5 transition-all"
                     >
                         <ArrowLeftRight className="w-4 h-4" /> Transfer Yap
@@ -86,10 +162,9 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                 )}
             </div>
 
-            {/* Hesap Listesi */}
             {initialAccounts.length === 0 ? (
                 <div className="fintech-card p-16 text-center text-zinc-400">
-                    Henüz hesap eklenmedi. Banka hesabı, nakit veya cüzdan ekleyerek başlayın.
+                    Henüz hesap eklenmedi. Banka hesabi, nakit veya cüzdan ekleyerek başlayin.
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -106,16 +181,15 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                 </div>
             )}
 
-            {/* Hesap Ekleme / Düzenleme Modalı */}
             {(modal === 'add' || modal === 'edit') && (
-                <Modal title={modal === 'add' ? 'Yeni Hesap Ekle' : 'Hesabı Düzenle'} onClose={() => setModal('closed')}>
-                    <form action={createAccountAction} className="space-y-4">
-                        {modal === 'edit' && selectedAccount && (
+                <Modal title={modal === 'add' ? 'Yeni Hesap Ekle' : 'Hesabi Düzenle'} onClose={() => setModal('closed')}>
+                    <form action={modal === 'add' ? createAction : updateAction} className="space-y-4">
+                        {modal === 'edit' && selectedAccount ? (
                             <input type="hidden" name="accountId" value={selectedAccount.id} />
-                        )}
+                        ) : null}
                         <input
                             name="name"
-                            placeholder="Hesap adı (Ziraat Vadesiz, Nakit Cüzdan)"
+                            placeholder="Hesap adi (Ziraat Vadesiz, Nakit Cuzdan)"
                             defaultValue={selectedAccount?.name ?? ''}
                             className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
                             required
@@ -126,11 +200,11 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                                 defaultValue={selectedAccount?.type ?? 'BANK_ACCOUNT'}
                                 className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
                             >
-                                <option value="BANK_ACCOUNT">Banka Hesabı</option>
+                                <option value="BANK_ACCOUNT">Banka Hesabi</option>
                                 <option value="CASH">Nakit</option>
-                                <option value="WALLET">Cüzdan</option>
-                                <option value="INVESTMENT">Yatırım</option>
-                                <option value="OTHER_ACCOUNT">Diğer</option>
+                                <option value="WALLET">Cuzdan</option>
+                                <option value="INVESTMENT">Yatirim</option>
+                                <option value="OTHER_ACCOUNT">Diger</option>
                             </select>
                             <select
                                 name="currency"
@@ -142,18 +216,18 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                                 <option value="EUR">EUR</option>
                             </select>
                         </div>
-                        {modal === 'add' && (
+                        {modal === 'add' ? (
                             <input
                                 name="balance"
                                 type="number"
                                 step="0.01"
-                                placeholder="Başlangıç bakiyesi"
+                                placeholder="Baslangic bakiyesi"
                                 className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
                             />
-                        )}
+                        ) : null}
                         <input
                             name="bankName"
-                            placeholder="Banka adı (opsiyonel)"
+                            placeholder="Banka adi (opsiyonel)"
                             defaultValue={selectedAccount?.bankName ?? ''}
                             className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
                         />
@@ -176,23 +250,17 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                                 defaultChecked={selectedAccount?.isDefault ?? false}
                                 className="rounded border-white/20 bg-black"
                             />
-                            Varsayılan hesap
+                            Varsayilan hesap
                         </label>
-                        <button
-                            type="submit"
-                            onClick={() => setModal('closed')}
-                            className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all"
-                        >
-                            {modal === 'add' ? 'Hesabı Kaydet' : 'Güncelle'}
-                        </button>
+                        <FormMessage success={activeFormState.success} message={activeFormState.message} />
+                        <SubmitButton label={modal === 'add' ? 'Hesabi Kaydet' : 'Guncelle'} pendingLabel={modal === 'add' ? 'Kaydediliyor...' : 'Guncelleniyor...'} />
                     </form>
                 </Modal>
             )}
 
-            {/* Bakiye Düzeltme Modalı */}
-            {modal === 'adjust' && selectedAccount && (
-                <Modal title={`${selectedAccount.name} — Bakiye Düzelt`} onClose={() => setModal('closed')}>
-                    <form action={adjustBalanceAction} className="space-y-4">
+            {modal === 'adjust' && selectedAccount ? (
+                <Modal title={`${selectedAccount.name} — Bakiye Duzelt`} onClose={() => setModal('closed')}>
+                    <form action={adjustAction} className="space-y-4">
                         <input type="hidden" name="accountId" value={selectedAccount.id} />
                         <div>
                             <p className="text-xs text-zinc-500 mb-1">Mevcut bakiye</p>
@@ -210,24 +278,18 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                         />
                         <input
                             name="description"
-                            placeholder="Açıklama (opsiyonel)"
+                            placeholder="Aciklama (opsiyonel)"
                             className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
                         />
-                        <button
-                            type="submit"
-                            onClick={() => setModal('closed')}
-                            className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all"
-                        >
-                            Bakiyeyi Güncelle
-                        </button>
+                        <FormMessage success={adjustState.success} message={adjustState.message} />
+                        <SubmitButton label="Bakiyeyi Guncelle" pendingLabel="Guncelleniyor..." />
                     </form>
                 </Modal>
-            )}
+            ) : null}
 
-            {/* Transfer Modalı */}
-            {modal === 'transfer' && (
-                <Modal title="Hesaplar Arası Transfer" onClose={() => setModal('closed')}>
-                    <form action={transferAction} className="space-y-4">
+            {modal === 'transfer' ? (
+                <Modal title="Hesaplar Arasi Transfer" onClose={() => setModal('closed')}>
+                    <form action={transferFormAction} className="space-y-4">
                         <AccountSelect
                             accounts={initialAccounts}
                             name="fromAccountId"
@@ -253,38 +315,14 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                         />
                         <input
                             name="description"
-                            placeholder="Açıklama (opsiyonel)"
+                            placeholder="Aciklama (opsiyonel)"
                             className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
                         />
-                        <button
-                            type="submit"
-                            onClick={() => setModal('closed')}
-                            className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all"
-                        >
-                            Transferi Gerçekleştir
-                        </button>
+                        <FormMessage success={transferState.success} message={transferState.message} />
+                        <SubmitButton label="Transferi Gerceklestir" pendingLabel="Kaydediliyor..." />
                     </form>
                 </Modal>
-            )}
-        </div>
-    )
-}
-
-// ============================================================
-// Modal Bileşeni (iç kullanım)
-// ============================================================
-
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-lg fintech-card p-6 md:p-8 z-10 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-white">{title}</h2>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">✕</button>
-                </div>
-                {children}
-            </div>
+            ) : null}
         </div>
     )
 }

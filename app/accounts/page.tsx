@@ -1,7 +1,5 @@
 import { redirect } from 'next/navigation'
-import { Landmark } from 'lucide-react'
 
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import AccountsWorkspace from '@/components/accounts/AccountsWorkspace'
 import { getAccounts, getTotalBalance, getAvailableCash } from '@/lib/account-service'
@@ -31,24 +29,20 @@ export default async function AccountsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
+        <PageShell width="genis">
+            <header className="mb-10">
+                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Hesap Yönetimi</h1>
+                <p className="text-zinc-400 max-w-3xl">
+                    Banka hesaplarını, nakit ve cüzdan bakiyelerini tek yerden yönet. Transfer yap, bakiye düzelt ve toplam durumunu izle.
+                </p>
+            </header>
 
-            <PageShell width="genis">
-                <header className="mb-10">
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Hesap Yönetimi</h1>
-                    <p className="text-zinc-400 max-w-3xl">
-                        Banka hesaplarını, nakit ve cüzdan bakiyelerini tek yerden yönet. Transfer yap, bakiye düzelt ve toplam durumunu izle.
-                    </p>
-                </header>
-
-                <AccountsWorkspace
-                    initialAccounts={accounts}
-                    totalBalance={totalBalance}
-                    availableCash={availableCash}
-                />
-            </PageShell>
-        </div>
+            <AccountsWorkspace
+                initialAccounts={accounts}
+                totalBalance={totalBalance}
+                availableCash={availableCash}
+            />
+        </PageShell>
     )
 }

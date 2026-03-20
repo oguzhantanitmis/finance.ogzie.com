@@ -1,4 +1,3 @@
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
@@ -96,11 +95,8 @@ export default async function CardDetailPage({ params }: { params: Promise<{ id:
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <CardDetailView card={serializedCard} />
-            </PageShell>
-        </div>
+        <PageShell width="genis">
+            <CardDetailView card={serializedCard} />
+        </PageShell>
     )
 }

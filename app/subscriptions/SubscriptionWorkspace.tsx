@@ -1,13 +1,17 @@
 'use client'
 
 import { BillingCycle, RecordStatus } from '@prisma/client'
-import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { Calendar, Loader2, Plus, Sparkles, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { Calendar, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 
-import { createSubscriptionDraft, deleteSubscription } from '@/app/actions'
+import { createSubscriptionDraft, deleteSubscription, updateSubscription } from '@/app/actions'
 import BrandLogo from '@/components/BrandLogo'
+import FormMessage from '@/components/ui/FormMessage'
+import Modal from '@/components/ui/Modal'
+import SubmitButton from '@/components/ui/SubmitButton'
+import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
 import type { SubscriptionEnrichment } from '@/lib/finance-os-types'
+import { formatRecordStatusLabel } from '@/lib/ui-text'
 import { formatCurrency } from '@/lib/utils'
 
 type SubscriptionItem = {
@@ -20,6 +24,8 @@ type SubscriptionItem = {
     monthlyNormalizedAmount: number
     category: string
     logoUrl: string | null
+    autopay: boolean
+    notes: string | null
     status: RecordStatus
 }
 
@@ -32,9 +38,10 @@ function toDateInputValue(date: Date) {
 }
 
 export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWorkspaceProps) {
-    const router = useRouter()
     const formRef = useRef<HTMLFormElement>(null)
-    const [isPending, startTransition] = useTransition()
+    const [editingSubscription, setEditingSubscription] = useState<SubscriptionItem | null>(null)
+    const [feedback, setFeedback] = useState<ActionResult | null>(null)
+    const [, startDeleteTransition] = useTransition()
     const [name, setName] = useState('')
     const [amount, setAmount] = useState('')
     const [currency, setCurrency] = useState('TRY')
@@ -42,6 +49,8 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
     const [billingCycle, setBillingCycle] = useState<BillingCycle>(BillingCycle.MONTHLY)
     const [nextPayment, setNextPayment] = useState(toDateInputValue(new Date()))
     const [preview, setPreview] = useState<SubscriptionEnrichment | null>(null)
+    const [createState, createAction] = useActionState(createSubscriptionDraft, EMPTY_ACTION_RESULT)
+    const [updateState, updateAction] = useActionState(updateSubscription, EMPTY_ACTION_RESULT)
     const activePreview = name.trim().length < 2 ? null : preview
 
     useEffect(() => {
@@ -74,14 +83,10 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
         }
     }, [name])
 
-    const monthlyTotal = useMemo(
-        () => subscriptions.reduce((sum, subscription) => sum + subscription.monthlyNormalizedAmount, 0),
-        [subscriptions],
-    )
+    useEffect(() => {
+        if (!createState.success) return
 
-    const handleSubmit = async (formData: FormData) => {
-        startTransition(async () => {
-            await createSubscriptionDraft(formData)
+        const timeoutId = window.setTimeout(() => {
             formRef.current?.reset()
             setName('')
             setAmount('')
@@ -90,7 +95,33 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
             setBillingCycle(BillingCycle.MONTHLY)
             setNextPayment(toDateInputValue(new Date()))
             setPreview(null)
-            router.refresh()
+            setFeedback(createState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [createState])
+
+    useEffect(() => {
+        if (!updateState.success || !editingSubscription) return
+
+        const timeoutId = window.setTimeout(() => {
+            setEditingSubscription(null)
+            setFeedback(updateState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [updateState, editingSubscription])
+
+    const monthlyTotal = useMemo(
+        () => subscriptions.reduce((sum, subscription) => sum + subscription.monthlyNormalizedAmount, 0),
+        [subscriptions],
+    )
+
+    function handleDelete(subscriptionId: string) {
+        if (!confirm('Bu abonelik kaydini silmek istediginize emin misiniz?')) return
+        startDeleteTransition(async () => {
+            const result = await deleteSubscription(subscriptionId)
+            setFeedback(result)
         })
     }
 
@@ -107,7 +138,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                     </div>
                 </div>
 
-                <form ref={formRef} action={handleSubmit} className="space-y-4">
+                <form ref={formRef} action={createAction} className="space-y-4">
                     <div>
                         <label className="text-xs text-zinc-500 mb-1.5 block px-1">Abonelik adı</label>
                         <input
@@ -135,7 +166,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                             />
                         </div>
                         <div>
-                        <label className="text-xs text-zinc-500 mb-1.5 block px-1">Döviz</label>
+                            <label className="text-xs text-zinc-500 mb-1.5 block px-1">Döviz</label>
                             <select
                                 name="currency"
                                 value={currency}
@@ -216,17 +247,14 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                         </div>
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={isPending}
-                        className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all mt-4 disabled:opacity-60"
-                    >
-                        {isPending ? 'Kaydediliyor...' : 'Aboneliği kaydet'}
-                    </button>
+                    <FormMessage success={createState.success} message={createState.message} />
+                    <SubmitButton label="Aboneliği Kaydet" pendingLabel="Kaydediliyor..." />
                 </form>
             </div>
 
             <div className="space-y-4">
+                <FormMessage success={feedback?.success} message={feedback?.message} />
+
                 <div className="fintech-card p-6 md:p-7 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950">
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div>
@@ -256,44 +284,95 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                                     <div className="flex items-center gap-3 flex-wrap">
                                         <h3 className="text-lg font-semibold truncate">{subscription.name}</h3>
                                         <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">
-                                            {subscription.status}
+                                            {formatRecordStatusLabel(subscription.status)}
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mt-1">
-                                            <span className="flex items-center gap-1">
-                                                <Calendar className="w-3.5 h-3.5" />
-                                                {new Date(subscription.nextPayment).toLocaleDateString('tr-TR')}
-                                            </span>
-                                            <span>{subscription.category}</span>
-                                            <span>{subscription.billingCycle === BillingCycle.YEARLY ? 'Yıllık' : 'Aylık'}</span>
-                                        </div>
+                                        <span className="flex items-center gap-1">
+                                            <Calendar className="w-3.5 h-3.5" />
+                                            {new Date(subscription.nextPayment).toLocaleDateString('tr-TR')}
+                                        </span>
+                                        <span>{subscription.category}</span>
+                                        <span>{subscription.billingCycle === BillingCycle.YEARLY ? 'Yıllık' : 'Aylık'}</span>
                                     </div>
                                 </div>
+                            </div>
 
-                            <div className="flex items-center justify-between md:justify-end gap-8">
+                            <div className="flex items-center justify-between md:justify-end gap-4">
                                 <div className="text-right">
-                                            <p className="text-xl font-bold">{formatCurrency(subscription.amount, subscription.currency)}</p>
-                                            <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">
-                                                Aylık etki {formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}
-                                            </p>
-                                        </div>
+                                    <p className="text-xl font-bold">{formatCurrency(subscription.amount, subscription.currency)}</p>
+                                    <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">
+                                        Aylık etki {formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}
+                                    </p>
+                                </div>
 
                                 <button
                                     type="button"
-                                    onClick={() => startTransition(async () => {
-                                        await deleteSubscription(subscription.id)
-                                        router.refresh()
-                                    })}
-                                    className="p-3 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                                    aria-label={`${subscription.name} kaydini sil`}
+                                    onClick={() => setEditingSubscription(subscription)}
+                                    className="p-3 text-zinc-600 hover:text-white hover:bg-white/10 rounded-xl transition-all"
                                 >
-                                    {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                                    <Pencil className="w-5 h-5" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDelete(subscription.id)}
+                                    className="p-3 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                                    aria-label={`${subscription.name} kaydını sil`}
+                                >
+                                    <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
                         </div>
                     ))
                 )}
             </div>
+
+            {editingSubscription ? (
+                <Modal title="Aboneliği Düzenle" onClose={() => setEditingSubscription(null)}>
+                    <form action={updateAction} className="space-y-4">
+                        <input type="hidden" name="subscriptionId" value={editingSubscription.id} />
+                        <input name="name" defaultValue={editingSubscription.name} placeholder="Abonelik adı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <input name="amount" type="number" step="0.01" defaultValue={editingSubscription.amount} placeholder="Tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+                            <select name="currency" defaultValue={editingSubscription.currency} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                                <option value="TRY">TRY</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <input name="category" defaultValue={editingSubscription.category} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
+                            <select name="billingCycle" defaultValue={editingSubscription.billingCycle} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                                <option value={BillingCycle.MONTHLY}>Aylık</option>
+                                <option value={BillingCycle.YEARLY}>Yıllık</option>
+                            </select>
+                        </div>
+                        <input name="nextPayment" type="date" defaultValue={editingSubscription.nextPayment.slice(0, 10)} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+                        <select name="status" defaultValue={editingSubscription.status} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                            <option value={RecordStatus.ACTIVE}>Aktif</option>
+                            <option value={RecordStatus.PAUSED}>Duraklatıldı</option>
+                            <option value={RecordStatus.CANCELED}>İptal Edildi</option>
+                        </select>
+                        <label className="flex items-center gap-2 text-sm text-zinc-300">
+                            <input
+                                name="autopay"
+                                type="checkbox"
+                                defaultChecked={editingSubscription.autopay}
+                                className="rounded border-white/20 bg-black"
+                            />
+                            Otomatik ödeme
+                        </label>
+                        <textarea
+                            name="notes"
+                            defaultValue={editingSubscription.notes ?? ''}
+                            placeholder="Notlar"
+                            className="w-full min-h-24 bg-black border border-white/10 rounded-2xl py-3 px-4"
+                        />
+                        <FormMessage success={updateState.success} message={updateState.message} />
+                        <SubmitButton label="Aboneliği Güncelle" pendingLabel="Güncelleniyor..." />
+                    </form>
+                </Modal>
+            ) : null}
         </div>
     )
 }

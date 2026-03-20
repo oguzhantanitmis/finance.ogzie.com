@@ -1,10 +1,8 @@
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
-import DebtTable from '@/components/DebtTable'
-import DebtsClientWrapper from './DebtsClientWrapper'
 import { getCurrentUser } from '@/lib/server-auth'
 import { redirect } from 'next/navigation'
+import DebtsWorkspace from '@/components/debts/DebtsWorkspace'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,7 +17,14 @@ async function getDebts(userId: string) {
                 }
             }
         })
-        return debts
+        return debts.map((debt) => ({
+            ...debt,
+            dueDate: debt.dueDate?.toISOString() ?? null,
+            paymentPlan: debt.paymentPlan.map((plan) => ({
+                ...plan,
+                dueDate: plan.dueDate.toISOString(),
+            })),
+        }))
     } catch (error) {
         console.error("Error fetching debts:", error)
         return []
@@ -36,19 +41,8 @@ export default async function DebtsPage() {
     const debts = await getDebts(user.id)
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <header className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Borç Yönetimi</h1>
-                        <p className="text-zinc-500">Faiz, vergi ve maliyet analizi ile borçlarını yönet.</p>
-                    </div>
-                    <DebtsClientWrapper />
-                </header>
-
-                <DebtTable debts={debts} />
-            </PageShell>
-        </div>
+        <PageShell width="genis">
+            <DebtsWorkspace debts={debts} />
+        </PageShell>
     )
 }

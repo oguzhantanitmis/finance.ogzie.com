@@ -10,7 +10,28 @@ import {
     adjustBalance,
     transferBetweenAccounts,
 } from '@/lib/account-service'
+import {
+    type ActionResult,
+    createSuccessResult,
+    getActionErrorResult,
+    resolveFormData,
+    toOptionalString,
+    toRequiredString,
+} from '@/lib/action-result'
 import { requireCurrentUser } from '@/lib/server-auth'
+
+type AccountField =
+    | 'name'
+    | 'type'
+    | 'balance'
+    | 'currency'
+    | 'bankName'
+    | 'iban'
+    | 'notes'
+    | 'newBalance'
+    | 'fromAccountId'
+    | 'toAccountId'
+    | 'amount'
 
 function revalidateAccountPaths() {
     ;['/', '/accounts', '/budget', '/analytics'].forEach((p) => revalidatePath(p))
@@ -24,61 +45,110 @@ function parseAccountType(value: FormDataEntryValue | null): AccountType {
 }
 
 export async function createAccountAction(formData: FormData) {
-    const user = await requireCurrentUser()
-
-    await createAccount(user.id, {
-        name: String(formData.get('name') ?? '').trim(),
-        type: parseAccountType(formData.get('type')),
-        balance: Number(formData.get('balance') ?? 0),
-        currency: String(formData.get('currency') ?? 'TRY'),
-        bankName: String(formData.get('bankName') ?? '') || undefined,
-        iban: String(formData.get('iban') ?? '') || undefined,
-        isDefault: formData.get('isDefault') === 'on',
-        notes: String(formData.get('notes') ?? '') || undefined,
-    })
-
-    revalidateAccountPaths()
+    return createAccountActionState(formData)
 }
 
-export async function updateAccountAction(formData: FormData) {
-    const user = await requireCurrentUser()
-    const accountId = String(formData.get('accountId'))
+export async function createAccountActionState(
+    previousState: ActionResult<AccountField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<AccountField>> {
+    const data = resolveFormData(previousState, formData)
 
-    await updateAccount(accountId, user.id, {
-        name: String(formData.get('name') ?? '').trim(),
-        type: parseAccountType(formData.get('type')),
-        bankName: String(formData.get('bankName') ?? '') || null,
-        iban: String(formData.get('iban') ?? '') || null,
-        isDefault: formData.get('isDefault') === 'on',
-        notes: String(formData.get('notes') ?? '') || null,
-    })
+    try {
+        const user = await requireCurrentUser()
 
-    revalidateAccountPaths()
+        const account = await createAccount(user.id, {
+            name: toRequiredString(data.get('name'), 'name', 'Hesap adi'),
+            type: parseAccountType(data.get('type')),
+            balance: Number(data.get('balance') ?? 0),
+            currency: String(data.get('currency') ?? 'TRY'),
+            bankName: toOptionalString(data.get('bankName')),
+            iban: toOptionalString(data.get('iban')),
+            isDefault: data.get('isDefault') === 'on',
+            notes: toOptionalString(data.get('notes')),
+        })
+
+        revalidateAccountPaths()
+        return createSuccessResult('Hesap kaydedildi.', account.id)
+    } catch (error) {
+        return getActionErrorResult<AccountField>(error, 'Hesap kaydedilemedi.')
+    }
 }
 
-export async function deleteAccountAction(accountId: string) {
-    const user = await requireCurrentUser()
-    await deleteAccount(accountId, user.id)
-    revalidateAccountPaths()
+export async function updateAccountAction(
+    previousState: ActionResult<AccountField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<AccountField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const accountId = String(data.get('accountId'))
+
+        const account = await updateAccount(accountId, user.id, {
+            name: toRequiredString(data.get('name'), 'name', 'Hesap adi'),
+            type: parseAccountType(data.get('type')),
+            bankName: toOptionalString(data.get('bankName')) ?? null,
+            iban: toOptionalString(data.get('iban')) ?? null,
+            isDefault: data.get('isDefault') === 'on',
+            notes: toOptionalString(data.get('notes')) ?? null,
+        })
+
+        revalidateAccountPaths()
+        return createSuccessResult('Hesap guncellendi.', account.id)
+    } catch (error) {
+        return getActionErrorResult<AccountField>(error, 'Hesap guncellenemedi.')
+    }
 }
 
-export async function adjustBalanceAction(formData: FormData) {
-    const user = await requireCurrentUser()
-    const accountId = String(formData.get('accountId'))
-    const newBalance = Number(formData.get('newBalance') ?? 0)
-    const description = String(formData.get('description') ?? '') || undefined
-
-    await adjustBalance(accountId, user.id, newBalance, description)
-    revalidateAccountPaths()
+export async function deleteAccountAction(accountId: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+        await deleteAccount(accountId, user.id)
+        revalidateAccountPaths()
+        return createSuccessResult('Hesap silindi.', accountId)
+    } catch (error) {
+        return getActionErrorResult(error, 'Hesap silinemedi.')
+    }
 }
 
-export async function transferAction(formData: FormData) {
-    const user = await requireCurrentUser()
-    const fromAccountId = String(formData.get('fromAccountId'))
-    const toAccountId = String(formData.get('toAccountId'))
-    const amount = Number(formData.get('amount') ?? 0)
-    const description = String(formData.get('description') ?? '') || undefined
+export async function adjustBalanceAction(
+    previousState: ActionResult<AccountField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<AccountField>> {
+    const data = resolveFormData(previousState, formData)
 
-    await transferBetweenAccounts(user.id, fromAccountId, toAccountId, amount, description)
-    revalidateAccountPaths()
+    try {
+        const user = await requireCurrentUser()
+        const accountId = String(data.get('accountId'))
+        const newBalance = Number(data.get('newBalance') ?? 0)
+        const description = toOptionalString(data.get('description'))
+
+        await adjustBalance(accountId, user.id, newBalance, description)
+        revalidateAccountPaths()
+        return createSuccessResult('Bakiye guncellendi.', accountId)
+    } catch (error) {
+        return getActionErrorResult<AccountField>(error, 'Bakiye guncellenemedi.')
+    }
+}
+
+export async function transferAction(
+    previousState: ActionResult<AccountField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<AccountField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const fromAccountId = String(data.get('fromAccountId'))
+        const toAccountId = String(data.get('toAccountId'))
+        const amount = Number(data.get('amount') ?? 0)
+        const description = toOptionalString(data.get('description'))
+
+        await transferBetweenAccounts(user.id, fromAccountId, toAccountId, amount, description)
+        revalidateAccountPaths()
+        return createSuccessResult('Transfer kaydedildi.')
+    } catch (error) {
+        return getActionErrorResult<AccountField>(error, 'Transfer kaydedilemedi.')
+    }
 }

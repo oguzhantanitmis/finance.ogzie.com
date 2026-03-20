@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CreditCard, TrendingDown, Receipt, DollarSign, Plus, Trash2, AlertTriangle, Star } from 'lucide-react'
+import { ArrowLeft, CreditCard, TrendingDown, Receipt, DollarSign, Plus, Trash2, AlertTriangle, Star, Pencil } from 'lucide-react'
 import { makeCardPayment, addCardTransaction, deleteCreditCard, updateCardPoints } from '@/app/cards/actions'
 
 import { useRouter } from 'next/navigation'
@@ -10,6 +10,7 @@ import { analyzeInterestForPeriod, simulateMinimumPaymentTrap } from '@/lib/card
 import { formatCostBreakdown } from '@/lib/card-engine/tax-engine'
 import { previewPayment } from '@/lib/card-engine/payment-engine'
 import { getLimitWarningLevel, getLimitWarningColor } from '@/lib/card-engine/types'
+import CardFormModal from '@/components/cards/CardFormModal'
 
 function formatCurrency(n: number): string {
     return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n)
@@ -80,6 +81,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
     const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'statements' | 'payment'>('overview')
     const [paymentAmount, setPaymentAmount] = useState('')
     const [showAddTransaction, setShowAddTransaction] = useState(false)
+    const [showEditCard, setShowEditCard] = useState(false)
     const [loading, setLoading] = useState(false)
 
     const level = getLimitWarningLevel(card.utilizationPercent)
@@ -176,16 +178,21 @@ export default function CardDetailView({ card }: CardDetailProps) {
                     <ArrowLeft className="w-5 h-5" />
                 </Link>
                 <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full" style={{ background: card.color }} />
-                        <h1 className="text-2xl font-bold">{card.cardName}</h1>
-                        <span className="text-zinc-500 font-mono text-sm">•••• {card.last4Digits}</span>
-                    </div>
-                    <p className="text-zinc-500 text-sm mt-1">{card.bankName} · {card.cardNetwork}</p>
+                <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full" style={{ background: card.color }} />
+                    <h1 className="text-2xl font-bold">{card.cardName}</h1>
+                    <span className="text-zinc-500 font-mono text-sm">•••• {card.last4Digits}</span>
                 </div>
-                <button onClick={handleDelete} className="p-2 rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
-                    <Trash2 className="w-5 h-5" />
-                </button>
+                <p className="text-zinc-500 text-sm mt-1">{card.bankName} · {card.cardNetwork}</p>
+            </div>
+                <div className="flex items-center gap-2">
+                    <button onClick={() => setShowEditCard(true)} className="p-2 rounded-xl text-zinc-600 hover:text-white hover:bg-white/10 transition-all">
+                        <Pencil className="w-5 h-5" />
+                    </button>
+                    <button onClick={handleDelete} className="p-2 rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                        <Trash2 className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Puan Float & Kontrol */}
@@ -573,6 +580,35 @@ export default function CardDetailView({ card }: CardDetailProps) {
                     </div>
                 </div>
             )}
+
+            {showEditCard ? (
+                <CardFormModal
+                    card={{
+                        id: card.id,
+                        cardName: card.cardName,
+                        bankName: card.bankName,
+                        last4Digits: card.last4Digits,
+                        cardNetwork: card.cardNetwork,
+                        color: card.color,
+                        status: card.status,
+                        totalLimit: card.totalLimit,
+                        cashAdvanceLimit: card.cashAdvanceLimit,
+                        cutOffDay: card.cutOffDay,
+                        paymentDueDay: card.paymentDueDay,
+                        contractualRate: card.contractualRate,
+                        defaultRate: card.defaultRate,
+                        cashAdvanceRate: card.cashAdvanceRate,
+                        kkdfRate: card.kkdfRate,
+                        bsmvRate: card.bsmvRate,
+                        minPaymentRate: card.minPaymentRate,
+                        rewardsPoints: card.rewardsPoints,
+                    }}
+                    onClose={() => {
+                        setShowEditCard(false)
+                        router.refresh()
+                    }}
+                />
+            ) : null}
         </div>
     )
 }

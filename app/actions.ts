@@ -8,31 +8,67 @@ import {
     RecordStatus,
 } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
-import { startOfMonth } from 'date-fns'
+import { addMonths, startOfMonth } from 'date-fns'
 
+import {
+    type ActionResult,
+    ActionError,
+    createSuccessResult,
+    getActionErrorResult,
+    resolveFormData,
+    toOptionalNumber,
+    toOptionalString,
+    toRequiredNumber,
+    toRequiredString,
+} from '@/lib/action-result'
+import { calculateLoanSchedule } from '@/lib/banking-engine'
+import { type SubscriptionEnrichment } from '@/lib/finance-os-types'
 import { getMonthlyBudgetSummary, normalizeMonthlyAmount } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { requireCurrentUser } from '@/lib/server-auth'
 import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
 
-const REVALIDATE_PATHS = ['/', '/subscriptions', '/recurring', '/budget', '/analytics']
+const REVALIDATE_PATHS = [
+    '/',
+    '/assets',
+    '/debts',
+    '/subscriptions',
+    '/recurring',
+    '/budget',
+    '/analytics',
+    '/payment-plan',
+    '/goals',
+]
+
+type AssetField = 'name' | 'type' | 'amount' | 'currency' | 'unitPrice' | 'lastValue'
+type DebtField =
+    | 'name'
+    | 'type'
+    | 'limit'
+    | 'cutOffDay'
+    | 'paymentDueDay'
+    | 'totalPrincipal'
+    | 'installments'
+    | 'remainingInstallments'
+    | 'totalBalance'
+    | 'remainingBalance'
+    | 'interestRate'
+    | 'minPaymentRate'
+    | 'kkdfRate'
+    | 'bsmvRate'
+    | 'dueDate'
+type SubscriptionField = 'name' | 'amount' | 'currency' | 'billingCycle' | 'category' | 'nextPayment' | 'notes' | 'status'
+type RecurringExpenseField = SubscriptionField | 'autopay' | 'isEssential'
+type IncomeSourceField = 'name' | 'amount' | 'currency' | 'billingCycle' | 'payday' | 'isPrimary' | 'status'
+type BudgetField = 'month' | 'plannedIncome' | 'fixedCommitments' | 'debtCommitments' | 'freeCash' | 'bufferTarget' | 'notes'
 
 function revalidateFinancePaths(extraPaths: string[] = []) {
-    [...REVALIDATE_PATHS, ...extraPaths].forEach((path) => revalidatePath(path))
+    new Set([...REVALIDATE_PATHS, ...extraPaths]).forEach((path) => revalidatePath(path))
 }
 
 function parseBillingCycle(value: FormDataEntryValue | null) {
     return value === BillingCycle.YEARLY ? BillingCycle.YEARLY : BillingCycle.MONTHLY
-}
-
-function parseOptionalNumber(value: FormDataEntryValue | null) {
-    if (!value) {
-        return undefined
-    }
-
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : undefined
 }
 
 function parseAssetType(value: FormDataEntryValue | null) {
@@ -45,45 +81,245 @@ function parseDebtType(value: FormDataEntryValue | null) {
     return Object.values(DebtType).includes(type as DebtType) ? (type as DebtType) : DebtType.MANUAL
 }
 
+function parseRecordStatus(value: FormDataEntryValue | null) {
+    const status = String(value ?? RecordStatus.ACTIVE)
+    return Object.values(RecordStatus).includes(status as RecordStatus)
+        ? (status as RecordStatus)
+        : RecordStatus.ACTIVE
+}
+
+function parseDateInput(value: FormDataEntryValue | null, fallback = new Date()) {
+    const raw = String(value ?? '').trim()
+    return raw ? new Date(raw) : fallback
+}
+
+function validateDate<TField extends string>(date: Date, field: TField, label: string) {
+    if (Number.isNaN(date.getTime())) {
+        throw new ActionError(`${label} gecersiz.`, { [field]: `${label} gecersiz.` } as Record<TField, string>)
+    }
+    return date
+}
+
 async function refreshFinanceState(userId: string) {
     const summary = await getMonthlyBudgetSummary(userId)
     await syncBudgetAlerts(userId, summary)
 }
 
-export async function addAsset(formData: FormData) {
-    const user = await requireCurrentUser()
-
-    const amount = Number(formData.get('amount'))
-
-    await prisma.asset.create({
-        data: {
-            name: String(formData.get('name') ?? ''),
-            type: parseAssetType(formData.get('type')),
-            amount,
-            currency: String(formData.get('currency') ?? 'TRY'),
-            userId: user.id,
-        },
+async function findUserAsset(assetId: string, userId: string) {
+    return prisma.asset.findFirstOrThrow({
+        where: { id: assetId, userId },
     })
-
-    revalidateFinancePaths(['/assets'])
 }
 
-export async function addDebt(formData: FormData) {
-    const user = await requireCurrentUser()
-
-    await prisma.debt.create({
-        data: {
-            userId: user.id,
-            name: String(formData.get('name') ?? ''),
-            type: parseDebtType(formData.get('type')),
-            totalBalance: Number(formData.get('totalBalance')),
-            remainingBalance: Number(formData.get('remainingBalance')),
-            interestRate: Number(formData.get('interestRate') ?? 0),
-        },
+async function findUserDebt(debtId: string, userId: string) {
+    return prisma.debt.findFirstOrThrow({
+        where: { id: debtId, userId },
     })
+}
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths(['/debts'])
+function buildLoanPaymentPlan(debtId: string, formData: FormData) {
+    const totalPrincipal = toOptionalNumber(formData.get('totalPrincipal'))
+    const installments = toOptionalNumber(formData.get('installments'))
+    const interestRate = toOptionalNumber(formData.get('interestRate')) ?? 0
+
+    if (!totalPrincipal || !installments || installments <= 0) {
+        return []
+    }
+
+    const schedule = calculateLoanSchedule(totalPrincipal, interestRate, installments)
+    const firstDueDate = validateDate(parseDateInput(formData.get('dueDate'), new Date()), 'dueDate', 'Vade tarihi')
+
+    return schedule.plan.map((item, index) => ({
+        debtId,
+        installmentNo: item.installment,
+        amount: item.principal + item.interest + item.tax,
+        principalAmount: item.principal,
+        interestAmount: item.interest,
+        taxAmount: item.tax,
+        dueDate: addMonths(firstDueDate, index),
+        isPaid: false,
+    }))
+}
+
+export async function addAsset(
+    previousState: ActionResult<AssetField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<AssetField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const asset = await prisma.asset.create({
+            data: {
+                name: toRequiredString(data.get('name'), 'name', 'Varlik adi'),
+                type: parseAssetType(data.get('type')),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Miktar'),
+                currency: String(data.get('currency') ?? 'TRY'),
+                unitPrice: toOptionalNumber(data.get('unitPrice')) ?? null,
+                lastValue: toOptionalNumber(data.get('lastValue')) ?? null,
+                userId: user.id,
+            },
+        })
+
+        revalidateFinancePaths(['/assets'])
+        return createSuccessResult('Varlik kaydedildi.', asset.id)
+    } catch (error) {
+        return getActionErrorResult<AssetField>(error, 'Varlik kaydedilemedi.')
+    }
+}
+
+export async function updateAsset(
+    previousState: ActionResult<AssetField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<AssetField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const assetId = String(data.get('assetId'))
+        await findUserAsset(assetId, user.id)
+        const asset = await prisma.asset.update({
+            where: { id: assetId },
+            data: {
+                name: toRequiredString(data.get('name'), 'name', 'Varlik adi'),
+                type: parseAssetType(data.get('type')),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Miktar'),
+                currency: String(data.get('currency') ?? 'TRY'),
+                unitPrice: toOptionalNumber(data.get('unitPrice')) ?? null,
+                lastValue: toOptionalNumber(data.get('lastValue')) ?? null,
+            },
+        })
+
+        revalidateFinancePaths(['/assets'])
+        return createSuccessResult('Varlik guncellendi.', asset.id)
+    } catch (error) {
+        return getActionErrorResult<AssetField>(error, 'Varlik guncellenemedi.')
+    }
+}
+
+export async function deleteAsset(assetId: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+        await findUserAsset(assetId, user.id)
+        await prisma.asset.delete({ where: { id: assetId } })
+        revalidateFinancePaths(['/assets'])
+        return createSuccessResult('Varlik silindi.', assetId)
+    } catch (error) {
+        return getActionErrorResult(error, 'Varlik silinemedi.')
+    }
+}
+
+export async function addDebt(
+    previousState: ActionResult<DebtField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<DebtField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const debtType = parseDebtType(data.get('type'))
+        const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : undefined
+
+        const debt = await prisma.debt.create({
+            data: {
+                userId: user.id,
+                name: toRequiredString(data.get('name'), 'name', 'Borc adi'),
+                type: debtType,
+                limit: toOptionalNumber(data.get('limit')) ?? null,
+                cutOffDay: toOptionalNumber(data.get('cutOffDay')) ?? null,
+                paymentDueDay: toOptionalNumber(data.get('paymentDueDay')) ?? null,
+                totalPrincipal: toOptionalNumber(data.get('totalPrincipal')) ?? null,
+                installments: toOptionalNumber(data.get('installments')) ?? null,
+                remainingInstallments: toOptionalNumber(data.get('remainingInstallments')) ?? null,
+                totalBalance: toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye'),
+                remainingBalance: toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye'),
+                interestRate: toOptionalNumber(data.get('interestRate')) ?? 0,
+                minPaymentRate: toOptionalNumber(data.get('minPaymentRate')) ?? 0.2,
+                kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
+                bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
+                dueDate: dueDate ?? null,
+            },
+        })
+
+        if (debtType === DebtType.LOAN) {
+            const planRows = buildLoanPaymentPlan(debt.id, data)
+            if (planRows.length > 0) {
+                await prisma.paymentPlan.createMany({ data: planRows })
+            }
+        }
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths(['/debts'])
+        return createSuccessResult('Borc kaydedildi.', debt.id)
+    } catch (error) {
+        return getActionErrorResult<DebtField>(error, 'Borc kaydedilemedi.')
+    }
+}
+
+export async function updateDebt(
+    previousState: ActionResult<DebtField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<DebtField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const debtId = String(data.get('debtId'))
+        await findUserDebt(debtId, user.id)
+        const debtType = parseDebtType(data.get('type'))
+        const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : null
+
+        const debt = await prisma.debt.update({
+            where: { id: debtId },
+            data: {
+                name: toRequiredString(data.get('name'), 'name', 'Borc adi'),
+                type: debtType,
+                limit: toOptionalNumber(data.get('limit')) ?? null,
+                cutOffDay: toOptionalNumber(data.get('cutOffDay')) ?? null,
+                paymentDueDay: toOptionalNumber(data.get('paymentDueDay')) ?? null,
+                totalPrincipal: toOptionalNumber(data.get('totalPrincipal')) ?? null,
+                installments: toOptionalNumber(data.get('installments')) ?? null,
+                remainingInstallments: toOptionalNumber(data.get('remainingInstallments')) ?? null,
+                totalBalance: toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye'),
+                remainingBalance: toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye'),
+                interestRate: toOptionalNumber(data.get('interestRate')) ?? 0,
+                minPaymentRate: toOptionalNumber(data.get('minPaymentRate')) ?? 0.2,
+                kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
+                bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
+                dueDate,
+                isPaid: (toOptionalNumber(data.get('remainingBalance')) ?? 0) <= 0,
+            },
+        })
+
+        if (debtType === DebtType.LOAN) {
+            await prisma.paymentPlan.deleteMany({
+                where: { debtId, isPaid: false },
+            })
+            const planRows = buildLoanPaymentPlan(debtId, data)
+            if (planRows.length > 0) {
+                await prisma.paymentPlan.createMany({ data: planRows })
+            }
+        }
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths(['/debts'])
+        return createSuccessResult('Borc guncellendi.', debt.id)
+    } catch (error) {
+        return getActionErrorResult<DebtField>(error, 'Borc guncellenemedi.')
+    }
+}
+
+export async function deleteDebt(debtId: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+        await findUserDebt(debtId, user.id)
+        await prisma.debt.delete({ where: { id: debtId } })
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths(['/debts'])
+        return createSuccessResult('Borc silindi.', debtId)
+    } catch (error) {
+        return getActionErrorResult(error, 'Borc silinemedi.')
+    }
 }
 
 export async function addTransaction(data: {
@@ -92,201 +328,394 @@ export async function addTransaction(data: {
     category: string
     description?: string
 }) {
-    const user = await requireCurrentUser()
+    try {
+        const user = await requireCurrentUser()
 
-    await prisma.transaction.create({
-        data: {
-            userId: user.id,
-            amount: data.amount,
-            type: data.type,
-            category: data.category,
-            description: data.description,
-        },
-    })
+        await prisma.transaction.create({
+            data: {
+                userId: user.id,
+                amount: data.amount,
+                type: data.type,
+                category: data.category,
+                description: data.description,
+            },
+        })
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths(['/transactions'])
+        return createSuccessResult('Islem kaydedildi.')
+    } catch (error) {
+        return getActionErrorResult(error, 'Islem kaydedilemedi.')
+    }
 }
 
-export async function enrichSubscriptionDraft(name: string) {
+export async function enrichSubscriptionDraft(name: string): Promise<SubscriptionEnrichment> {
     return enrichSubscriptionName(name)
 }
 
-export async function createSubscriptionDraft(formData: FormData) {
-    const user = await requireCurrentUser()
+export async function createSubscriptionDraft(
+    previousState: ActionResult<SubscriptionField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<SubscriptionField>> {
+    const data = resolveFormData(previousState, formData)
 
-    const name = String(formData.get('name') ?? '').trim()
-    const amount = Number(formData.get('amount'))
-    const currency = String(formData.get('currency') ?? 'TRY')
-    const billingCycle = parseBillingCycle(formData.get('billingCycle'))
-    const category = String(formData.get('category') ?? '')
-    const nextPaymentInput = String(formData.get('nextPayment') ?? '')
-    const nextPayment = nextPaymentInput ? new Date(nextPaymentInput) : new Date()
-    const enrichment = enrichSubscriptionName(name)
+    try {
+        const user = await requireCurrentUser()
 
-    await prisma.subscription.create({
-        data: {
-            userId: user.id,
-            name,
-            amount,
-            currency,
-            billingCycle,
-            category: category || enrichment.category,
-            nextPayment,
-            isActive: true,
-            brandKey: enrichment.brandKey,
-            providerDomain: enrichment.providerDomain,
-            logoUrl: enrichment.logoUrl,
-            color: enrichment.color,
-            billingAnchorDay: nextPayment.getDate(),
-            autopay: formData.get('autopay') === 'on',
-            status: RecordStatus.ACTIVE,
-            notes: String(formData.get('notes') ?? '') || null,
-            lastAmount: amount,
-            monthlyNormalizedAmount: normalizeMonthlyAmount(amount, billingCycle),
-        },
-    })
+        const name = toRequiredString(data.get('name'), 'name', 'Abonelik adi')
+        const amount = toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 })
+        const currency = String(data.get('currency') ?? 'TRY')
+        const billingCycle = parseBillingCycle(data.get('billingCycle'))
+        const category = toOptionalString(data.get('category'))
+        const nextPayment = validateDate(parseDateInput(data.get('nextPayment')), 'nextPayment', 'Sonraki odeme')
+        const enrichment = enrichSubscriptionName(name)
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        const subscription = await prisma.subscription.create({
+            data: {
+                userId: user.id,
+                name,
+                amount,
+                currency,
+                billingCycle,
+                category: category || enrichment.category,
+                nextPayment,
+                isActive: true,
+                brandKey: enrichment.brandKey,
+                providerDomain: enrichment.providerDomain,
+                logoUrl: enrichment.logoUrl,
+                color: enrichment.color,
+                billingAnchorDay: nextPayment.getDate(),
+                autopay: data.get('autopay') === 'on',
+                status: RecordStatus.ACTIVE,
+                notes: toOptionalString(data.get('notes')) ?? null,
+                lastAmount: amount,
+                monthlyNormalizedAmount: normalizeMonthlyAmount(amount, billingCycle),
+            },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Abonelik kaydedildi.', subscription.id)
+    } catch (error) {
+        return getActionErrorResult<SubscriptionField>(error, 'Abonelik kaydedilemedi.')
+    }
 }
 
-export async function addSubscription(formData: FormData) {
-    return createSubscriptionDraft(formData)
+export async function addSubscription(
+    previousState: ActionResult<SubscriptionField> | FormData,
+    formData?: FormData,
+) {
+    return createSubscriptionDraft(previousState, formData)
 }
 
-export async function deleteSubscription(id: string) {
-    const user = await requireCurrentUser()
+export async function updateSubscription(
+    previousState: ActionResult<SubscriptionField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<SubscriptionField>> {
+    const data = resolveFormData(previousState, formData)
 
-    await prisma.subscription.deleteMany({
-        where: { id, userId: user.id },
-    })
+    try {
+        const user = await requireCurrentUser()
+        const subscriptionId = String(data.get('subscriptionId'))
+        const existing = await prisma.subscription.findFirstOrThrow({
+            where: { id: subscriptionId, userId: user.id },
+        })
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        const amount = toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 })
+        const billingCycle = parseBillingCycle(data.get('billingCycle'))
+        const nextPayment = validateDate(parseDateInput(data.get('nextPayment')), 'nextPayment', 'Sonraki odeme')
+
+        const subscription = await prisma.subscription.update({
+            where: { id: existing.id },
+            data: {
+                name: toRequiredString(data.get('name'), 'name', 'Abonelik adi'),
+                amount,
+                currency: String(data.get('currency') ?? 'TRY'),
+                billingCycle,
+                category: toOptionalString(data.get('category')) ?? 'Genel',
+                nextPayment,
+                billingAnchorDay: nextPayment.getDate(),
+                autopay: data.get('autopay') === 'on',
+                notes: toOptionalString(data.get('notes')) ?? null,
+                status: parseRecordStatus(data.get('status')),
+                isActive: parseRecordStatus(data.get('status')) !== RecordStatus.CANCELED,
+                lastAmount: amount,
+                monthlyNormalizedAmount: normalizeMonthlyAmount(amount, billingCycle),
+            },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Abonelik guncellendi.', subscription.id)
+    } catch (error) {
+        return getActionErrorResult<SubscriptionField>(error, 'Abonelik guncellenemedi.')
+    }
 }
 
-export async function createRecurringExpense(formData: FormData) {
-    const user = await requireCurrentUser()
-    const nextPayment = new Date(String(formData.get('nextPayment') ?? new Date().toISOString()))
+export async function deleteSubscription(id: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
 
-    await prisma.recurringExpense.create({
-        data: {
-            userId: user.id,
-            name: String(formData.get('name') ?? ''),
-            category: String(formData.get('category') ?? 'Genel'),
-            amount: Number(formData.get('amount')),
-            currency: String(formData.get('currency') ?? 'TRY'),
-            billingCycle: parseBillingCycle(formData.get('billingCycle')),
-            billingAnchorDay: nextPayment.getDate(),
-            nextPayment,
-            autopay: formData.get('autopay') === 'on',
-            isEssential: formData.get('isEssential') === 'on',
-            notes: String(formData.get('notes') ?? '') || null,
-        },
-    })
+        await prisma.subscription.deleteMany({
+            where: { id, userId: user.id },
+        })
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Abonelik silindi.', id)
+    } catch (error) {
+        return getActionErrorResult(error, 'Abonelik silinemedi.')
+    }
 }
 
-export async function deleteRecurringExpense(id: string) {
-    const user = await requireCurrentUser()
+export async function createRecurringExpense(
+    previousState: ActionResult<RecurringExpenseField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<RecurringExpenseField>> {
+    const data = resolveFormData(previousState, formData)
 
-    await prisma.recurringExpense.deleteMany({
-        where: { id, userId: user.id },
-    })
+    try {
+        const user = await requireCurrentUser()
+        const nextPayment = validateDate(parseDateInput(data.get('nextPayment')), 'nextPayment', 'Sonraki odeme')
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        const expense = await prisma.recurringExpense.create({
+            data: {
+                userId: user.id,
+                name: toRequiredString(data.get('name'), 'name', 'Sabit gider adi'),
+                category: toRequiredString(data.get('category'), 'category', 'Kategori'),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
+                currency: String(data.get('currency') ?? 'TRY'),
+                billingCycle: parseBillingCycle(data.get('billingCycle')),
+                billingAnchorDay: nextPayment.getDate(),
+                nextPayment,
+                autopay: data.get('autopay') === 'on',
+                isEssential: data.get('isEssential') === 'on',
+                notes: toOptionalString(data.get('notes')) ?? null,
+                status: parseRecordStatus(data.get('status')),
+            },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Sabit gider kaydedildi.', expense.id)
+    } catch (error) {
+        return getActionErrorResult<RecurringExpenseField>(error, 'Sabit gider kaydedilemedi.')
+    }
 }
 
-export async function createIncomeSource(formData: FormData) {
-    const user = await requireCurrentUser()
+export async function updateRecurringExpense(
+    previousState: ActionResult<RecurringExpenseField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<RecurringExpenseField>> {
+    const data = resolveFormData(previousState, formData)
 
-    await prisma.incomeSource.create({
-        data: {
-            userId: user.id,
-            name: String(formData.get('name') ?? ''),
-            amount: Number(formData.get('amount')),
-            currency: String(formData.get('currency') ?? 'TRY'),
-            billingCycle: parseBillingCycle(formData.get('billingCycle')),
-            payday: parseOptionalNumber(formData.get('payday')) ?? null,
-            isPrimary: formData.get('isPrimary') === 'on',
-        },
-    })
+    try {
+        const user = await requireCurrentUser()
+        const expenseId = String(data.get('expenseId'))
+        await prisma.recurringExpense.findFirstOrThrow({
+            where: { id: expenseId, userId: user.id },
+            select: { id: true },
+        })
+        const nextPayment = validateDate(parseDateInput(data.get('nextPayment')), 'nextPayment', 'Sonraki odeme')
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        const expense = await prisma.recurringExpense.update({
+            where: { id: expenseId },
+            data: {
+                name: toRequiredString(data.get('name'), 'name', 'Sabit gider adi'),
+                category: toRequiredString(data.get('category'), 'category', 'Kategori'),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
+                currency: String(data.get('currency') ?? 'TRY'),
+                billingCycle: parseBillingCycle(data.get('billingCycle')),
+                billingAnchorDay: nextPayment.getDate(),
+                nextPayment,
+                autopay: data.get('autopay') === 'on',
+                isEssential: data.get('isEssential') === 'on',
+                notes: toOptionalString(data.get('notes')) ?? null,
+                status: parseRecordStatus(data.get('status')),
+            },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Sabit gider guncellendi.', expense.id)
+    } catch (error) {
+        return getActionErrorResult<RecurringExpenseField>(error, 'Sabit gider guncellenemedi.')
+    }
 }
 
-export async function deleteIncomeSource(id: string) {
-    const user = await requireCurrentUser()
+export async function deleteRecurringExpense(id: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
 
-    await prisma.incomeSource.deleteMany({
-        where: { id, userId: user.id },
-    })
+        await prisma.recurringExpense.deleteMany({
+            where: { id, userId: user.id },
+        })
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Sabit gider silindi.', id)
+    } catch (error) {
+        return getActionErrorResult(error, 'Sabit gider silinemedi.')
+    }
 }
 
-export async function updateBudgetMonth(formData: FormData) {
-    const user = await requireCurrentUser()
-    const month = startOfMonth(new Date(String(formData.get('month') ?? new Date().toISOString())))
+export async function createIncomeSource(
+    previousState: ActionResult<IncomeSourceField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<IncomeSourceField>> {
+    const data = resolveFormData(previousState, formData)
 
-    await prisma.budgetMonth.upsert({
-        where: {
-            userId_month: {
+    try {
+        const user = await requireCurrentUser()
+
+        const income = await prisma.incomeSource.create({
+            data: {
+                userId: user.id,
+                name: toRequiredString(data.get('name'), 'name', 'Gelir adi'),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
+                currency: String(data.get('currency') ?? 'TRY'),
+                billingCycle: parseBillingCycle(data.get('billingCycle')),
+                payday: toOptionalNumber(data.get('payday')) ?? null,
+                isPrimary: data.get('isPrimary') === 'on',
+                status: parseRecordStatus(data.get('status')),
+            },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Gelir kaydedildi.', income.id)
+    } catch (error) {
+        return getActionErrorResult<IncomeSourceField>(error, 'Gelir kaydedilemedi.')
+    }
+}
+
+export async function updateIncomeSource(
+    previousState: ActionResult<IncomeSourceField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<IncomeSourceField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const incomeId = String(data.get('incomeId'))
+        await prisma.incomeSource.findFirstOrThrow({
+            where: { id: incomeId, userId: user.id },
+            select: { id: true },
+        })
+
+        const income = await prisma.incomeSource.update({
+            where: { id: incomeId },
+            data: {
+                name: toRequiredString(data.get('name'), 'name', 'Gelir adi'),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
+                currency: String(data.get('currency') ?? 'TRY'),
+                billingCycle: parseBillingCycle(data.get('billingCycle')),
+                payday: toOptionalNumber(data.get('payday')) ?? null,
+                isPrimary: data.get('isPrimary') === 'on',
+                status: parseRecordStatus(data.get('status')),
+            },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Gelir guncellendi.', income.id)
+    } catch (error) {
+        return getActionErrorResult<IncomeSourceField>(error, 'Gelir guncellenemedi.')
+    }
+}
+
+export async function deleteIncomeSource(id: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+
+        await prisma.incomeSource.deleteMany({
+            where: { id, userId: user.id },
+        })
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Gelir kaydi silindi.', id)
+    } catch (error) {
+        return getActionErrorResult(error, 'Gelir kaydi silinemedi.')
+    }
+}
+
+export async function updateBudgetMonth(
+    previousState: ActionResult<BudgetField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<BudgetField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const month = startOfMonth(validateDate(parseDateInput(data.get('month')), 'month', 'Ay'))
+
+        await prisma.budgetMonth.upsert({
+            where: {
+                userId_month: {
+                    userId: user.id,
+                    month,
+                },
+            },
+            create: {
                 userId: user.id,
                 month,
+                plannedIncome: Number(data.get('plannedIncome') ?? 0),
+                fixedCommitments: Number(data.get('fixedCommitments') ?? 0),
+                debtCommitments: Number(data.get('debtCommitments') ?? 0),
+                freeCash: Number(data.get('freeCash') ?? 0),
+                bufferTarget: Number(data.get('bufferTarget') ?? 0),
+                notes: toOptionalString(data.get('notes')) ?? null,
             },
-        },
-        create: {
-            userId: user.id,
-            month,
-            plannedIncome: Number(formData.get('plannedIncome') ?? 0),
-            fixedCommitments: Number(formData.get('fixedCommitments') ?? 0),
-            debtCommitments: Number(formData.get('debtCommitments') ?? 0),
-            freeCash: Number(formData.get('freeCash') ?? 0),
-            bufferTarget: Number(formData.get('bufferTarget') ?? 0),
-            notes: String(formData.get('notes') ?? '') || null,
-        },
-        update: {
-            plannedIncome: Number(formData.get('plannedIncome') ?? 0),
-            fixedCommitments: Number(formData.get('fixedCommitments') ?? 0),
-            debtCommitments: Number(formData.get('debtCommitments') ?? 0),
-            freeCash: Number(formData.get('freeCash') ?? 0),
-            bufferTarget: Number(formData.get('bufferTarget') ?? 0),
-            notes: String(formData.get('notes') ?? '') || null,
-        },
-    })
+            update: {
+                plannedIncome: Number(data.get('plannedIncome') ?? 0),
+                fixedCommitments: Number(data.get('fixedCommitments') ?? 0),
+                debtCommitments: Number(data.get('debtCommitments') ?? 0),
+                freeCash: Number(data.get('freeCash') ?? 0),
+                bufferTarget: Number(data.get('bufferTarget') ?? 0),
+                notes: toOptionalString(data.get('notes')) ?? null,
+            },
+        })
 
-    await refreshFinanceState(user.id)
-    revalidateFinancePaths()
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths()
+        return createSuccessResult('Butce guncellendi.', month.toISOString())
+    } catch (error) {
+        return getActionErrorResult<BudgetField>(error, 'Butce guncellenemedi.')
+    }
 }
 
-export async function dismissBudgetAlert(id: string) {
-    const user = await requireCurrentUser()
+export async function dismissBudgetAlert(id: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
 
-    await prisma.budgetAlert.updateMany({
-        where: { id, userId: user.id },
-        data: {
-            state: BudgetAlertState.DISMISSED,
-            dismissedAt: new Date(),
-        },
-    })
+        await prisma.budgetAlert.updateMany({
+            where: { id, userId: user.id },
+            data: {
+                state: BudgetAlertState.DISMISSED,
+                dismissedAt: new Date(),
+            },
+        })
 
-    revalidateFinancePaths()
+        revalidateFinancePaths()
+        return createSuccessResult('Uyari kapatildi.', id)
+    } catch (error) {
+        return getActionErrorResult(error, 'Uyari kapatilamadi.')
+    }
 }
 
-export async function markInsightAsRead(id: string) {
-    const user = await requireCurrentUser()
+export async function markInsightAsRead(id: string): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
 
-    await prisma.aIInsight.updateMany({
-        where: { id, userId: user.id },
-        data: { isRead: true },
-    })
+        await prisma.aIInsight.updateMany({
+            where: { id, userId: user.id },
+            data: { isRead: true },
+        })
 
-    revalidatePath('/')
+        revalidatePath('/')
+        return createSuccessResult('Icgoru kapatildi.', id)
+    } catch (error) {
+        return getActionErrorResult(error, 'Icgoru kapatilamadi.')
+    }
 }

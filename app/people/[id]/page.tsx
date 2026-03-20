@@ -2,7 +2,6 @@ import { redirect, notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import PersonDetailWorkspace from '@/components/people/PersonDetailWorkspace'
 import { getPersonDetail } from '@/lib/people-service'
@@ -56,18 +55,15 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <header className="mb-10">
-                    <Link href="/people" className="flex items-center gap-2 text-zinc-500 hover:text-white text-sm mb-4 transition-colors">
-                        <ArrowLeft className="w-4 h-4" /> Kişilere Dön
-                    </Link>
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Kişi detayı</p>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{person.name}</h1>
-                </header>
-                <PersonDetailWorkspace person={serializedPerson} accounts={accounts} />
-            </PageShell>
-        </div>
+        <PageShell width="genis">
+            <header className="mb-10">
+                <Link href="/people" className="flex items-center gap-2 text-zinc-500 hover:text-white text-sm mb-4 transition-colors">
+                    <ArrowLeft className="w-4 h-4" /> Kişilere Dön
+                </Link>
+                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Kişi detayı</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight">{person.name}</h1>
+            </header>
+            <PersonDetailWorkspace person={serializedPerson} accounts={accounts} />
+        </PageShell>
     )
 }

@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import Navbar from '@/components/Navbar'
 import { Bot, User, Zap, Send } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import PageShell from '@/components/PageShell'
 import { cn } from '@/lib/utils'
 
 interface Message {
@@ -22,7 +22,7 @@ const QUICK_PROMPTS = [
 
 export default function AIPage() {
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'assistant', content: 'Merhaba! Ben senin finansal asistanınım. Aşağıdaki hızlı butonları kullanabilir ya da doğrudan soru sorabilirsin.\n\n📊 Durum analizi, borç stratejisi, abonelik tasarrufu, sağlık puanı — her konuda yardımcı olurum.' }
+        { role: 'assistant', content: 'Merhaba. Ben finans asistanınım. Aşağıdaki hızlı butonları kullanabilir ya da doğrudan soru sorabilirsin.\n\nDurum analizi, borç stratejisi, abonelik tasarrufu ve sağlık puanı gibi konularda yardımcı olurum.' }
     ])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
@@ -73,18 +73,15 @@ export default function AIPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0 font-sans">
-            <Navbar />
-
-            <main className="min-h-screen lg:pl-72">
-                <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12">
+        <PageShell width="dar" className="font-sans">
+            <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl flex-col">
                 <header className="mb-4 flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
                         <Bot className="text-black w-6 h-6" />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Finans Asistanı</h1>
-                        <p className="text-zinc-500 text-sm">Context-aware • Gerçek verilerinle çalışır</p>
+                        <p className="text-zinc-500 text-sm">Gerçek verilerinle çalışır</p>
                     </div>
                 </header>
 
@@ -181,8 +178,7 @@ export default function AIPage() {
                         <Send className="w-4 h-4 text-black" />
                     </button>
                 </form>
-                </div>
-            </main>
-        </div>
+            </div>
+        </PageShell>
     )
 }

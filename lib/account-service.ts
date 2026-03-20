@@ -1,6 +1,7 @@
 'use server'
 
 import { AccountType, type Account } from '@prisma/client'
+import { ActionError } from '@/lib/action-result'
 import { prisma } from '@/lib/prisma'
 
 // ============================================================
@@ -68,6 +69,11 @@ export async function updateAccount(
         notes?: string | null
     }
 ): Promise<Account> {
+    await prisma.account.findFirstOrThrow({
+        where: { id: accountId, userId },
+        select: { id: true },
+    })
+
     if (data.isDefault) {
         await prisma.account.updateMany({
             where: { userId, isDefault: true },
@@ -82,10 +88,27 @@ export async function updateAccount(
 }
 
 export async function deleteAccount(accountId: string, userId: string): Promise<void> {
-    await prisma.account.update({
-        where: { id: accountId },
-        data: { isActive: false },
+    await prisma.account.findFirstOrThrow({
+        where: { id: accountId, userId },
+        select: { id: true },
     })
+
+    await prisma.$transaction([
+        prisma.ledgerEntry.updateMany({
+            where: { userId, accountId },
+            data: { accountId: null },
+        }),
+        prisma.rPTransaction.updateMany({
+            where: {
+                accountId,
+                receivablePayable: { userId },
+            },
+            data: { accountId: null },
+        }),
+        prisma.account.delete({
+            where: { id: accountId },
+        }),
+    ])
 }
 
 // ============================================================
@@ -98,7 +121,7 @@ export async function adjustBalance(
     newBalance: number,
     description?: string
 ): Promise<Account> {
-    const account = await prisma.account.findUniqueOrThrow({ where: { id: accountId } })
+    const account = await prisma.account.findFirstOrThrow({ where: { id: accountId, userId } })
     const difference = newBalance - account.balance
 
     const [updatedAccount] = await prisma.$transaction([
@@ -130,14 +153,14 @@ export async function transferBetweenAccounts(
     description?: string
 ): Promise<void> {
     if (fromAccountId === toAccountId) {
-        throw new Error('Aynı hesaba transfer yapılamaz.')
+        throw new ActionError('Aynı hesaba transfer yapilamaz.')
     }
     if (amount <= 0) {
-        throw new Error('Transfer tutarı sıfırdan büyük olmalıdır.')
+        throw new ActionError('Transfer tutari sifirdan buyuk olmalidir.')
     }
 
-    const fromAccount = await prisma.account.findUniqueOrThrow({ where: { id: fromAccountId } })
-    const toAccount = await prisma.account.findUniqueOrThrow({ where: { id: toAccountId } })
+    const fromAccount = await prisma.account.findFirstOrThrow({ where: { id: fromAccountId, userId } })
+    const toAccount = await prisma.account.findFirstOrThrow({ where: { id: toAccountId, userId } })
 
     const transferDesc = description || `Transfer: ${fromAccount.name} → ${toAccount.name}`
 

@@ -150,6 +150,8 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
             normalizeMonthlyAmount(subscription.amount, subscription.billingCycle),
         category: subscription.category,
         logoUrl: subscription.logoUrl,
+        autopay: subscription.autopay,
+        notes: subscription.notes,
         status: subscription.status,
     }))
     const recurringViews = recurringExpenses.map((expense) => ({
@@ -162,6 +164,8 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         category: expense.category,
         status: expense.status,
         isEssential: expense.isEssential,
+        autopay: expense.autopay,
+        notes: expense.notes,
     }))
     const incomeViews = incomeSources.map((income) => ({
         id: income.id,

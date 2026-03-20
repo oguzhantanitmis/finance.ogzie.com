@@ -1,4 +1,3 @@
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
@@ -41,19 +40,16 @@ export default async function CardsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <header className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight">Kredi Kartlarım</h1>
-                        <p className="text-zinc-500">Tüm kartlarını tek ekrandan yönet.</p>
-                    </div>
-                    <AddCardButton />
-                </header>
+        <PageShell width="genis">
+            <header className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight">Kredi Kartlarım</h1>
+                    <p className="text-zinc-500">Tüm kartlarını tek ekrandan yönet.</p>
+                </div>
+                <AddCardButton />
+            </header>
 
-                <CardGrid cards={cards} />
-            </PageShell>
-        </div>
+            <CardGrid cards={cards} />
+        </PageShell>
     )
 }

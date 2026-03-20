@@ -51,13 +51,22 @@ export async function createPerson(
 
 export async function updatePerson(
     personId: string,
+    userId: string,
     data: { name?: string; phone?: string | null; email?: string | null; notes?: string | null }
 ): Promise<Person> {
+    await prisma.person.findFirstOrThrow({
+        where: { id: personId, userId },
+        select: { id: true },
+    })
     return prisma.person.update({ where: { id: personId }, data })
 }
 
-export async function deletePerson(personId: string): Promise<void> {
-    await prisma.person.update({ where: { id: personId }, data: { isActive: false } })
+export async function deletePerson(personId: string, userId: string): Promise<void> {
+    await prisma.person.findFirstOrThrow({
+        where: { id: personId, userId },
+        select: { id: true },
+    })
+    await prisma.person.delete({ where: { id: personId } })
 }
 
 export async function getPersonDetail(personId: string) {

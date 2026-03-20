@@ -1,13 +1,27 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, ArrowDownLeft, ArrowUpRight, CalendarDays, Clock } from 'lucide-react'
-import { formatCurrency, cn } from '@/lib/utils'
-import AccountSelect from '@/components/accounts/AccountSelect'
-import { createRPAction, recordCollectionAction, recordPaymentToPersonAction } from '@/app/people/actions'
+import { useActionState, useEffect, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { Plus, ArrowDownLeft, ArrowUpRight, CalendarDays, Clock, Pencil, Trash2, UserRoundPen } from 'lucide-react'
 import type { Account } from '@prisma/client'
 
-type ModalState = 'closed' | 'addRP' | 'collect' | 'pay'
+import AccountSelect from '@/components/accounts/AccountSelect'
+import FormMessage from '@/components/ui/FormMessage'
+import Modal from '@/components/ui/Modal'
+import SubmitButton from '@/components/ui/SubmitButton'
+import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
+import { cn, formatCurrency } from '@/lib/utils'
+import {
+    createRPAction,
+    deletePersonAction,
+    deleteRPAction,
+    recordCollectionAction,
+    recordPaymentToPersonAction,
+    updatePersonAction,
+    updateRPAction,
+} from '@/app/people/actions'
+
+type ModalState = 'closed' | 'editPerson' | 'addRP' | 'editRP' | 'collect' | 'pay'
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
     OPEN: { text: 'Açık', color: 'text-sky-400 bg-sky-500/10' },
@@ -46,19 +60,107 @@ interface Props {
 }
 
 export default function PersonDetailWorkspace({ person, accounts }: Props) {
+    const router = useRouter()
     const [modal, setModal] = useState<ModalState>('closed')
     const [selectedRPId, setSelectedRPId] = useState<string | null>(null)
+    const [feedback, setFeedback] = useState<ActionResult | null>(null)
+    const [, startDeleteTransition] = useTransition()
+    const [updatePersonState, updatePersonActionState] = useActionState(updatePersonAction, EMPTY_ACTION_RESULT)
+    const [createRPState, createRPActionState] = useActionState(createRPAction, EMPTY_ACTION_RESULT)
+    const [updateRPState, updateRPActionState] = useActionState(updateRPAction, EMPTY_ACTION_RESULT)
+    const [collectionState, collectionActionState] = useActionState(recordCollectionAction, EMPTY_ACTION_RESULT)
+    const [paymentState, paymentActionState] = useActionState(recordPaymentToPersonAction, EMPTY_ACTION_RESULT)
 
     const receivables = person.receivablesPayables.filter((rp) => rp.type === 'RECEIVABLE')
     const payables = person.receivablesPayables.filter((rp) => rp.type === 'PAYABLE')
-    const totalReceivable = receivables.filter((r) => r.status !== 'CLOSED').reduce((s, r) => s + r.remainingAmount, 0)
-    const totalPayable = payables.filter((r) => r.status !== 'CLOSED').reduce((s, r) => s + r.remainingAmount, 0)
-
+    const totalReceivable = receivables.filter((item) => item.status !== 'CLOSED').reduce((sum, item) => sum + item.remainingAmount, 0)
+    const totalPayable = payables.filter((item) => item.status !== 'CLOSED').reduce((sum, item) => sum + item.remainingAmount, 0)
     const selectedRP = person.receivablesPayables.find((rp) => rp.id === selectedRPId)
+
+    useEffect(() => {
+        if (!updatePersonState.success || modal !== 'editPerson') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setFeedback(updatePersonState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [updatePersonState, modal])
+
+    useEffect(() => {
+        if (!createRPState.success || modal !== 'addRP') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setFeedback(createRPState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [createRPState, modal])
+
+    useEffect(() => {
+        if (!updateRPState.success || modal !== 'editRP') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setSelectedRPId(null)
+            setFeedback(updateRPState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [updateRPState, modal])
+
+    useEffect(() => {
+        if (!collectionState.success || modal !== 'collect') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setSelectedRPId(null)
+            setFeedback(collectionState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [collectionState, modal])
+
+    useEffect(() => {
+        if (!paymentState.success || modal !== 'pay') return
+
+        const timeoutId = window.setTimeout(() => {
+            setModal('closed')
+            setSelectedRPId(null)
+            setFeedback(paymentState)
+        }, 0)
+
+        return () => window.clearTimeout(timeoutId)
+    }, [paymentState, modal])
+
+    function handleDeletePerson() {
+        if (!confirm('Bu kisiyi ve bagli acik kayitlarini silmek istediginize emin misiniz?')) return
+
+        startDeleteTransition(async () => {
+            const result = await deletePersonAction(person.id)
+            if (result.success) {
+                router.push('/people')
+                return
+            }
+            setFeedback(result)
+        })
+    }
+
+    function handleDeleteRP(rpId: string) {
+        if (!confirm('Bu alacak/verecek kaydini silmek istediginize emin misiniz?')) return
+
+        startDeleteTransition(async () => {
+            const result = await deleteRPAction(rpId, person.id)
+            setFeedback(result)
+        })
+    }
 
     return (
         <div>
-            {/* Kişi Bilgi + Özet */}
+            <FormMessage success={feedback?.success} message={feedback?.message} />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Alacak</p>
@@ -76,23 +178,40 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                 </div>
             </div>
 
-            {/* Kişi Detay */}
-            {(person.phone || person.email || person.notes) && (
-                <div className="fintech-card p-5 mb-6 text-sm text-zinc-400 flex flex-wrap gap-6">
-                    {person.phone && <span>📞 {person.phone}</span>}
-                    {person.email && <span>✉️ {person.email}</span>}
-                    {person.notes && <span>📝 {person.notes}</span>}
+            <div className="fintech-card p-5 mb-6">
+                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="space-y-2 text-sm text-zinc-400">
+                        {person.phone ? <p>Telefon: {person.phone}</p> : null}
+                        {person.email ? <p>E-posta: {person.email}</p> : null}
+                        {person.notes ? <p>Not: {person.notes}</p> : null}
+                        {!person.phone && !person.email && !person.notes ? <p>Ek kişi bilgisi girilmemiş.</p> : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            onClick={() => setModal('editPerson')}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-semibold"
+                        >
+                            <UserRoundPen className="w-4 h-4" /> Kişiyi Düzenle
+                        </button>
+                        <button
+                            onClick={handleDeletePerson}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-red-500/20 text-red-300 hover:bg-red-500/10"
+                        >
+                            <Trash2 className="w-4 h-4" /> Kişiyi Sil
+                        </button>
+                    </div>
                 </div>
-            )}
+            </div>
 
-            {/* Aksiyon */}
             <div className="flex flex-wrap gap-3 mb-6">
-                <button onClick={() => setModal('addRP')} className="flex items-center gap-2 px-5 py-3 bg-white text-black font-semibold rounded-2xl hover:bg-zinc-200 transition-all">
+                <button
+                    onClick={() => setModal('addRP')}
+                    className="flex items-center gap-2 px-5 py-3 bg-white text-black font-semibold rounded-2xl hover:bg-zinc-200 transition-all"
+                >
                     <Plus className="w-4 h-4" /> Alacak / Verecek Ekle
                 </button>
             </div>
 
-            {/* Kayıtlar */}
             {person.receivablesPayables.length === 0 ? (
                 <div className="fintech-card p-16 text-center text-zinc-400">
                     Henüz alacak veya verecek kaydı yok.
@@ -102,6 +221,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                     {person.receivablesPayables.map((rp) => {
                         const statusMeta = STATUS_LABELS[rp.status] ?? STATUS_LABELS.OPEN
                         const isReceivable = rp.type === 'RECEIVABLE'
+
                         return (
                             <div key={rp.id} className="fintech-card p-5 md:p-6">
                                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -119,15 +239,15 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                         </div>
                                         <div className="flex items-center gap-4 text-xs text-zinc-500 mt-1">
                                             <span>{isReceivable ? 'Alacak' : 'Verecek'}</span>
-                                            {rp.dueDate && (
+                                            {rp.dueDate ? (
                                                 <span className="flex items-center gap-1">
                                                     <CalendarDays className="w-3 h-3" />
                                                     {new Date(rp.dueDate).toLocaleDateString('tr-TR')}
                                                 </span>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-4 md:gap-6">
                                         <div className="text-right">
                                             <p className="text-xs text-zinc-500">Kalan</p>
                                             <p className={cn('text-xl font-bold', isReceivable ? 'text-emerald-400' : 'text-red-400')}>
@@ -135,56 +255,91 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                             </p>
                                             <p className="text-xs text-zinc-600">/ {formatCurrency(rp.originalAmount, rp.currency)}</p>
                                         </div>
-                                        {rp.status !== 'CLOSED' && (
+                                        {rp.status !== 'CLOSED' ? (
                                             <button
-                                                onClick={() => { setSelectedRPId(rp.id); setModal(isReceivable ? 'collect' : 'pay') }}
+                                                onClick={() => {
+                                                    setSelectedRPId(rp.id)
+                                                    setModal(isReceivable ? 'collect' : 'pay')
+                                                }}
                                                 className={cn(
                                                     'px-4 py-2 rounded-xl text-sm font-semibold transition-all',
-                                                    isReceivable ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                                                    isReceivable ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500/30',
                                                 )}
                                             >
                                                 {isReceivable ? 'Tahsilat Gir' : 'Ödeme Yap'}
                                             </button>
-                                        )}
+                                        ) : null}
+                                        <button
+                                            onClick={() => {
+                                                setSelectedRPId(rp.id)
+                                                setModal('editRP')
+                                            }}
+                                            className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+                                            aria-label={`${rp.description} kaydını düzenle`}
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteRP(rp.id)}
+                                            className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                            aria-label={`${rp.description} kaydını sil`}
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
-                                {/* Hareket Geçmişi */}
-                                {rp.transactions.length > 0 && (
+
+                                {rp.transactions.length > 0 ? (
                                     <div className="border-t border-white/5 pt-3 mt-3">
                                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-600 mb-2">Hareket Geçmişi</p>
                                         <div className="space-y-2">
-                                            {rp.transactions.map((tx) => (
-                                                <div key={tx.id} className="flex items-center justify-between text-sm">
+                                            {rp.transactions.map((transaction) => (
+                                                <div key={transaction.id} className="flex items-center justify-between text-sm">
                                                     <div className="flex items-center gap-2 text-zinc-400">
                                                         <Clock className="w-3 h-3" />
-                                                        <span>{new Date(tx.transactionDate).toLocaleDateString('tr-TR')}</span>
-                                                        {tx.description && <span>— {tx.description}</span>}
-                                                        {tx.account && <span className="text-zinc-600">({tx.account.name})</span>}
+                                                        <span>{new Date(transaction.transactionDate).toLocaleDateString('tr-TR')}</span>
+                                                        {transaction.description ? <span>- {transaction.description}</span> : null}
+                                                        {transaction.account ? <span className="text-zinc-600">({transaction.account.name})</span> : null}
                                                     </div>
-                                                    <span className="font-semibold text-white">{formatCurrency(tx.amount, rp.currency)}</span>
+                                                    <span className="font-semibold text-white">{formatCurrency(transaction.amount, rp.currency)}</span>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                         )
                     })}
                 </div>
             )}
 
-            {/* Alacak/Verecek Ekleme Modalı */}
-            {modal === 'addRP' && (
+            {modal === 'editPerson' ? (
+                <Modal title="Kişiyi Düzenle" onClose={() => setModal('closed')}>
+                    <form action={updatePersonActionState} className="space-y-4">
+                        <input type="hidden" name="personId" value={person.id} />
+                        <input name="name" defaultValue={person.name} placeholder="Ad Soyad" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <input name="phone" defaultValue={person.phone ?? ''} placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <input name="email" type="email" defaultValue={person.email ?? ''} placeholder="E-posta (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        </div>
+                        <textarea name="notes" defaultValue={person.notes ?? ''} placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <FormMessage success={updatePersonState.success} message={updatePersonState.message} />
+                        <SubmitButton label="Kişiyi Güncelle" pendingLabel="Güncelleniyor..." />
+                    </form>
+                </Modal>
+            ) : null}
+
+            {modal === 'addRP' ? (
                 <Modal title="Alacak / Verecek Ekle" onClose={() => setModal('closed')}>
-                    <form action={createRPAction} className="space-y-4">
+                    <form action={createRPActionState} className="space-y-4">
                         <input type="hidden" name="personId" value={person.id} />
                         <select name="type" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
                             <option value="RECEIVABLE">Bana borçlu (Alacak)</option>
                             <option value="PAYABLE">Benim borcum (Verecek)</option>
                         </select>
-                        <input name="description" placeholder="Açıklama (ev kirası, ödünç, vb.)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="description" placeholder="Açıklama" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Toplam tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
                             <select name="currency" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
                                 <option value="TRY">TRY</option>
                                 <option value="USD">USD</option>
@@ -193,18 +348,44 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         </div>
                         <input name="dueDate" type="date" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
                         <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                        <button type="submit" onClick={() => setModal('closed')} className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all">
-                            Kaydet
-                        </button>
+                        <FormMessage success={createRPState.success} message={createRPState.message} />
+                        <SubmitButton label="Kaydı Kaydet" pendingLabel="Kaydediliyor..." />
                     </form>
                 </Modal>
-            )}
+            ) : null}
 
-            {/* Tahsilat Modalı */}
-            {modal === 'collect' && selectedRP && (
-                <Modal title={`Tahsilat: ${selectedRP.description}`} onClose={() => setModal('closed')}>
-                    <form action={recordCollectionAction} className="space-y-4">
+            {modal === 'editRP' && selectedRP ? (
+                <Modal title="Kaydı Düzenle" onClose={() => setModal('closed')}>
+                    <form action={updateRPActionState} className="space-y-4">
                         <input type="hidden" name="rpId" value={selectedRP.id} />
+                        <input type="hidden" name="personId" value={person.id} />
+                        <select name="type" defaultValue={selectedRP.type} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                            <option value="RECEIVABLE">Bana borçlu (Alacak)</option>
+                            <option value="PAYABLE">Benim borcum (Verecek)</option>
+                        </select>
+                        <input name="description" defaultValue={selectedRP.description} placeholder="Açıklama" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <div className="grid grid-cols-2 gap-4">
+                            <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={selectedRP.originalAmount} placeholder="Toplam tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                            <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={selectedRP.remainingAmount} placeholder="Kalan tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        </div>
+                        <select name="currency" defaultValue={selectedRP.currency} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                            <option value="TRY">TRY</option>
+                            <option value="USD">USD</option>
+                            <option value="EUR">EUR</option>
+                        </select>
+                        <input name="dueDate" type="date" defaultValue={selectedRP.dueDate ? selectedRP.dueDate.slice(0, 10) : ''} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <FormMessage success={updateRPState.success} message={updateRPState.message} />
+                        <SubmitButton label="Kaydı Güncelle" pendingLabel="Güncelleniyor..." />
+                    </form>
+                </Modal>
+            ) : null}
+
+            {modal === 'collect' && selectedRP ? (
+                <Modal title={`Tahsilat: ${selectedRP.description}`} onClose={() => setModal('closed')}>
+                    <form action={collectionActionState} className="space-y-4">
+                        <input type="hidden" name="rpId" value={selectedRP.id} />
+                        <input type="hidden" name="personId" value={person.id} />
                         <div className="fintech-card p-4 mb-2">
                             <p className="text-xs text-zinc-500">Kalan alacak</p>
                             <p className="text-xl font-bold text-emerald-400">{formatCurrency(selectedRP.remainingAmount, selectedRP.currency)}</p>
@@ -212,18 +393,17 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Tahsilat tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
                         <AccountSelect accounts={accounts} name="accountId" label="Paranın yatacağı hesap" required />
                         <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                        <button type="submit" onClick={() => setModal('closed')} className="w-full bg-emerald-500 text-black font-bold py-4 rounded-2xl hover:bg-emerald-400 transition-all">
-                            Tahsilatı Kaydet
-                        </button>
+                        <FormMessage success={collectionState.success} message={collectionState.message} />
+                        <SubmitButton label="Tahsilatı Kaydet" pendingLabel="Kaydediliyor..." className="w-full bg-emerald-500 text-black font-bold py-4 rounded-2xl hover:bg-emerald-400 transition-all disabled:opacity-60" />
                     </form>
                 </Modal>
-            )}
+            ) : null}
 
-            {/* Ödeme Modalı */}
-            {modal === 'pay' && selectedRP && (
+            {modal === 'pay' && selectedRP ? (
                 <Modal title={`Ödeme: ${selectedRP.description}`} onClose={() => setModal('closed')}>
-                    <form action={recordPaymentToPersonAction} className="space-y-4">
+                    <form action={paymentActionState} className="space-y-4">
                         <input type="hidden" name="rpId" value={selectedRP.id} />
+                        <input type="hidden" name="personId" value={person.id} />
                         <div className="fintech-card p-4 mb-2">
                             <p className="text-xs text-zinc-500">Kalan borç</p>
                             <p className="text-xl font-bold text-red-400">{formatCurrency(selectedRP.remainingAmount, selectedRP.currency)}</p>
@@ -231,27 +411,11 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Ödeme tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
                         <AccountSelect accounts={accounts} name="accountId" label="Paranın çıkacağı hesap" required />
                         <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                        <button type="submit" onClick={() => setModal('closed')} className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl hover:bg-red-400 transition-all">
-                            Ödemeyi Kaydet
-                        </button>
+                        <FormMessage success={paymentState.success} message={paymentState.message} />
+                        <SubmitButton label="Ödemeyi Kaydet" pendingLabel="Kaydediliyor..." className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl hover:bg-red-400 transition-all disabled:opacity-60" />
                     </form>
                 </Modal>
-            )}
-        </div>
-    )
-}
-
-function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-            <div className="relative w-full max-w-lg fintech-card p-6 md:p-8 z-10 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-white">{title}</h2>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white">✕</button>
-                </div>
-                {children}
-            </div>
+            ) : null}
         </div>
     )
 }

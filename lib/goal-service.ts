@@ -37,7 +37,47 @@ export async function updateGoalProgress(goalId: string, currentAmount: number) 
     })
 }
 
-export async function deleteGoal(goalId: string) {
+export async function updateGoal(
+    userId: string,
+    goalId: string,
+    data: {
+        title: string
+        description?: string | null
+        targetAmount: number
+        currentAmount: number
+        targetDate: Date
+        category?: string | null
+    },
+) {
+    const goal = await prisma.financialGoal.findFirstOrThrow({
+        where: { id: goalId, userId },
+    })
+
+    const status = data.currentAmount >= data.targetAmount
+        ? 'COMPLETED'
+        : goal.status === 'ABANDONED'
+            ? 'ABANDONED'
+            : 'GOAL_ACTIVE'
+
+    return prisma.financialGoal.update({
+        where: { id: goalId },
+        data: {
+            title: data.title,
+            description: data.description ?? null,
+            targetAmount: data.targetAmount,
+            currentAmount: data.currentAmount,
+            targetDate: data.targetDate,
+            category: data.category ?? null,
+            status: status as GoalStatus,
+        },
+    })
+}
+
+export async function deleteGoal(goalId: string, userId: string) {
+    await prisma.financialGoal.findFirstOrThrow({
+        where: { id: goalId, userId },
+        select: { id: true },
+    })
     return prisma.financialGoal.delete({ where: { id: goalId } })
 }
 

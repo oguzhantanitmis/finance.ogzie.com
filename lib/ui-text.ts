@@ -26,6 +26,21 @@ export function formatAlertTypeLabel(value: BudgetAlertType | string) {
     }
 }
 
+export function formatRecordStatusLabel(value: string) {
+    switch (value) {
+        case 'ACTIVE':
+            return 'Aktif'
+        case 'PAUSED':
+            return 'Duraklatıldı'
+        case 'CANCELED':
+            return 'İptal edildi'
+        case 'CLOSED':
+            return 'Kapandı'
+        default:
+            return value.replaceAll('_', ' ')
+    }
+}
+
 export function formatObligationSourceLabel(value: string) {
     switch (value) {
         case 'subscription':

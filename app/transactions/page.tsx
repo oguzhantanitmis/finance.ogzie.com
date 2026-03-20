@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import TransactionsWorkspace from '@/components/transactions/TransactionsWorkspace'
 import { getLedgerEntries, getLedgerSummary } from '@/lib/ledger-service'
@@ -8,11 +7,52 @@ import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
+function getSourceLink(entry: {
+    accountId: string | null
+    personId: string | null
+    creditCardId: string | null
+    debtId: string | null
+    subscriptionId: string | null
+}) {
+    if (entry.creditCardId) {
+        return { label: 'Kart kaydına git', href: `/cards/${entry.creditCardId}` }
+    }
+
+    if (entry.debtId) {
+        return { label: 'Borç kaydına git', href: '/debts' }
+    }
+
+    if (entry.subscriptionId) {
+        return { label: 'Abonelik kaydına git', href: '/subscriptions' }
+    }
+
+    if (entry.personId) {
+        return { label: 'Kişi kaydına git', href: `/people/${entry.personId}` }
+    }
+
+    if (entry.accountId) {
+        return { label: 'Hesap kaydına git', href: '/accounts' }
+    }
+
+    return null
+}
+
 export default async function TransactionsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    let serializedEntries: Array<{ id: string; type: string; amount: number; currency: string; description: string | null; category: string | null; date: string; account: { name: string } | null }> = []
+    let serializedEntries: Array<{
+        id: string
+        type: string
+        amount: number
+        currency: string
+        description: string | null
+        category: string | null
+        date: string
+        account: { name: string } | null
+        sourceLabel: string | null
+        sourceHref: string | null
+    }> = []
     let totalIncome = 0
     let totalExpense = 0
     let total = 0
@@ -34,29 +74,28 @@ export default async function TransactionsPage() {
             category: e.category,
             date: e.date.toISOString(),
             account: e.account ? { name: e.account.name } : null,
+            sourceLabel: getSourceLink(e)?.label ?? null,
+            sourceHref: getSourceLink(e)?.href ?? null,
         }))
     } catch (e) {
         console.error('TransactionsPage data fetch error:', e)
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="genis">
-                <header className="mb-10">
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">İşlem Defteri</h1>
-                    <p className="text-zinc-400 max-w-3xl">
-                        Tüm finansal hareketlerin birleşik kaydı. Tahsilat, ödeme, transfer, kart ödeme — tek yerde.
-                    </p>
-                </header>
-                <TransactionsWorkspace
-                    entries={serializedEntries}
-                    totalIncome={totalIncome}
-                    totalExpense={totalExpense}
-                    total={total}
-                />
-            </PageShell>
-        </div>
+        <PageShell width="genis">
+            <header className="mb-10">
+                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">İşlem Defteri</h1>
+                <p className="text-zinc-400 max-w-3xl">
+                    Tüm finansal hareketlerin birleşik kaydı. Tahsilat, ödeme, transfer, kart ödeme, ancak düzenleme kaynak modülden yapılır.
+                </p>
+            </header>
+            <TransactionsWorkspace
+                entries={serializedEntries}
+                totalIncome={totalIncome}
+                totalExpense={totalExpense}
+                total={total}
+            />
+        </PageShell>
     )
 }

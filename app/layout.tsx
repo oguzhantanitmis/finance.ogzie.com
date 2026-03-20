@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
+import AppShell from "@/components/AppShell";
 import { FinanceProvider } from "@/components/FinanceContext";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -33,7 +34,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-black text-white antialiased`}>
         <AuthProvider>
           <FinanceProvider>
-            {children}
+            <AppShell>{children}</AppShell>
           </FinanceProvider>
         </AuthProvider>
       </body>

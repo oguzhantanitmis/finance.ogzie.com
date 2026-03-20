@@ -91,6 +91,8 @@ export interface MonthlyBudgetSummary {
         monthlyNormalizedAmount: number
         category: string
         logoUrl: string | null
+        autopay: boolean
+        notes: string | null
         status: RecordStatus
     }>
     recurringExpenses: Array<{
@@ -103,6 +105,8 @@ export interface MonthlyBudgetSummary {
         category: string
         status: RecordStatus
         isEssential: boolean
+        autopay: boolean
+        notes: string | null
     }>
     incomeSources: Array<{
         id: string

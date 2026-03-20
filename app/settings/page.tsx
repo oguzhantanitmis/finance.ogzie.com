@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation'
-import Navbar from '@/components/Navbar'
 import PageShell from '@/components/PageShell'
 import SettingsWorkspace from '@/components/settings/SettingsWorkspace'
 import { getCardFinanceSettings } from '@/lib/card-finance-settings-service'
@@ -7,36 +6,48 @@ import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
+interface AISettingsData {
+    connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
+    model: string
+    baseUrl: string
+    hasProject: boolean
+    hasOrg: boolean
+}
+
+interface CardSettingsData {
+    contractualRate: number
+    defaultRate: number
+    cashAdvanceRate: number
+    minPaymentRateBelow50k: number
+    minPaymentRateAbove50k: number
+    kkdfRate: number
+    bsmvRate: number
+    notes: string | null
+    lastUpdated: string
+}
+
 export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    let aiSettings: {
-        connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
-        model: string
-        baseUrl: string
-        hasProject: boolean
-        hasOrg: boolean
-    } = {
+    const aiSettings: AISettingsData = {
         connectionStatus: 'BEKLENİYOR',
         model: process.env.OPENAI_MODEL ?? 'gpt-5-mini',
         baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
-        hasProject: !!process.env.OPENAI_PROJECT,
-        hasOrg: !!process.env.OPENAI_ORG
+        hasProject: Boolean(process.env.OPENAI_PROJECT),
+        hasOrg: Boolean(process.env.OPENAI_ORG),
     }
-    let cardSettingsData: any = null
+    let cardSettingsData: CardSettingsData | null = null
 
     try {
         const cardSettings = await getCardFinanceSettings(user.id)
-    
-        // AI Bağlantı Kontrolü
+
         const apiKey = process.env.OPENAI_API_KEY
         if (apiKey) {
             try {
-                // OpenAI API'sini test et
                 const res = await fetch(`${aiSettings.baseUrl}/models`, {
                     headers: { 'Authorization': `Bearer ${apiKey}` },
-                    next: { revalidate: 3600 }
+                    next: { revalidate: 3600 },
                 })
                 if (res.ok) {
                     aiSettings.connectionStatus = 'HAZIR'
@@ -66,18 +77,15 @@ export default async function SettingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-20 md:pb-0">
-            <Navbar />
-            <PageShell width="normal">
-                <header className="mb-10">
-                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Ayarlar</h1>
-                    <p className="text-zinc-400 max-w-3xl">
-                        Genel kart faiz oranları ve uygulama ayarları.
-                    </p>
-                </header>
-                <SettingsWorkspace cardSettings={cardSettingsData} aiSettings={aiSettings} />
-            </PageShell>
-        </div>
+        <PageShell width="normal">
+            <header className="mb-10">
+                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Ayarlar</h1>
+                <p className="text-zinc-400 max-w-3xl">
+                    Genel kart faiz oranları ve uygulama ayarları.
+                </p>
+            </header>
+            <SettingsWorkspace cardSettings={cardSettingsData} aiSettings={aiSettings} />
+        </PageShell>
     )
 }
