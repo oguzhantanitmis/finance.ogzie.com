@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Zap, XCircle, DollarSign, TrendingUp } from 'lucide-react'
+import { XCircle, DollarSign, TrendingUp } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 
 interface SubItem { id: string; name: string; monthly: number }
@@ -25,7 +25,11 @@ export default function SimulationsWorkspace({ subscriptions, debts, currentCash
 
     const toggleSub = (id: string) => {
         const copy = new Set(selectedSubs)
-        copy.has(id) ? copy.delete(id) : copy.add(id)
+        if (copy.has(id)) {
+            copy.delete(id)
+        } else {
+            copy.add(id)
+        }
         setSelectedSubs(copy)
     }
 
@@ -69,16 +73,16 @@ export default function SimulationsWorkspace({ subscriptions, debts, currentCash
                                         <input type="checkbox" checked={selectedSubs.has(sub.id)} onChange={() => toggleSub(sub.id)} className="rounded" />
                                         <span className="text-white">{sub.name}</span>
                                     </div>
-                                    <span className="text-sm text-zinc-400">{formatCurrency(sub.monthly, 'TRY')}/ay</span>
+                                    <span className="text-sm text-zinc-400 privacy-blur">{formatCurrency(sub.monthly, 'TRY')}/ay</span>
                                 </label>
                             ))}
                         </div>
                     )}
                     {selectedSubs.size > 0 && (
                         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
-                            <p className="text-emerald-400 font-semibold text-lg mb-1">Aylık tasarruf: {formatCurrency(cancelSavings, 'TRY')}</p>
-                            <p className="text-emerald-400/70 text-sm">Yıllık tasarruf: {formatCurrency(cancelSavings * 12, 'TRY')}</p>
-                            <p className="text-zinc-400 text-sm mt-2">Nakit: {formatCurrency(currentCash, 'TRY')} → {formatCurrency(currentCash + cancelSavings, 'TRY')}/ay</p>
+                            <p className="text-emerald-400 font-semibold text-lg mb-1 privacy-blur">Aylık tasarruf: {formatCurrency(cancelSavings, 'TRY')}</p>
+                            <p className="text-emerald-400/70 text-sm privacy-blur">Yıllık tasarruf: {formatCurrency(cancelSavings * 12, 'TRY')}</p>
+                            <p className="text-zinc-400 text-sm mt-2 privacy-blur">Nakit: {formatCurrency(currentCash, 'TRY')} → {formatCurrency(currentCash + cancelSavings, 'TRY')}/ay</p>
                         </div>
                     )}
                 </div>
@@ -94,14 +98,14 @@ export default function SimulationsWorkspace({ subscriptions, debts, currentCash
                         <div className="space-y-4">
                             <select value={extraPaymentDebtId} onChange={(e) => setExtraPaymentDebtId(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
                                 <option value="">Borç seçin</option>
-                                {debts.map((d) => <option key={d.id} value={d.id}>{d.name} ({formatCurrency(d.balance, 'TRY')})</option>)}
+                                {debts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                             </select>
                             <input type="number" value={extraPaymentAmount || ''} onChange={(e) => setExtraPaymentAmount(Number(e.target.value))} placeholder="Ekstra ödeme tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
                             {selectedDebt && extraPaymentAmount > 0 && (
                                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
                                     <p className="text-white font-semibold mb-2">{selectedDebt.name}</p>
-                                    <p className="text-zinc-400 text-sm">Borç: {formatCurrency(selectedDebt.balance, 'TRY')} → {formatCurrency(Math.max(0, selectedDebt.balance - extraPaymentAmount), 'TRY')}</p>
-                                    <p className="text-zinc-400 text-sm">Nakit: {formatCurrency(currentCash, 'TRY')} → {formatCurrency(currentCash - extraPaymentAmount, 'TRY')}</p>
+                                    <p className="text-zinc-400 text-sm privacy-blur">Borç: {formatCurrency(selectedDebt.balance, 'TRY')} → {formatCurrency(Math.max(0, selectedDebt.balance - extraPaymentAmount), 'TRY')}</p>
+                                    <p className="text-zinc-400 text-sm privacy-blur">Nakit: {formatCurrency(currentCash, 'TRY')} → {formatCurrency(currentCash - extraPaymentAmount, 'TRY')}</p>
                                     {selectedDebt.balance <= extraPaymentAmount && (
                                         <p className="text-emerald-400 font-semibold mt-2">🎉 Bu borç tamamen kapanır!</p>
                                     )}
@@ -119,15 +123,15 @@ export default function SimulationsWorkspace({ subscriptions, debts, currentCash
                     <div className="space-y-4">
                         <div>
                             <p className="text-xs text-zinc-500 mb-1">Mevcut aylık gelir</p>
-                            <p className="text-xl font-bold text-white mb-4">{formatCurrency(currentMonthlyIncome, 'TRY')}</p>
+                            <p className="text-xl font-bold text-white mb-4 privacy-blur">{formatCurrency(currentMonthlyIncome, 'TRY')}</p>
                         </div>
                         <input type="number" value={newIncome || ''} onChange={(e) => setNewIncome(Number(e.target.value))} placeholder="Yeni aylık gelir" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
                         {newIncome !== currentMonthlyIncome && (
                             <div className={cn('rounded-2xl p-5 border', incomeChange >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20')}>
-                                <p className={cn('font-semibold text-lg mb-1', incomeChange >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                <p className={cn('font-semibold text-lg mb-1 privacy-blur', incomeChange >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                                     {incomeChange >= 0 ? '+' : ''}{formatCurrency(incomeChange, 'TRY')}/ay
                                 </p>
-                                <p className="text-zinc-400 text-sm">Yıllık etki: {incomeChange >= 0 ? '+' : ''}{formatCurrency(incomeChange * 12, 'TRY')}</p>
+                                <p className="text-zinc-400 text-sm privacy-blur">Yıllık etki: {incomeChange >= 0 ? '+' : ''}{formatCurrency(incomeChange * 12, 'TRY')}</p>
                             </div>
                         )}
                     </div>

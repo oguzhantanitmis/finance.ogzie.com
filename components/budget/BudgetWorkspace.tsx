@@ -186,7 +186,7 @@ export default function BudgetWorkspace({
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <p className="font-bold">{formatCurrency(income.amount, income.currency)}</p>
+                                        <p className="font-bold privacy-blur">{formatCurrency(income.amount, income.currency)}</p>
                                         <button onClick={() => setEditingIncome(income)} className="p-2 text-zinc-600 hover:text-white">
                                             <Pencil className="w-4 h-4" />
                                         </button>

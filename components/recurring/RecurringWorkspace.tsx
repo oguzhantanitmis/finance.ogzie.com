@@ -89,7 +89,7 @@ export default function RecurringWorkspace({
                 </button>
                 <div className="rounded-3xl border border-white/8 bg-white/[0.03] p-4 mt-6">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Aylık yük</p>
-                    <h3 className="text-3xl font-bold">{formatCurrency(recurringLoad, 'TRY')}</h3>
+                    <h3 className="text-3xl font-bold privacy-blur">{formatCurrency(recurringLoad, 'TRY')}</h3>
                     <p className="text-zinc-400 mt-2 text-sm">Aylık normalize sabit gider etkisi</p>
                 </div>
             </div>
@@ -111,7 +111,7 @@ export default function RecurringWorkspace({
                                     {expense.isEssential ? <span className="text-[10px] uppercase tracking-[0.25em] text-amber-400">Kritik</span> : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mt-2">
-                                    <span className="flex items-center gap-1">
+                                    <span className="flex items-center gap-1 privacy-blur">
                                         <CalendarDays className="w-3.5 h-3.5" />
                                         {new Date(expense.nextPayment).toLocaleDateString('tr-TR')}
                                     </span>
@@ -121,7 +121,7 @@ export default function RecurringWorkspace({
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="text-right">
-                                    <p className="text-xl font-bold">{formatCurrency(expense.amount, expense.currency)}</p>
+                                    <p className="text-xl font-bold privacy-blur">{formatCurrency(expense.amount, expense.currency)}</p>
                                 </div>
                                 <button onClick={() => setEditingExpense(expense)} className="p-3 text-zinc-600 hover:text-white hover:bg-white/10 rounded-xl transition-all">
                                     <Pencil className="w-5 h-5" />

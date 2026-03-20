@@ -33,15 +33,15 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Asgari</p>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Kullanılabilir</p>
-                    <p className="text-2xl font-bold text-white">{formatCurrency(plan.totalAvailable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-white privacy-blur">{formatCurrency(plan.totalAvailable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Fazla / Açık</p>
-                    <p className={cn('text-2xl font-bold', plan.surplus >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', plan.surplus >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                         {formatCurrency(plan.surplus, 'TRY')}
                     </p>
                 </div>
@@ -105,23 +105,23 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                                     <div className="flex items-center gap-3 text-xs text-zinc-500">
                                         <span>{item.type === 'credit_card' ? 'Kredi Kartı' : item.type === 'debt' ? 'Borç' : 'Verecek'}</span>
                                         {item.interestRate > 0 && <span>%{item.interestRate} faiz</span>}
-                                        {item.dueDate && <span>Vade: {new Date(item.dueDate).toLocaleDateString('tr-TR')}</span>}
+                                        {item.dueDate && <span className="privacy-blur">Vade: {new Date(item.dueDate).toLocaleDateString('tr-TR')}</span>}
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
                                     <p className="text-xs text-zinc-500">Borç</p>
-                                    <p className="font-bold text-white">{formatCurrency(item.balance, 'TRY')}</p>
+                                    <p className="font-bold text-white privacy-blur">{formatCurrency(item.balance, 'TRY')}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs text-zinc-500">Asgari</p>
-                                    <p className="font-semibold text-zinc-400">{formatCurrency(item.minPayment, 'TRY')}</p>
+                                    <p className="font-semibold text-zinc-400 privacy-blur">{formatCurrency(item.minPayment, 'TRY')}</p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-zinc-600" />
                                 <div className="text-right">
                                     <p className="text-xs text-zinc-500">Önerilen</p>
-                                    <p className="font-bold text-emerald-400">{formatCurrency(item.suggestedPayment, 'TRY')}</p>
+                                    <p className="font-bold text-emerald-400 privacy-blur">{formatCurrency(item.suggestedPayment, 'TRY')}</p>
                                 </div>
                             </div>
                         </div>

@@ -55,11 +55,11 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Giriş</p>
-                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalIncome, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Çıkış</p>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(totalExpense, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Kayıt</p>
@@ -112,7 +112,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         <div className="flex items-center gap-2 text-xs text-zinc-500">
                                             <span>{meta.label}</span>
                                             {entry.account && <span>• {entry.account.name}</span>}
-                                            <span>• {new Date(entry.date).toLocaleDateString('tr-TR')}</span>
+                                            <span className="privacy-blur">• {new Date(entry.date).toLocaleDateString('tr-TR')}</span>
                                         </div>
                                         {entry.sourceHref && entry.sourceLabel ? (
                                             <Link
@@ -124,7 +124,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         ) : null}
                                     </div>
                                 </div>
-                                <p className={cn('font-bold tabular-nums', isPositive ? 'text-emerald-400' : 'text-red-400')}>
+                                <p className={cn('font-bold tabular-nums privacy-blur', isPositive ? 'text-emerald-400' : 'text-red-400')}>
                                     {isPositive ? '+' : ''}{formatCurrency(entry.amount, entry.currency)}
                                 </p>
                             </div>

@@ -123,13 +123,13 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Bakiye</p>
-                    <p className={cn('text-2xl font-bold', totalBalance < 0 ? 'text-red-400' : 'text-white')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', totalBalance < 0 ? 'text-red-400' : 'text-white')}>
                         {formatCurrency(totalBalance, 'TRY')}
                     </p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Kullanılabilir Nakit</p>
-                    <p className={cn('text-2xl font-bold', availableCash < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', availableCash < 0 ? 'text-red-400' : 'text-emerald-400')}>
                         {formatCurrency(availableCash, 'TRY')}
                     </p>
                 </div>
@@ -198,7 +198,7 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                         <input type="hidden" name="accountId" value={selectedAccount.id} />
                         <div>
                             <p className="text-xs text-zinc-500 mb-1">Mevcut bakiye</p>
-                            <p className="text-xl font-bold text-white mb-4">
+                            <p className="text-xl font-bold text-white mb-4 privacy-blur">
                                 {formatCurrency(selectedAccount.balance, selectedAccount.currency)}
                             </p>
                         </div>

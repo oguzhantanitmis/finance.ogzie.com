@@ -87,18 +87,18 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                         <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Alacak</p>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(summary.totalReceivable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(summary.totalReceivable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
                         <ArrowUpRight className="w-4 h-4 text-red-400" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Verecek</p>
                     </div>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(summary.totalPayable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(summary.totalPayable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Net Durum</p>
-                    <p className={cn('text-2xl font-bold', summary.net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', summary.net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                         {formatCurrency(summary.net, 'TRY')}
                     </p>
                 </div>
@@ -107,7 +107,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                         <AlertTriangle className="w-4 h-4 text-amber-400" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Geciken</p>
                     </div>
-                    <p className="text-2xl font-bold text-amber-400">{summary.overdueCount}</p>
+                    <p className="text-2xl font-bold text-amber-400 privacy-blur">{summary.overdueCount}</p>
                 </div>
             </div>
 
@@ -166,7 +166,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                 </div>
                                 <div className="min-w-0">
                                     <h3 className="font-semibold text-white truncate">{person.name}</h3>
-                                    <p className="text-xs text-zinc-500 truncate">
+                                    <p className="text-xs text-zinc-500 truncate privacy-blur">
                                         {person.activeCount} açık kayıt
                                         {person.phone ? ` • ${person.phone}` : ''}
                                     </p>
@@ -176,18 +176,18 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                 {person.totalReceivable > 0 ? (
                                     <div className="text-right">
                                         <p className="text-xs text-zinc-500">Alacak</p>
-                                        <p className="font-bold text-emerald-400">{formatCurrency(person.totalReceivable, 'TRY')}</p>
+                                        <p className="font-bold text-emerald-400 privacy-blur">{formatCurrency(person.totalReceivable, 'TRY')}</p>
                                     </div>
                                 ) : null}
                                 {person.totalPayable > 0 ? (
                                     <div className="text-right">
                                         <p className="text-xs text-zinc-500">Verecek</p>
-                                        <p className="font-bold text-red-400">{formatCurrency(person.totalPayable, 'TRY')}</p>
+                                        <p className="font-bold text-red-400 privacy-blur">{formatCurrency(person.totalPayable, 'TRY')}</p>
                                     </div>
                                 ) : null}
                                 <div className="text-right">
                                     <p className="text-xs text-zinc-500">Net</p>
-                                    <p className={cn('font-bold', person.netPosition >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                    <p className={cn('font-bold privacy-blur', person.netPosition >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                                         {formatCurrency(person.netPosition, 'TRY')}
                                     </p>
                                 </div>

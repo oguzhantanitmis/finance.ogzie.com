@@ -38,21 +38,21 @@ export default async function AnalyticsPage() {
                         <TrendingUp className="w-5 h-5 text-emerald-400" />
                         <h2 className="font-semibold">Net değer</h2>
                     </div>
-                    <p className="text-3xl font-bold">{formatCurrency(summary.netWorth, 'TRY')}</p>
+                    <p className="text-3xl font-bold privacy-blur">{formatCurrency(summary.netWorth, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-6">
                     <div className="flex items-center gap-3 mb-3">
                         <PieChart className="w-5 h-5 text-sky-400" />
                         <h2 className="font-semibold">Abonelik yükü</h2>
                     </div>
-                    <p className="text-3xl font-bold">{formatCurrency(summary.subscriptionLoad, 'TRY')}</p>
+                    <p className="text-3xl font-bold privacy-blur">{formatCurrency(summary.subscriptionLoad, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-6">
                     <div className="flex items-center gap-3 mb-3">
                         <PieChart className="w-5 h-5 text-amber-400" />
                         <h2 className="font-semibold">Sabit gider yükü</h2>
                     </div>
-                    <p className="text-3xl font-bold">{formatCurrency(summary.recurringLoad, 'TRY')}</p>
+                    <p className="text-3xl font-bold privacy-blur">{formatCurrency(summary.recurringLoad, 'TRY')}</p>
                 </div>
             </div>
 
@@ -70,7 +70,7 @@ export default async function AnalyticsPage() {
                                         <p className="text-sm text-zinc-500">{subscription.category}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold">{formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}</p>
+                                        <p className="font-bold privacy-blur">{formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}</p>
                                         <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">Aylık etki</p>
                                     </div>
                                 </div>
@@ -92,7 +92,7 @@ export default async function AnalyticsPage() {
                                         <p className="text-sm text-zinc-500">{expense.category}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-bold">{formatCurrency(expense.amount, expense.currency)}</p>
+                                        <p className="font-bold privacy-blur">{formatCurrency(expense.amount, expense.currency)}</p>
                                         <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">{formatBillingCycleLabel(expense.billingCycle)}</p>
                                     </div>
                                 </div>

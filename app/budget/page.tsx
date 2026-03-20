@@ -36,19 +36,19 @@ export default async function BudgetPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Planlanan Gelir</p>
-                    <p className="text-2xl font-bold">{formatCurrency(summary.plannedIncome, 'TRY')}</p>
+                    <p className="text-2xl font-bold privacy-blur">{formatCurrency(summary.plannedIncome, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Sabit yük</p>
-                    <p className="text-2xl font-bold">{formatCurrency(summary.fixedCommitments, 'TRY')}</p>
+                    <p className="text-2xl font-bold privacy-blur">{formatCurrency(summary.fixedCommitments, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Borç baskısı</p>
-                    <p className="text-2xl font-bold">{formatCurrency(summary.debtCommitments, 'TRY')}</p>
+                    <p className="text-2xl font-bold privacy-blur">{formatCurrency(summary.debtCommitments, 'TRY')}</p>
                 </div>
                 <div className={`fintech-card p-5 ${summary.freeCash < 0 ? 'border-red-500/30' : 'border-emerald-500/20'}`}>
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Serbest Nakit</p>
-                    <p className={`text-2xl font-bold ${summary.freeCash < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatCurrency(summary.freeCash, 'TRY')}</p>
+                    <p className={`text-2xl font-bold privacy-blur ${summary.freeCash < 0 ? 'text-red-400' : 'text-emerald-400'}`}>{formatCurrency(summary.freeCash, 'TRY')}</p>
                 </div>
             </div>
 

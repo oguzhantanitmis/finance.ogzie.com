@@ -259,7 +259,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                     <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div>
                             <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam yük</p>
-                            <h3 className="text-3xl font-bold">{formatCurrency(monthlyTotal, 'TRY')}</h3>
+                            <h3 className="text-3xl font-bold privacy-blur">{formatCurrency(monthlyTotal, 'TRY')}</h3>
                             <p className="text-zinc-400 mt-2">Aylık normalize abonelik yükü</p>
                         </div>
                         <div className="text-sm text-zinc-400">
@@ -288,7 +288,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                                         </span>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mt-1">
-                                        <span className="flex items-center gap-1">
+                                        <span className="flex items-center gap-1 privacy-blur">
                                             <Calendar className="w-3.5 h-3.5" />
                                             {new Date(subscription.nextPayment).toLocaleDateString('tr-TR')}
                                         </span>
@@ -300,8 +300,8 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
 
                             <div className="flex items-center justify-between md:justify-end gap-4">
                                 <div className="text-right">
-                                    <p className="text-xl font-bold">{formatCurrency(subscription.amount, subscription.currency)}</p>
-                                    <p className="text-xs text-zinc-500 uppercase tracking-[0.25em]">
+                                    <p className="text-xl font-bold privacy-blur">{formatCurrency(subscription.amount, subscription.currency)}</p>
+                                    <p className="text-xs text-zinc-500 uppercase tracking-[0.25em] privacy-blur">
                                         Aylık etki {formatCurrency(subscription.monthlyNormalizedAmount, 'TRY')}
                                     </p>
                                 </div>

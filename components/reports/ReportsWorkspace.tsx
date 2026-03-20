@@ -32,21 +32,21 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                         <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Gelir (6 ay)</p>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalIncome, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
                         <ArrowUpRight className="w-4 h-4 text-red-400" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Gider (6 ay)</p>
                     </div>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(totalExpense, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="w-4 h-4 text-sky-400" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Net (6 ay)</p>
                     </div>
-                    <p className={cn('text-2xl font-bold', totalIncome - totalExpense >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', totalIncome - totalExpense >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                         {formatCurrency(totalIncome - totalExpense, 'TRY')}
                     </p>
                 </div>
@@ -72,9 +72,9 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                                 {monthly.map((m) => (
                                     <tr key={m.month} className="border-b border-white/5">
                                         <td className="py-3 text-white font-medium">{m.month}</td>
-                                        <td className="py-3 text-right text-emerald-400">{formatCurrency(m.income, 'TRY')}</td>
-                                        <td className="py-3 text-right text-red-400">{formatCurrency(m.expense, 'TRY')}</td>
-                                        <td className={cn('py-3 text-right font-semibold', m.net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                        <td className="py-3 text-right text-emerald-400 privacy-blur">{formatCurrency(m.income, 'TRY')}</td>
+                                        <td className="py-3 text-right text-red-400 privacy-blur">{formatCurrency(m.expense, 'TRY')}</td>
+                                        <td className={cn('py-3 text-right font-semibold privacy-blur', m.net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                                             {formatCurrency(m.net, 'TRY')}
                                         </td>
                                     </tr>
@@ -100,7 +100,7 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                                     <div key={e.type}>
                                         <div className="flex items-center justify-between mb-1">
                                             <span className="text-sm text-zinc-300">{TYPE_LABELS[e.type] ?? e.type}</span>
-                                            <span className="text-sm font-semibold text-white">{formatCurrency(e.amount, 'TRY')}</span>
+                                            <span className="text-sm font-semibold text-white privacy-blur">{formatCurrency(e.amount, 'TRY')}</span>
                                         </div>
                                         <div className="w-full h-2 bg-white/5 rounded-full">
                                             <div className="h-full bg-red-400/60 rounded-full" style={{ width: `${pct}%` }} />
@@ -121,12 +121,12 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                         <div className="space-y-2">
                             {netWorthHistory.map((s, i) => (
                                 <div key={i} className="flex items-center justify-between text-sm border-b border-white/5 py-2">
-                                    <span className="text-zinc-400">{new Date(s.date).toLocaleDateString('tr-TR')}</span>
+                                    <span className="text-zinc-400 privacy-blur">{new Date(s.date).toLocaleDateString('tr-TR')}</span>
                                     <div className="flex items-center gap-4">
-                                        <span className={cn('font-semibold', s.netWorth >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                        <span className={cn('font-semibold privacy-blur', s.netWorth >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                                             {formatCurrency(s.netWorth, 'TRY')}
                                         </span>
-                                        <span className="text-xs text-zinc-500">Skor: {s.score}</span>
+                                        <span className="text-xs text-zinc-500 privacy-blur">Skor: {s.score}</span>
                                     </div>
                                 </div>
                             ))}

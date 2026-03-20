@@ -164,15 +164,15 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Alacak</p>
-                    <p className="text-2xl font-bold text-emerald-400">{formatCurrency(totalReceivable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(totalReceivable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Verecek</p>
-                    <p className="text-2xl font-bold text-red-400">{formatCurrency(totalPayable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(totalPayable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Net Durum</p>
-                    <p className={cn('text-2xl font-bold', totalReceivable - totalPayable >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', totalReceivable - totalPayable >= 0 ? 'text-emerald-400' : 'text-red-400')}>
                         {formatCurrency(totalReceivable - totalPayable, 'TRY')}
                     </p>
                 </div>
@@ -181,7 +181,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
             <div className="fintech-card p-5 mb-6">
                 <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="space-y-2 text-sm text-zinc-400">
-                        {person.phone ? <p>Telefon: {person.phone}</p> : null}
+                        {person.phone ? <p className="privacy-blur">Telefon: {person.phone}</p> : null}
                         {person.email ? <p>E-posta: {person.email}</p> : null}
                         {person.notes ? <p>Not: {person.notes}</p> : null}
                         {!person.phone && !person.email && !person.notes ? <p>Ek kişi bilgisi girilmemiş.</p> : null}
@@ -240,7 +240,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                         <div className="flex items-center gap-4 text-xs text-zinc-500 mt-1">
                                             <span>{isReceivable ? 'Alacak' : 'Verecek'}</span>
                                             {rp.dueDate ? (
-                                                <span className="flex items-center gap-1">
+                                                <span className="flex items-center gap-1 privacy-blur">
                                                     <CalendarDays className="w-3 h-3" />
                                                     {new Date(rp.dueDate).toLocaleDateString('tr-TR')}
                                                 </span>
@@ -250,10 +250,10 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                     <div className="flex items-center gap-4 md:gap-6">
                                         <div className="text-right">
                                             <p className="text-xs text-zinc-500">Kalan</p>
-                                            <p className={cn('text-xl font-bold', isReceivable ? 'text-emerald-400' : 'text-red-400')}>
+                                            <p className={cn('text-xl font-bold privacy-blur', isReceivable ? 'text-emerald-400' : 'text-red-400')}>
                                                 {formatCurrency(rp.remainingAmount, rp.currency)}
                                             </p>
-                                            <p className="text-xs text-zinc-600">/ {formatCurrency(rp.originalAmount, rp.currency)}</p>
+                                            <p className="text-xs text-zinc-600 privacy-blur">/ {formatCurrency(rp.originalAmount, rp.currency)}</p>
                                         </div>
                                         {rp.status !== 'CLOSED' ? (
                                             <button
@@ -297,11 +297,11 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                                 <div key={transaction.id} className="flex items-center justify-between text-sm">
                                                     <div className="flex items-center gap-2 text-zinc-400">
                                                         <Clock className="w-3 h-3" />
-                                                        <span>{new Date(transaction.transactionDate).toLocaleDateString('tr-TR')}</span>
+                                                        <span className="privacy-blur">{new Date(transaction.transactionDate).toLocaleDateString('tr-TR')}</span>
                                                         {transaction.description ? <span>- {transaction.description}</span> : null}
                                                         {transaction.account ? <span className="text-zinc-600">({transaction.account.name})</span> : null}
                                                     </div>
-                                                    <span className="font-semibold text-white">{formatCurrency(transaction.amount, rp.currency)}</span>
+                                                    <span className="font-semibold text-white privacy-blur">{formatCurrency(transaction.amount, rp.currency)}</span>
                                                 </div>
                                             ))}
                                         </div>

@@ -51,7 +51,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                                     KMH Açık
                                 </span>
                                 {account.kmhLimit ? (
-                                    <span className="text-[10px] text-zinc-500">
+                                    <span className="text-[10px] text-zinc-500 privacy-blur">
                                         Limit {formatCurrency(account.kmhLimit, account.currency)}
                                     </span>
                                 ) : null}
@@ -94,7 +94,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
             <div className="flex items-end justify-between">
                 <div>
                     <p className="text-xs text-zinc-500 uppercase tracking-[0.25em] mb-1">Bakiye</p>
-                    <p className={cn('text-2xl font-bold', isNegative ? 'text-red-400' : 'text-white')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', isNegative ? 'text-red-400' : 'text-white')}>
                         {formatCurrency(account.balance, account.currency)}
                     </p>
                 </div>
@@ -111,7 +111,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
             </div>
 
             {account.iban && (
-                <p className="text-xs text-zinc-600 mt-3 font-mono">{account.iban}</p>
+                <p className="text-xs text-zinc-600 mt-3 font-mono privacy-blur">{account.iban}</p>
             )}
 
             {account.hasKmh ? (
@@ -125,7 +125,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
                             <p className="text-zinc-500 mb-1">Kullanılan Tutar</p>
-                            <p className={cn('font-semibold', kmhUsage > 0 ? 'text-red-300' : 'text-white')}>
+                            <p className={cn('font-semibold privacy-blur', kmhUsage > 0 ? 'text-red-300' : 'text-white')}>
                                 {formatCurrency(kmhUsage, account.currency)}
                             </p>
                         </div>

@@ -182,8 +182,8 @@ function GoalCard({
                 />
             </div>
             <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-400">{formatCurrency(goal.currentAmount, 'TRY')} / {formatCurrency(goal.targetAmount, 'TRY')}</span>
-                <span className={cn('text-xs', isOverdue ? 'text-red-400' : 'text-zinc-500')}>
+                <span className="text-zinc-400 privacy-blur">{formatCurrency(goal.currentAmount, 'TRY')} / {formatCurrency(goal.targetAmount, 'TRY')}</span>
+                <span className={cn('text-xs privacy-blur', isOverdue ? 'text-red-400' : 'text-zinc-500')}>
                     <Clock className="w-3 h-3 inline mr-1" />
                     {new Date(goal.targetDate).toLocaleDateString('tr-TR')}
                 </span>
