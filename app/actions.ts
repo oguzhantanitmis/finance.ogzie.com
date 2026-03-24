@@ -25,6 +25,7 @@ import { calculateLoanSchedule } from '@/lib/banking-engine'
 import { type SubscriptionEnrichment } from '@/lib/finance-os-types'
 import { getMonthlyBudgetSummary, normalizeMonthlyAmount } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
+import { shouldRebuildLoanPaymentPlan } from '@/lib/restructured-loan'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { requireCurrentUser } from '@/lib/server-auth'
 import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
@@ -117,17 +118,30 @@ async function findUserDebt(debtId: string, userId: string) {
     })
 }
 
-function buildLoanPaymentPlan(debtId: string, formData: FormData) {
-    const totalPrincipal = toOptionalNumber(formData.get('totalPrincipal'))
-    const installments = toOptionalNumber(formData.get('installments'))
-    const interestRate = toOptionalNumber(formData.get('interestRate')) ?? 0
-
-    if (!totalPrincipal || !installments || installments <= 0) {
+function buildLoanPaymentPlan(
+    debtId: string,
+    values: {
+        totalPrincipal: number | null
+        installments: number | null
+        interestRate: number
+        kkdfRate: number
+        bsmvRate: number
+        dueDate: Date | null
+    },
+) {
+    if (!values.totalPrincipal || !values.installments || values.installments <= 0 || !values.dueDate) {
         return []
     }
 
-    const schedule = calculateLoanSchedule(totalPrincipal, interestRate, installments)
-    const firstDueDate = validateDate(parseDateInput(formData.get('dueDate'), new Date()), 'dueDate', 'Vade tarihi')
+    const schedule = calculateLoanSchedule(
+        values.totalPrincipal,
+        values.interestRate,
+        values.installments,
+        {
+            KKDF: values.kkdfRate,
+            BSMV: values.bsmvRate,
+        },
+    )
 
     return schedule.plan.map((item, index) => ({
         debtId,
@@ -136,7 +150,7 @@ function buildLoanPaymentPlan(debtId: string, formData: FormData) {
         principalAmount: item.principal,
         interestAmount: item.interest,
         taxAmount: item.tax,
-        dueDate: addMonths(firstDueDate, index),
+        dueDate: addMonths(values.dueDate!, index),
         isPaid: false,
     }))
 }
@@ -219,6 +233,14 @@ export async function addDebt(
         const user = await requireCurrentUser()
         const debtType = parseDebtType(data.get('type'))
         const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : undefined
+        const loanPlanValues = {
+            totalPrincipal: toOptionalNumber(data.get('totalPrincipal')) ?? null,
+            installments: toOptionalNumber(data.get('installments')) ?? null,
+            interestRate: toOptionalNumber(data.get('interestRate')) ?? 0,
+            kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
+            bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
+            dueDate: dueDate ?? null,
+        }
 
         const debt = await prisma.debt.create({
             data: {
@@ -242,7 +264,7 @@ export async function addDebt(
         })
 
         if (debtType === DebtType.LOAN) {
-            const planRows = buildLoanPaymentPlan(debt.id, data)
+            const planRows = buildLoanPaymentPlan(debt.id, loanPlanValues)
             if (planRows.length > 0) {
                 await prisma.paymentPlan.createMany({ data: planRows })
             }
@@ -265,9 +287,32 @@ export async function updateDebt(
     try {
         const user = await requireCurrentUser()
         const debtId = String(data.get('debtId'))
-        await findUserDebt(debtId, user.id)
+        const existingDebt = await prisma.debt.findFirstOrThrow({
+            where: { id: debtId, userId: user.id },
+            select: {
+                type: true,
+                totalPrincipal: true,
+                installments: true,
+                interestRate: true,
+                kkdfRate: true,
+                bsmvRate: true,
+                dueDate: true,
+                paymentPlan: {
+                    where: { isPaid: false },
+                    select: { id: true },
+                },
+            },
+        })
         const debtType = parseDebtType(data.get('type'))
         const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : null
+        const loanPlanValues = {
+            totalPrincipal: toOptionalNumber(data.get('totalPrincipal')) ?? null,
+            installments: toOptionalNumber(data.get('installments')) ?? null,
+            interestRate: toOptionalNumber(data.get('interestRate')) ?? 0,
+            kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
+            bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
+            dueDate,
+        }
 
         const debt = await prisma.debt.update({
             where: { id: debtId },
@@ -291,11 +336,15 @@ export async function updateDebt(
             },
         })
 
-        if (debtType === DebtType.LOAN) {
+        if (existingDebt.type === DebtType.LOAN && debtType !== DebtType.LOAN) {
             await prisma.paymentPlan.deleteMany({
                 where: { debtId, isPaid: false },
             })
-            const planRows = buildLoanPaymentPlan(debtId, data)
+        } else if (debtType === DebtType.LOAN && shouldRebuildLoanPaymentPlan(existingDebt, loanPlanValues)) {
+            await prisma.paymentPlan.deleteMany({
+                where: { debtId, isPaid: false },
+            })
+            const planRows = buildLoanPaymentPlan(debtId, loanPlanValues)
             if (planRows.length > 0) {
                 await prisma.paymentPlan.createMany({ data: planRows })
             }

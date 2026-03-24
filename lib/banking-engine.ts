@@ -1,5 +1,3 @@
-import { Debt, PaymentPlan } from '@prisma/client'
-
 // Sabitler (TCMB ve Mevzuat)
 export const TAX_RATES = {
     KKDF: 0.15,
@@ -28,12 +26,19 @@ export function calculateMinPayment(limit: number, totalDebt: number): number {
 }
 
 // Eşit Taksitli Kredi Hesaplama (Annuity)
-export function calculateLoanSchedule(principal: number, monthlyRate: number, installments: number): {
+export function calculateLoanSchedule(
+    principal: number,
+    monthlyRate: number,
+    installments: number,
+    taxRates?: { KKDF: number, BSMV: number },
+): {
+    // Faiz 0 ise (Elden borç vb)
     monthlyPayment: number,
     totalPayment: number,
     plan: { installment: number, principal: number, interest: number, tax: number, remainingPrincipal: number }[]
 } {
-    // Faiz 0 ise (Elden borç vb)
+    const resolvedTaxRates = taxRates ?? TAX_RATES
+
     if (monthlyRate === 0) {
         const payment = principal / installments
         const plan = Array.from({ length: installments }).map((_, i) => ({
@@ -55,7 +60,7 @@ export function calculateLoanSchedule(principal: number, monthlyRate: number, in
 
     // Banka formülü (Genelde BSMV/KKDF taksit içindedir):
     // Efektif Oran = r * (1 + KKDF + BSMV)
-    const effectiveRate = r * (1 + TAX_RATES.KKDF + TAX_RATES.BSMV)
+    const effectiveRate = r * (1 + resolvedTaxRates.KKDF + resolvedTaxRates.BSMV)
 
     const monthlyPayment = principal * (effectiveRate * Math.pow(1 + effectiveRate, n)) / (Math.pow(1 + effectiveRate, n) - 1)
 
@@ -68,7 +73,7 @@ export function calculateLoanSchedule(principal: number, monthlyRate: number, in
         const principalPart = monthlyPayment - interestWithTax
 
         // Vergi ayrıştırma
-        const pureInterest = interestWithTax / (1 + TAX_RATES.KKDF + TAX_RATES.BSMV)
+        const pureInterest = interestWithTax / (1 + resolvedTaxRates.KKDF + resolvedTaxRates.BSMV)
         const taxVal = interestWithTax - pureInterest
 
         remainingPrincipal -= principalPart

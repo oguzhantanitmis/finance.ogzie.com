@@ -1,0 +1,124 @@
+{
+  "customerNumber": "76184222",
+  "creditNumber": "200007206102",
+  "loanType": "Bireysel İhtiyaç Kredisi",
+  "contractDate": "2026-03-05",
+  "startDueDate": "2026-04-04",
+  "paymentDueDay": 4,
+  "totalPrincipal": 343156.99,
+  "totalBalance": 486789.27,
+  "interestRate": 4.49,
+  "kkdfRate": 0.15,
+  "bsmvRate": 0.15,
+  "installments": 12,
+  "rows": [
+    {
+      "installmentNo": 1,
+      "dueDate": "2026-04-04",
+      "amount": 40565.77,
+      "principalAmount": 20535.7,
+      "interestAmount": 15407.75,
+      "taxAmount": 4622.32,
+      "remainingPrincipal": 322621.29
+    },
+    {
+      "installmentNo": 2,
+      "dueDate": "2026-05-04",
+      "amount": 40565.77,
+      "principalAmount": 21734.35,
+      "interestAmount": 14485.7,
+      "taxAmount": 4345.72,
+      "remainingPrincipal": 300886.94
+    },
+    {
+      "installmentNo": 3,
+      "dueDate": "2026-06-04",
+      "amount": 40565.77,
+      "principalAmount": 23003.01,
+      "interestAmount": 13509.82,
+      "taxAmount": 4052.94,
+      "remainingPrincipal": 277883.93
+    },
+    {
+      "installmentNo": 4,
+      "dueDate": "2026-07-04",
+      "amount": 40565.77,
+      "principalAmount": 24345.68,
+      "interestAmount": 12476.99,
+      "taxAmount": 3743.1,
+      "remainingPrincipal": 253538.25
+    },
+    {
+      "installmentNo": 5,
+      "dueDate": "2026-08-04",
+      "amount": 40565.77,
+      "principalAmount": 25766.74,
+      "interestAmount": 11383.87,
+      "taxAmount": 3415.16,
+      "remainingPrincipal": 227771.51
+    },
+    {
+      "installmentNo": 6,
+      "dueDate": "2026-09-04",
+      "amount": 40565.77,
+      "principalAmount": 27270.75,
+      "interestAmount": 10226.94,
+      "taxAmount": 3068.08,
+      "remainingPrincipal": 200500.76
+    },
+    {
+      "installmentNo": 7,
+      "dueDate": "2026-10-04",
+      "amount": 40565.77,
+      "principalAmount": 28862.55,
+      "interestAmount": 9002.48,
+      "taxAmount": 2700.74,
+      "remainingPrincipal": 171638.21
+    },
+    {
+      "installmentNo": 8,
+      "dueDate": "2026-11-04",
+      "amount": 40565.77,
+      "principalAmount": 30547.25,
+      "interestAmount": 7706.56,
+      "taxAmount": 2311.96,
+      "remainingPrincipal": 141090.96
+    },
+    {
+      "installmentNo": 9,
+      "dueDate": "2026-12-04",
+      "amount": 40565.77,
+      "principalAmount": 32330.29,
+      "interestAmount": 6334.98,
+      "taxAmount": 1900.5,
+      "remainingPrincipal": 108760.67
+    },
+    {
+      "installmentNo": 10,
+      "dueDate": "2027-01-04",
+      "amount": 40565.77,
+      "principalAmount": 34217.42,
+      "interestAmount": 4883.35,
+      "taxAmount": 1465,
+      "remainingPrincipal": 74543.25
+    },
+    {
+      "installmentNo": 11,
+      "dueDate": "2027-02-04",
+      "amount": 40565.77,
+      "principalAmount": 36214.68,
+      "interestAmount": 3346.99,
+      "taxAmount": 1004.1,
+      "remainingPrincipal": 38328.57
+    },
+    {
+      "installmentNo": 12,
+      "dueDate": "2027-03-04",
+      "amount": 40565.8,
+      "principalAmount": 38328.57,
+      "interestAmount": 1720.95,
+      "taxAmount": 516.28,
+      "remainingPrincipal": 0
+    }
+  ]
+}
