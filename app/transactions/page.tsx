@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 
 import PageShell from '@/components/PageShell'
 import TransactionsWorkspace from '@/components/transactions/TransactionsWorkspace'
+import { getAccounts } from '@/lib/account-service'
 import { getLedgerEntries, getLedgerSummary } from '@/lib/ledger-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
@@ -81,13 +82,20 @@ export default async function TransactionsPage() {
         console.error('TransactionsPage data fetch error:', e)
     }
 
+    // Hesap listesi
+    let accounts: Array<{ id: string; name: string }> = []
+    try {
+        const accs = await getAccounts(user.id)
+        accounts = accs.map((a) => ({ id: a.id, name: a.name }))
+    } catch { /* devam */ }
+
     return (
         <PageShell width="genis">
             <header className="mb-10">
                 <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">İşlem Defteri</h1>
                 <p className="text-zinc-400 max-w-3xl">
-                    Tüm finansal hareketlerin birleşik kaydı. Tahsilat, ödeme, transfer, kart ödeme, ancak düzenleme kaynak modülden yapılır.
+                    Tüm finansal hareketlerin birleşik kaydı. Manuel gelir/gider ekle, tahsilat, ödeme, transfer ve kart ödeme hareketlerini takip et.
                 </p>
             </header>
             <TransactionsWorkspace
@@ -95,6 +103,7 @@ export default async function TransactionsPage() {
                 totalIncome={totalIncome}
                 totalExpense={totalExpense}
                 total={total}
+                accounts={accounts}
             />
         </PageShell>
     )

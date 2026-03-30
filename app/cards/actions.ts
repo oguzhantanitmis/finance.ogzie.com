@@ -15,6 +15,7 @@ import {
 } from '@/lib/action-result'
 import { calculateMinimumPayment } from '@/lib/card-engine/payment-engine'
 import { getDueDate } from '@/lib/card-engine/statement-engine'
+import { recordCardPayment } from '@/lib/card-finance-settings-service'
 import { prisma } from '@/lib/prisma'
 import { requireCurrentUser } from '@/lib/server-auth'
 
@@ -237,6 +238,7 @@ export async function makeCardPayment(data: {
     amount: number
     description?: string
     statementId?: string
+    accountId?: string
 }): Promise<ActionResult<CardPaymentField>> {
     try {
         const user = await requireCurrentUser()
@@ -251,6 +253,18 @@ export async function makeCardPayment(data: {
                 allocationDetail: {},
             },
         })
+
+        // Hesap bakiyesinden düş ve LedgerEntry oluştur (atomik)
+        if (data.accountId) {
+            await recordCardPayment(
+                user.id,
+                card.id,
+                data.amount,
+                data.accountId,
+                data.description || `Kart ödeme: ${card.cardName}`
+            )
+        }
+
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart odemesi kaydedildi.', card.id)
     } catch (error) {
