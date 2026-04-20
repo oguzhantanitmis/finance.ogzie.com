@@ -1,5 +1,6 @@
 'use server'
 
+import { getCardFinancialSnapshot } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveRates } from '@/lib/card-finance-settings-service'
 
@@ -35,6 +36,12 @@ async function collectAllDebts(userId: string): Promise<DebtItem[]> {
         prisma.creditCard.findMany({
             where: { userId, status: 'ACTIVE' },
             include: {
+                transactions: {
+                    select: { type: true, amount: true },
+                },
+                payments: {
+                    select: { amount: true },
+                },
                 statements: { orderBy: { periodEnd: 'desc' }, take: 1 },
             },
         }),
@@ -51,22 +58,21 @@ async function collectAllDebts(userId: string): Promise<DebtItem[]> {
     const items: DebtItem[] = []
 
     for (const card of cards) {
-        const stmt = card.statements[0]
-        const balance = stmt?.statementBalance ?? 0
+        const snapshot = getCardFinancialSnapshot(card)
+        const balance = snapshot.currentDebt
         if (balance <= 0) continue
 
         const rates = await getEffectiveRates(userId, card.id)
-        const minPayment = +(balance * rates.minPaymentRate).toFixed(2)
 
         items.push({
             id: card.id,
             name: card.cardName,
             type: 'credit_card',
             balance,
-            minPayment: Math.max(minPayment, 1),
+            minPayment: snapshot.minimumPayment,
             interestRate: rates.contractualRate,
-            dueDate: null, // TODO: hesapla paymentDueDay'den
-            suggestedPayment: minPayment,
+            dueDate: snapshot.dueDate,
+            suggestedPayment: snapshot.minimumPayment,
             priority: 0,
         })
     }

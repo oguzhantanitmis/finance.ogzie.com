@@ -4,6 +4,7 @@ import { CardNetwork, CardStatus, TransactionType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 import {
+    ActionError,
     type ActionResult,
     createSuccessResult,
     getActionErrorResult,
@@ -14,7 +15,7 @@ import {
     toRequiredString,
 } from '@/lib/action-result'
 import { calculateMinimumPayment } from '@/lib/card-engine/payment-engine'
-import { getDueDate } from '@/lib/card-engine/statement-engine'
+import { determineStatementStatus, getDueDate } from '@/lib/card-engine/statement-engine'
 import { prisma } from '@/lib/prisma'
 import { requireCurrentUser } from '@/lib/server-auth'
 
@@ -210,6 +211,10 @@ export async function addCardTransaction(data: {
     isCashAdvance?: boolean
 }): Promise<ActionResult<CardTransactionField>> {
     try {
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+            throw new ActionError('İşlem tutarı sıfırdan büyük olmalıdır.')
+        }
+
         const user = await requireCurrentUser()
         const card = await getUserCard(data.creditCardId, user.id)
 
@@ -239,17 +244,56 @@ export async function makeCardPayment(data: {
     statementId?: string
 }): Promise<ActionResult<CardPaymentField>> {
     try {
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+            throw new ActionError('Ödeme tutarı sıfırdan büyük olmalıdır.')
+        }
+
         const user = await requireCurrentUser()
         const card = await getUserCard(data.creditCardId, user.id)
 
-        await prisma.cardPayment.create({
-            data: {
-                creditCardId: card.id,
-                amount: data.amount,
-                description: data.description || 'Manuel Odeme',
-                statementId: data.statementId,
-                allocationDetail: {},
-            },
+        await prisma.$transaction(async (tx) => {
+            const latestStatement = await tx.cardStatement.findFirst({
+                where: {
+                    creditCardId: card.id,
+                    status: { in: ['OPEN', 'OVERDUE', 'CLOSED'] },
+                },
+                orderBy: { statementDate: 'desc' },
+            })
+
+            const outstandingStatementBalance = latestStatement
+                ? Math.max(latestStatement.statementBalance - latestStatement.paymentsReceived, 0)
+                : 0
+            const appliedToStatement = Math.min(data.amount, outstandingStatementBalance)
+
+            if (latestStatement && appliedToStatement > 0) {
+                const nextPaymentsReceived = latestStatement.paymentsReceived + appliedToStatement
+
+                await tx.cardStatement.update({
+                    where: { id: latestStatement.id },
+                    data: {
+                        paymentsReceived: nextPaymentsReceived,
+                        status: determineStatementStatus({
+                            statementBalance: latestStatement.statementBalance,
+                            minimumPayment: latestStatement.minimumPayment,
+                            paymentsReceived: nextPaymentsReceived,
+                            dueDate: latestStatement.dueDate,
+                        }),
+                    },
+                })
+            }
+
+            await tx.cardPayment.create({
+                data: {
+                    creditCardId: card.id,
+                    amount: data.amount,
+                    description: data.description || 'Manuel Odeme',
+                    statementId: data.statementId ?? (appliedToStatement > 0 ? latestStatement?.id : undefined),
+                    allocationDetail: {
+                        appliedToStatement,
+                        outstandingStatementBalance,
+                    },
+                },
+            })
         })
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart odemesi kaydedildi.', card.id)

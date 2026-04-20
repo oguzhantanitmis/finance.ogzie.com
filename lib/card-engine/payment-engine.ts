@@ -3,7 +3,7 @@
 // Banka Standardında 6 Katmanlı Ödeme Dağıtımı
 // ============================================================
 
-import { PaymentAllocation, PaymentPreview, InterestResult } from './types'
+import { PaymentAllocation, PaymentPreview } from './types'
 import { calculateContractualInterest } from './interest-engine'
 
 /**

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
 import { getRPSummary } from '@/lib/people-service'
 import { calculateHealthScore } from '@/lib/health-score-service'
-import { getMonthlyReports, getNetWorthHistory } from '@/lib/report-service'
+import { getMonthlyReports } from '@/lib/report-service'
 import { formatCurrency } from '@/lib/utils'
 
 /**
@@ -26,7 +26,6 @@ export async function composeFinancialContext(userId: string): Promise<string> {
         goals,
         recentLedger,
         monthlyReports,
-        netWorthHistory,
         healthSnapshots,
     ] = await Promise.all([
         getTotalBalance(userId),
@@ -45,7 +44,6 @@ export async function composeFinancialContext(userId: string): Promise<string> {
         prisma.financialGoal.findMany({ where: { userId, status: 'GOAL_ACTIVE' }, select: { id: true, title: true, targetAmount: true, currentAmount: true, targetDate: true, createdAt: true } }),
         prisma.ledgerEntry.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 10, select: { type: true, amount: true, description: true, date: true } }),
         getMonthlyReports(userId, 3),
-        getNetWorthHistory(userId),
         prisma.healthSnapshot.findMany({ where: { userId }, orderBy: { calculatedAt: 'desc' }, take: 3, select: { score: true, calculatedAt: true } }),
     ])
 
@@ -150,7 +148,6 @@ export async function composeFinancialContext(userId: string): Promise<string> {
         for (const g of goals) {
             const pct = g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0
             const remaining = g.targetAmount - g.currentAmount
-            const daysUntilTarget = Math.ceil((g.targetDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
             const daysSinceStart = Math.ceil((Date.now() - g.createdAt.getTime()) / (1000 * 60 * 60 * 24))
 
             // Aylık birikim hızı tahmini

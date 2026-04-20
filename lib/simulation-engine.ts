@@ -37,7 +37,9 @@ export async function simulateExtraPayment(
     debtId: string,
     extraAmount: number
 ): Promise<SimulationResult> {
-    const debt = await prisma.debt.findUniqueOrThrow({ where: { id: debtId } })
+    const debt = await prisma.debt.findFirstOrThrow({
+        where: { id: debtId, userId },
+    })
     const cash = await getAvailableCash(userId)
     const newBalance = Math.max(0, debt.remainingBalance - extraAmount)
 

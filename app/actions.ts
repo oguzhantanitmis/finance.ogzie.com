@@ -353,6 +353,10 @@ export async function enrichSubscriptionDraft(name: string): Promise<Subscriptio
     return enrichSubscriptionName(name)
 }
 
+function resolveSubscriptionName(name: string, enrichment: SubscriptionEnrichment) {
+    return enrichment.shouldCanonicalizeName ? enrichment.displayName : name.trim()
+}
+
 export async function createSubscriptionDraft(
     previousState: ActionResult<SubscriptionField> | FormData,
     formData?: FormData,
@@ -369,11 +373,12 @@ export async function createSubscriptionDraft(
         const category = toOptionalString(data.get('category'))
         const nextPayment = validateDate(parseDateInput(data.get('nextPayment')), 'nextPayment', 'Sonraki odeme')
         const enrichment = enrichSubscriptionName(name)
+        const resolvedName = resolveSubscriptionName(name, enrichment)
 
         const subscription = await prisma.subscription.create({
             data: {
                 userId: user.id,
-                name,
+                name: resolvedName,
                 amount,
                 currency,
                 billingCycle,
@@ -424,21 +429,29 @@ export async function updateSubscription(
         const amount = toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 })
         const billingCycle = parseBillingCycle(data.get('billingCycle'))
         const nextPayment = validateDate(parseDateInput(data.get('nextPayment')), 'nextPayment', 'Sonraki odeme')
+        const inputName = toRequiredString(data.get('name'), 'name', 'Abonelik adi')
+        const enrichment = enrichSubscriptionName(inputName)
+        const resolvedName = resolveSubscriptionName(inputName, enrichment)
+        const status = parseRecordStatus(data.get('status'))
 
         const subscription = await prisma.subscription.update({
             where: { id: existing.id },
             data: {
-                name: toRequiredString(data.get('name'), 'name', 'Abonelik adi'),
+                name: resolvedName,
                 amount,
                 currency: String(data.get('currency') ?? 'TRY'),
                 billingCycle,
-                category: toOptionalString(data.get('category')) ?? 'Genel',
+                category: toOptionalString(data.get('category')) ?? enrichment.category,
                 nextPayment,
+                brandKey: enrichment.brandKey ?? null,
+                providerDomain: enrichment.providerDomain ?? null,
+                logoUrl: enrichment.logoUrl ?? null,
+                color: enrichment.color,
                 billingAnchorDay: nextPayment.getDate(),
                 autopay: data.get('autopay') === 'on',
                 notes: toOptionalString(data.get('notes')) ?? null,
-                status: parseRecordStatus(data.get('status')),
-                isActive: parseRecordStatus(data.get('status')) !== RecordStatus.CANCELED,
+                status,
+                isActive: status !== RecordStatus.CANCELED,
                 lastAmount: amount,
                 monthlyNormalizedAmount: normalizeMonthlyAmount(amount, billingCycle),
             },

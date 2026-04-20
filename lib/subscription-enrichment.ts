@@ -35,7 +35,11 @@ const GENERIC_CATEGORY_RULES = [
 ]
 
 function normalizeName(name: string) {
-    return name.trim().toLowerCase()
+    return name.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function normalizeCompactName(name: string) {
+    return normalizeName(name).replace(/[^a-z0-9]/g, '')
 }
 
 function buildLogoUrl(domain: string) {
@@ -51,13 +55,130 @@ function guessDomain(rawName: string) {
     return `${normalized}.com`
 }
 
-export function enrichSubscriptionName(name: string): SubscriptionEnrichment {
-    const normalized = normalizeName(name)
-    const brand = BRAND_CATALOG.find((entry) =>
-        entry.keywords.some((keyword) => normalized.includes(keyword)),
-    )
+function getFuzzyThreshold(length: number) {
+    if (length <= 4) return 0
+    if (length <= 7) return 1
+    return 2
+}
 
-    if (brand) {
+function damerauLevenshtein(a: string, b: string) {
+    const rows = a.length + 1
+    const cols = b.length + 1
+    const matrix = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0))
+
+    for (let i = 0; i < rows; i += 1) {
+        matrix[i][0] = i
+    }
+
+    for (let j = 0; j < cols; j += 1) {
+        matrix[0][j] = j
+    }
+
+    for (let i = 1; i < rows; i += 1) {
+        for (let j = 1; j < cols; j += 1) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1
+
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + cost,
+            )
+
+            if (
+                i > 1 &&
+                j > 1 &&
+                a[i - 1] === b[j - 2] &&
+                a[i - 2] === b[j - 1]
+            ) {
+                matrix[i][j] = Math.min(matrix[i][j], matrix[i - 2][j - 2] + cost)
+            }
+        }
+    }
+
+    return matrix[a.length][b.length]
+}
+
+function findBrandMatch(name: string) {
+    const normalized = normalizeName(name)
+    const compact = normalizeCompactName(name)
+
+    if (!compact) {
+        return null
+    }
+
+    let fuzzyMatch:
+        | {
+            entry: BrandCatalogEntry
+            matchType: 'fuzzy'
+            shouldCanonicalizeName: true
+            distance: number
+            keywordLength: number
+        }
+        | null = null
+
+    for (const entry of BRAND_CATALOG) {
+        for (const keyword of entry.keywords) {
+            const normalizedKeyword = normalizeName(keyword)
+            const compactKeyword = normalizeCompactName(keyword)
+
+            if (!compactKeyword) {
+                continue
+            }
+
+            if (normalized === normalizedKeyword || compact === compactKeyword) {
+                return {
+                    entry,
+                    matchType: 'exact' as const,
+                    shouldCanonicalizeName: true,
+                }
+            }
+
+            if (normalized.includes(normalizedKeyword) || compact.includes(compactKeyword)) {
+                return {
+                    entry,
+                    matchType: 'contains' as const,
+                    shouldCanonicalizeName: false,
+                }
+            }
+
+            if (compact.length < 5 || compactKeyword.length < 5) {
+                continue
+            }
+
+            const distance = damerauLevenshtein(compact, compactKeyword)
+            const threshold = Math.max(
+                getFuzzyThreshold(compact.length),
+                getFuzzyThreshold(compactKeyword.length),
+            )
+
+            if (distance > threshold) {
+                continue
+            }
+
+            if (
+                !fuzzyMatch ||
+                distance < fuzzyMatch.distance ||
+                (distance === fuzzyMatch.distance && compactKeyword.length > fuzzyMatch.keywordLength)
+            ) {
+                fuzzyMatch = {
+                    entry,
+                    matchType: 'fuzzy',
+                    shouldCanonicalizeName: true,
+                    distance,
+                    keywordLength: compactKeyword.length,
+                }
+            }
+        }
+    }
+
+    return fuzzyMatch
+}
+
+export function enrichSubscriptionName(name: string): SubscriptionEnrichment {
+    const brandMatch = findBrandMatch(name)
+
+    if (brandMatch) {
+        const { entry: brand, matchType, shouldCanonicalizeName } = brandMatch
         return {
             brandKey: brand.brandKey,
             displayName: brand.displayName,
@@ -66,9 +187,12 @@ export function enrichSubscriptionName(name: string): SubscriptionEnrichment {
             providerDomain: brand.domain,
             logoUrl: buildLogoUrl(brand.domain),
             billingCycle: brand.billingCycle ?? BillingCycle.MONTHLY,
+            matchType,
+            shouldCanonicalizeName,
         }
     }
 
+    const normalized = normalizeName(name)
     const genericRule = GENERIC_CATEGORY_RULES.find((rule) =>
         rule.match.some((keyword) => normalized.includes(keyword)),
     )
@@ -82,5 +206,7 @@ export function enrichSubscriptionName(name: string): SubscriptionEnrichment {
         providerDomain: guessedDomain,
         logoUrl: guessedDomain ? buildLogoUrl(guessedDomain) : undefined,
         billingCycle: BillingCycle.MONTHLY,
+        matchType: 'generic',
+        shouldCanonicalizeName: false,
     }
 }

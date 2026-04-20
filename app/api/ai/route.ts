@@ -6,11 +6,41 @@ import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
-import { getSetting } from '@/lib/settings-service'
 
 export const dynamic = 'force-dynamic'
 
+const MAX_PROMPT_LENGTH = 2000
+const AI_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000
+const AI_RATE_LIMIT_MAX_REQUESTS = 12
+
+type RateLimitEntry = {
+    count: number
+    resetAt: number
+}
+
 type CommandType = 'ADD_EXPENSE' | 'ADD_INCOME' | 'QUERY_BALANCE' | 'QUERY_DEBT' | 'QUERY_CARDS' | 'QUERY_HEALTH' | 'QUERY_GOALS' | 'QUERY_ACCOUNTS' | 'QUERY_SUBSCRIPTIONS' | 'GREETING' | 'AI_CHAT' | 'UNKNOWN'
+type OpenAIMessage = { role: 'system' | 'user', content: string }
+
+interface OpenAIChatApiResponse {
+    choices?: Array<{
+        message?: {
+            content?: string | null
+        }
+    }>
+    error?: {
+        message?: string
+    }
+}
+
+declare global {
+    var financeAiRateLimits: Map<string, RateLimitEntry> | undefined
+}
+
+const financeAiRateLimits = globalThis.financeAiRateLimits ?? new Map<string, RateLimitEntry>()
+
+if (process.env.NODE_ENV !== 'production') {
+    globalThis.financeAiRateLimits = financeAiRateLimits
+}
 
 function parseCommand(text: string): CommandType {
     const lowerText = text.toLowerCase()
@@ -40,6 +70,154 @@ function mapCurrency(input?: string) {
     return 'TRY'
 }
 
+function getOpenAIConfig() {
+    const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
+    const rawBaseUrl = process.env.OPENAI_BASE_URL
+    const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
+
+    return {
+        baseUrl,
+        modelsToTry: requestedModel === 'gpt-5-mini'
+            ? [requestedModel]
+            : [requestedModel, 'gpt-5-mini'],
+    }
+}
+
+function getOpenAIErrorMessage(response: OpenAIChatApiResponse | null) {
+    return response?.error?.message || ''
+}
+
+function getOpenAIContent(response: OpenAIChatApiResponse | null) {
+    return response?.choices?.[0]?.message?.content ?? null
+}
+
+function parseRequestPrompt(body: unknown) {
+    if (!body || typeof body !== 'object' || typeof (body as { prompt?: unknown }).prompt !== 'string') {
+        return null
+    }
+
+    return (body as { prompt: string }).prompt.trim()
+}
+
+function getRateLimitKey(userId: string) {
+    return `ai:${userId}`
+}
+
+function enforceRateLimit(key: string) {
+    const now = Date.now()
+
+    for (const [entryKey, entry] of financeAiRateLimits.entries()) {
+        if (entry.resetAt <= now) {
+            financeAiRateLimits.delete(entryKey)
+        }
+    }
+
+    const existing = financeAiRateLimits.get(key)
+    if (!existing) {
+        financeAiRateLimits.set(key, {
+            count: 1,
+            resetAt: now + AI_RATE_LIMIT_WINDOW_MS,
+        })
+        return null
+    }
+
+    if (existing.count >= AI_RATE_LIMIT_MAX_REQUESTS) {
+        return existing.resetAt - now
+    }
+
+    financeAiRateLimits.set(key, {
+        ...existing,
+        count: existing.count + 1,
+    })
+
+    return null
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = 20000) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), timeoutMs)
+
+    try {
+        return await fetch(url, {
+            ...init,
+            signal: controller.signal,
+        })
+    } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error('AI sağlayıcısı zamanında yanıt vermedi.')
+        }
+        throw error
+    } finally {
+        clearTimeout(timeout)
+    }
+}
+
+async function parseOpenAIResponse(response: Response) {
+    const raw = await response.text()
+
+    try {
+        return JSON.parse(raw) as OpenAIChatApiResponse
+    } catch {
+        return {
+            error: {
+                message: raw.slice(0, 500) || response.statusText,
+            },
+        } satisfies OpenAIChatApiResponse
+    }
+}
+
+async function requestOpenAIChatCompletion({
+    apiKey,
+    messages,
+    maxCompletionTokens,
+}: {
+    apiKey: string
+    messages: OpenAIMessage[]
+    maxCompletionTokens?: number
+}) {
+    const { baseUrl, modelsToTry } = getOpenAIConfig()
+
+    let aiResponse: Response | null = null
+    let aiData: OpenAIChatApiResponse | null = null
+
+    for (const model of modelsToTry) {
+        const body: Record<string, unknown> = {
+            model,
+            messages,
+        }
+
+        if (maxCompletionTokens !== undefined) {
+            body.max_completion_tokens = maxCompletionTokens
+        }
+
+        aiResponse = await fetchWithTimeout(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(body),
+        })
+
+        aiData = await parseOpenAIResponse(aiResponse)
+
+        if (aiResponse.ok) {
+            return getOpenAIContent(aiData) ?? 'Yanıt alınamadı.'
+        }
+
+        const errorMessage = getOpenAIErrorMessage(aiData)
+        if (errorMessage.includes('access to model') || errorMessage.includes('does not exist')) {
+            console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
+            continue
+        }
+
+        break
+    }
+
+    console.error('OpenAI API Error:', aiData)
+    return `API Hatası: ${getOpenAIErrorMessage(aiData) || aiResponse?.statusText || 'Bilinmeyen hata'}`
+}
+
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions)
@@ -50,7 +228,28 @@ export async function POST(req: Request) {
         const user = await prisma.user.findUnique({ where: { email: session.user.email } })
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const { prompt } = (await req.json()) as { prompt: string }
+        const body = await req.json().catch(() => null)
+        const prompt = parseRequestPrompt(body)
+        if (!prompt) {
+            return NextResponse.json({ error: 'Geçerli bir prompt gönderilmelidir.' }, { status: 400 })
+        }
+        if (prompt.length > MAX_PROMPT_LENGTH) {
+            return NextResponse.json({ error: `Prompt en fazla ${MAX_PROMPT_LENGTH} karakter olabilir.` }, { status: 413 })
+        }
+
+        const retryAfterMs = enforceRateLimit(getRateLimitKey(user.id))
+        if (retryAfterMs !== null) {
+            return NextResponse.json(
+                { error: 'Çok fazla AI isteği gönderildi. Lütfen biraz sonra tekrar deneyin.' },
+                {
+                    status: 429,
+                    headers: {
+                        'Retry-After': String(Math.ceil(retryAfterMs / 1000)),
+                    },
+                },
+            )
+        }
+
         const commandType = parseCommand(prompt)
 
         // Context-aware: tüm finansal veriyi topla
@@ -105,48 +304,14 @@ Bana şunları sorabilirsin:
                 // OpenAI varsa gerçek AI, yoksa context-based fallback
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
-                        const rawBaseUrl = process.env.OPENAI_BASE_URL
-                        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
-
-                        // Denenecek modeller
-                        const modelsToTry = [requestedModel]
-                        if (requestedModel !== 'gpt-5-mini') modelsToTry.push('gpt-5-mini')
-
-                        let aiResponse: Response | null = null
-                        let aiData: any = null
-
-                        for (const model of modelsToTry) {
-                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                                body: JSON.stringify({
-                                    model,
-                                    messages: [
-                                        { role: 'system', content: buildSystemPrompt() },
-                                        { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ],
-                                    max_completion_tokens: 4096
-                                }),
-                            })
-                            aiData = await aiResponse.json()
-
-                            if (aiResponse.ok) break
-
-                            const errorMsg = aiData?.error?.message || ''
-                            if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
-                                console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
-                                continue
-                            }
-                            break
-                        }
-
-                        if (!aiResponse?.ok) {
-                            console.error('OpenAI API Error:', aiData)
-                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen hata'}`
-                        } else {
-                            responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
-                        }
+                        responseText = await requestOpenAIChatCompletion({
+                            apiKey,
+                            messages: [
+                                { role: 'system', content: buildSystemPrompt() },
+                                { role: 'user', content: buildChatPrompt(context, prompt) },
+                            ],
+                            maxCompletionTokens: 4096,
+                        })
                     } catch (aiError) {
                         console.error('OpenAI Error:', aiError)
                         responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
@@ -161,47 +326,13 @@ Bana şunları sorabilirsin:
                 // Diğer tüm sorgu türleri de context-aware
                 if (apiKey) {
                     try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
-                        const rawBaseUrl = process.env.OPENAI_BASE_URL
-                        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
-
-                        // Denenecek modeller
-                        const modelsToTry = [requestedModel]
-                        if (requestedModel !== 'gpt-5-mini') modelsToTry.push('gpt-5-mini')
-
-                        let aiResponse: Response | null = null
-                        let aiData: any = null
-
-                        for (const model of modelsToTry) {
-                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                                body: JSON.stringify({
-                                    model,
-                                    messages: [
-                                        { role: 'system', content: buildSystemPrompt() },
-                                        { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ]
-                                }),
-                            })
-                            aiData = await aiResponse.json()
-
-                            if (aiResponse.ok) break
-
-                            const errorMsg = aiData?.error?.message || ''
-                            if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
-                                console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
-                                continue
-                            }
-                            break
-                        }
-
-                        if (!aiResponse?.ok) {
-                            console.error('OpenAI API Error:', aiData)
-                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen hata'}`
-                        } else {
-                            responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
-                        }
+                        responseText = await requestOpenAIChatCompletion({
+                            apiKey,
+                            messages: [
+                                { role: 'system', content: buildSystemPrompt() },
+                                { role: 'user', content: buildChatPrompt(context, prompt) },
+                            ],
+                        })
                     } catch (aiError) {
                         console.error('OpenAI Error:', aiError)
                         responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateContextResponse(commandType, context, summary)}`

@@ -1,5 +1,6 @@
 'use server'
 
+import { ActionError } from '@/lib/action-result'
 import { prisma } from '@/lib/prisma'
 
 export interface SubscriptionAnalysis {
@@ -64,13 +65,23 @@ export async function recordSubscriptionPayment(
     accountId: string,
     description?: string
 ): Promise<void> {
-    if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    if (amount <= 0) {
+        throw new ActionError('Tutar sıfırdan büyük olmalıdır.')
+    }
 
-    const sub = await prisma.subscription.findUniqueOrThrow({ where: { id: subscriptionId } })
+    const [sub, account] = await Promise.all([
+        prisma.subscription.findFirstOrThrow({
+            where: { id: subscriptionId, userId },
+        }),
+        prisma.account.findFirstOrThrow({
+            where: { id: accountId, userId },
+            select: { id: true, currency: true },
+        }),
+    ])
 
     await prisma.$transaction([
         prisma.account.update({
-            where: { id: accountId },
+            where: { id: account.id },
             data: { balance: { decrement: amount } },
         }),
         prisma.ledgerEntry.create({
@@ -78,10 +89,10 @@ export async function recordSubscriptionPayment(
                 userId,
                 type: 'SUBSCRIPTION_PAYMENT',
                 amount: -amount,
-                currency: sub.currency,
+                currency: account.currency,
                 description: description || `Abonelik ödemesi: ${sub.name}`,
-                accountId,
-                subscriptionId,
+                accountId: account.id,
+                subscriptionId: sub.id,
                 date: new Date(),
             },
         }),
@@ -91,9 +102,14 @@ export async function recordSubscriptionPayment(
 /**
  * Aboneliğin isEssential alanını günceller.
  */
-export async function toggleSubscriptionEssential(subscriptionId: string, isEssential: boolean) {
+export async function toggleSubscriptionEssential(userId: string, subscriptionId: string, isEssential: boolean) {
+    const subscription = await prisma.subscription.findFirstOrThrow({
+        where: { id: subscriptionId, userId },
+        select: { id: true },
+    })
+
     await prisma.subscription.update({
-        where: { id: subscriptionId },
+        where: { id: subscription.id },
         data: { isEssential },
     })
 }

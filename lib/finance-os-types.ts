@@ -23,6 +23,8 @@ export interface SubscriptionEnrichment {
     logoUrl?: string
     billingCycle: BillingCycle
     billingAnchorDay?: number
+    matchType?: 'exact' | 'contains' | 'fuzzy' | 'generic'
+    shouldCanonicalizeName?: boolean
 }
 
 export interface RecurringExpenseInput {

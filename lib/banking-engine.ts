@@ -1,5 +1,3 @@
-import { Debt, PaymentPlan } from '@prisma/client'
-
 // Sabitler (TCMB ve Mevzuat)
 export const TAX_RATES = {
     KKDF: 0.15,

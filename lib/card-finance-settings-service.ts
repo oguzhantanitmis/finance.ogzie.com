@@ -1,7 +1,29 @@
 'use server'
 
 import type { CardFinanceSettings } from '@prisma/client'
+import { ActionError } from '@/lib/action-result'
+import { determineStatementStatus } from '@/lib/card-engine/statement-engine'
 import { prisma } from '@/lib/prisma'
+
+async function findUserCard(userId: string, cardId: string) {
+    return prisma.creditCard.findFirstOrThrow({
+        where: { id: cardId, userId },
+        include: {
+            statements: {
+                where: { status: { in: ['OPEN', 'OVERDUE', 'CLOSED'] } },
+                orderBy: { statementDate: 'desc' },
+                take: 1,
+            },
+        },
+    })
+}
+
+async function findUserAccount(userId: string, accountId: string) {
+    return prisma.account.findFirstOrThrow({
+        where: { id: accountId, userId },
+        select: { id: true, currency: true },
+    })
+}
 
 /**
  * Kullanıcının genel kart finans ayarlarını getirir.
@@ -46,7 +68,9 @@ export async function upsertCardFinanceSettings(
  * Kart useGlobalRates=true ise genel ayarları kullanır, değilse kendi oranlarını döner.
  */
 export async function getEffectiveRates(userId: string, cardId: string) {
-    const card = await prisma.creditCard.findUniqueOrThrow({ where: { id: cardId } })
+    const card = await prisma.creditCard.findFirstOrThrow({
+        where: { id: cardId, userId },
+    })
 
     if (card.useGlobalRates) {
         const global = await getCardFinanceSettings(userId)
@@ -86,26 +110,69 @@ export async function recordCardPayment(
     accountId: string,
     description?: string
 ): Promise<void> {
-    if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    if (amount <= 0) {
+        throw new ActionError('Tutar sıfırdan büyük olmalıdır.')
+    }
 
-    const card = await prisma.creditCard.findUniqueOrThrow({ where: { id: cardId } })
+    const [card, account] = await Promise.all([
+        findUserCard(userId, cardId),
+        findUserAccount(userId, accountId),
+    ])
 
-    await prisma.$transaction([
-        prisma.account.update({
-            where: { id: accountId },
+    const latestStatement = card.statements[0] ?? null
+    const outstandingStatementBalance = latestStatement
+        ? Math.max(latestStatement.statementBalance - latestStatement.paymentsReceived, 0)
+        : 0
+    const appliedToStatement = Math.min(amount, outstandingStatementBalance)
+    const nextPaymentsReceived = latestStatement
+        ? latestStatement.paymentsReceived + appliedToStatement
+        : 0
+
+    await prisma.$transaction(async (tx) => {
+        await tx.account.update({
+            where: { id: account.id },
             data: { balance: { decrement: amount } },
-        }),
-        prisma.ledgerEntry.create({
+        })
+
+        if (latestStatement && appliedToStatement > 0) {
+            await tx.cardStatement.update({
+                where: { id: latestStatement.id },
+                data: {
+                    paymentsReceived: nextPaymentsReceived,
+                    status: determineStatementStatus({
+                        statementBalance: latestStatement.statementBalance,
+                        minimumPayment: latestStatement.minimumPayment,
+                        paymentsReceived: nextPaymentsReceived,
+                        dueDate: latestStatement.dueDate,
+                    }),
+                },
+            })
+        }
+
+        await tx.cardPayment.create({
+            data: {
+                creditCardId: card.id,
+                amount,
+                description: description || 'Hesaptan Kart Ödemesi',
+                statementId: appliedToStatement > 0 ? latestStatement?.id : undefined,
+                allocationDetail: {
+                    appliedToStatement,
+                    outstandingStatementBalance,
+                },
+            },
+        })
+
+        await tx.ledgerEntry.create({
             data: {
                 userId,
                 type: 'CARD_PAYMENT',
                 amount: -amount,
-                currency: 'TRY',
+                currency: account.currency,
                 description: description || `Kart ödeme: ${card.cardName}`,
-                accountId,
-                creditCardId: cardId,
+                accountId: account.id,
+                creditCardId: card.id,
                 date: new Date(),
             },
-        }),
-    ])
+        })
+    })
 }

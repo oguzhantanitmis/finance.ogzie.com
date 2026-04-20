@@ -21,5 +21,5 @@ Bu proje artık Vercel deploy akışına göre ayarlanmıştır.
 ## Notlar
 - Production/Preview deploy sırasında veritabanı migration’larını atlamamak için Vercel Build Command olarak `npm run build:vercel` kullanılmalı.
 - `npm run db:update` tek başına migration deploy etmek için tutuldu.
-- `npm run db:push` sadece local geliştirme veya legacy senaryolar için bırakıldı.
+- `npm run db:push` sadece local geliştirme veya legacy senaryolar için bırakıldı. Production build içinde kullanılmamalı.
 - Finance OS V1.5 tabloları (`RecurringExpense`, `IncomeSource`, `BudgetMonth`, `BudgetAlert`) bu migration akışına dahildir.

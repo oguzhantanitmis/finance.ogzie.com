@@ -28,5 +28,5 @@ export async function recordCardPaymentAction(formData: FormData) {
         String(formData.get('accountId')),
         String(formData.get('description') ?? '') || undefined
     )
-    ;['/', '/cards', '/accounts', '/transactions'].forEach((p) => revalidatePath(p))
+    ;['/', '/cards', '/accounts', '/transactions', '/payment-plan'].forEach((p) => revalidatePath(p))
 }

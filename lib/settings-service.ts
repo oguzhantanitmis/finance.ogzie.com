@@ -1,6 +1,5 @@
 'use server'
 
-import type { AppSettings } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
 export async function getSetting(userId: string, key: string): Promise<string | null> {

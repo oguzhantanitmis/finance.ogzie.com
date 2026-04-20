@@ -53,6 +53,20 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
     const [updateState, updateAction] = useActionState(updateSubscription, EMPTY_ACTION_RESULT)
     const activePreview = name.trim().length < 2 ? null : preview
 
+    async function fetchSubscriptionEnrichment(rawName: string) {
+        const response = await fetch('/api/subscription-enrich', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: rawName }),
+        })
+
+        if (!response.ok) {
+            return null
+        }
+
+        return (await response.json()) as SubscriptionEnrichment
+    }
+
     useEffect(() => {
         if (name.trim().length < 2) {
             return
@@ -75,6 +89,10 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
             setPreview(result)
             setCategory(result.category)
             setBillingCycle(result.billingCycle)
+
+            if (result.shouldCanonicalizeName && result.displayName !== name.trim()) {
+                setName(result.displayName)
+            }
         }, 250)
 
         return () => {
@@ -123,6 +141,18 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
             const result = await deleteSubscription(subscriptionId)
             setFeedback(result)
         })
+    }
+
+    async function handleEditNameBlur(event: React.FocusEvent<HTMLInputElement>) {
+        const rawName = event.currentTarget.value.trim()
+        if (rawName.length < 2) {
+            return
+        }
+
+        const enrichment = await fetchSubscriptionEnrichment(rawName)
+        if (enrichment?.shouldCanonicalizeName) {
+            event.currentTarget.value = enrichment.displayName
+        }
     }
 
     return (
@@ -331,7 +361,14 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
                 <Modal title="Aboneliği Düzenle" onClose={() => setEditingSubscription(null)}>
                     <form action={updateAction} className="space-y-4">
                         <input type="hidden" name="subscriptionId" value={editingSubscription.id} />
-                        <input name="name" defaultValue={editingSubscription.name} placeholder="Abonelik adı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+                        <input
+                            name="name"
+                            defaultValue={editingSubscription.name}
+                            onBlur={handleEditNameBlur}
+                            placeholder="Abonelik adı"
+                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4"
+                            required
+                        />
                         <div className="grid grid-cols-2 gap-4">
                             <input name="amount" type="number" step="0.01" defaultValue={editingSubscription.amount} placeholder="Tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
                             <select name="currency" defaultValue={editingSubscription.currency} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">

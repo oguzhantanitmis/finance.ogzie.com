@@ -69,9 +69,9 @@ export async function deletePerson(personId: string, userId: string): Promise<vo
     await prisma.person.delete({ where: { id: personId } })
 }
 
-export async function getPersonDetail(personId: string) {
-    return prisma.person.findUniqueOrThrow({
-        where: { id: personId },
+export async function getPersonDetail(userId: string, personId: string) {
+    return prisma.person.findFirstOrThrow({
+        where: { id: personId, userId },
         include: {
             receivablesPayables: {
                 orderBy: { createdAt: 'desc' },

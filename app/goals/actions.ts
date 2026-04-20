@@ -72,10 +72,10 @@ export async function updateGoalProgressAction(
     const data = resolveFormData(previousState, formData)
 
     try {
-        await requireCurrentUser()
+        const user = await requireCurrentUser()
         const goalId = String(data.get('goalId'))
         const currentAmount = toRequiredNumber(data.get('currentAmount'), 'currentAmount', 'Birikmis tutar', { min: 0 })
-        await updateGoalProgress(goalId, currentAmount)
+        await updateGoalProgress(user.id, goalId, currentAmount)
         ;['/', '/goals'].forEach((p) => revalidatePath(p))
         return createSuccessResult('Hedef ilerlemesi guncellendi.', goalId)
     } catch (error) {

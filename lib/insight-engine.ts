@@ -1,7 +1,7 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
+import { getAvailableCash } from '@/lib/account-service'
 
 /**
  * Ücretsiz (0 API cost), deterministik çalışarak temel altyapı önerileri sunar.
@@ -10,8 +10,7 @@ import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
 export async function generateLocalInsights(userId: string) {
     const recommendations: { title: string, content: string, type: 'ALERT' | 'INFO' | 'SUCCESS', risk?: string, action?: string }[] = []
 
-    const [accounts, cards, debts, subscriptions] = await Promise.all([
-        prisma.account.findMany({ where: { userId, isActive: true } }),
+    const [cards, debts, subscriptions] = await Promise.all([
         prisma.creditCard.findMany({ where: { userId, status: 'ACTIVE' }, include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1 } } }),
         prisma.debt.findMany({ where: { userId } }),
         prisma.subscription.findMany({ where: { userId, isActive: true } })

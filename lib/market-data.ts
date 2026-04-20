@@ -1,6 +1,15 @@
 // Basit Mock Data Servisi
 // İleride burası TCMB veya başka bir API'ye bağlanabilir.
 
+const FALLBACK_RATES: MarketRates = {
+    USD: 32.85,
+    EUR: 35.4,
+    GBP: 41.5,
+    GA: 2450,
+    BTC: 68500,
+    ETH: 3500,
+}
+
 export interface MarketRates {
     USD: number
     EUR: number
@@ -11,20 +20,60 @@ export interface MarketRates {
 }
 
 export async function getMarketRates(): Promise<MarketRates> {
-    // Simüle edilmiş veriler (API çağrısı yerine)
-    // Gerçek hayatta burası `fetch('https://api.vis.com/rates')` olur.
+    const [fxResult, cryptoResult] = await Promise.allSettled([
+        fetch('https://open.er-api.com/v6/latest/TRY', {
+            next: { revalidate: 1800 },
+        }).then(async (response) => {
+            if (!response.ok) {
+                throw new Error('FX source unavailable')
+            }
 
-    // Rastgele hafif değişim simülasyonu
-    const randomF = (base: number) => base + (Math.random() * 0.5 - 0.25)
+            return response.json() as Promise<{
+                result?: string
+                rates?: Record<string, number>
+            }>
+        }),
+        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd', {
+            next: { revalidate: 1800 },
+        }).then(async (response) => {
+            if (!response.ok) {
+                throw new Error('Crypto source unavailable')
+            }
 
-    return {
-        USD: randomF(32.85),
-        EUR: randomF(35.40),
-        GBP: randomF(41.50),
-        GA: randomF(2450), // 2450 TL
-        BTC: randomF(68500), // USD
-        ETH: randomF(3500)   // USD
+            return response.json() as Promise<{
+                bitcoin?: { usd?: number }
+                ethereum?: { usd?: number }
+            }>
+        }),
+    ])
+
+    const rates: MarketRates = { ...FALLBACK_RATES }
+
+    if (fxResult.status === 'fulfilled' && fxResult.value.result === 'success') {
+        const usdPerTry = fxResult.value.rates?.USD
+        const eurPerTry = fxResult.value.rates?.EUR
+        const gbpPerTry = fxResult.value.rates?.GBP
+
+        if (usdPerTry && eurPerTry && gbpPerTry) {
+            rates.USD = +(1 / usdPerTry).toFixed(4)
+            rates.EUR = +(1 / eurPerTry).toFixed(4)
+            rates.GBP = +(1 / gbpPerTry).toFixed(4)
+        }
     }
+
+    if (cryptoResult.status === 'fulfilled') {
+        const btc = cryptoResult.value.bitcoin?.usd
+        const eth = cryptoResult.value.ethereum?.usd
+
+        if (typeof btc === 'number' && Number.isFinite(btc)) {
+            rates.BTC = btc
+        }
+        if (typeof eth === 'number' && Number.isFinite(eth)) {
+            rates.ETH = eth
+        }
+    }
+
+    return rates
 }
 
 export function calculateAssetValue(amount: number, type: string, currency: string, rates: MarketRates): number {

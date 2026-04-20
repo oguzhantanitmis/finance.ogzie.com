@@ -123,7 +123,7 @@ enum GoalStatus {
 
 model Asset {
   id        String    @id @default(cuid())
-  userId    String? // Optional for migration compatibility, should be required later
+  userId    String
   name      String
   type      AssetType
   amount    Float
@@ -133,7 +133,9 @@ model Asset {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  user User? @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 enum DebtType {
@@ -146,7 +148,7 @@ enum DebtType {
 
 model Debt {
   id     String   @id @default(cuid())
-  userId String? // Optional for migration
+  userId String
   name   String
   type   DebtType
 
@@ -177,8 +179,10 @@ model Debt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user        User?         @relation(fields: [userId], references: [id])
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   paymentPlan PaymentPlan[]
+
+  @@index([userId])
 }
 
 model PaymentPlan {
@@ -198,7 +202,7 @@ model PaymentPlan {
 
 model Transaction {
   id          String   @id @default(cuid())
-  userId      String?
+  userId      String
   amount      Float
   type        String // INCOME, EXPENSE
   category    String
@@ -208,12 +212,14 @@ model Transaction {
   assetId String?
   debtId  String?
 
-  user User? @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Subscription {
   id                      String       @id @default(cuid())
-  userId                  String?
+  userId                  String
   name                    String
   amount                  Float
   currency                String       @default("TRY")
@@ -236,7 +242,9 @@ model Subscription {
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
-  user User? @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model RecurringExpense {
@@ -313,14 +321,16 @@ model BudgetAlert {
 
 model AIInsight {
   id        String   @id @default(cuid())
-  userId    String?
+  userId    String
   title     String
   content   String   @db.Text
   type      String   @default("INFO") // INFO, WARNING, SUCCESS, RISK
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User? @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model FinanceJournal {
