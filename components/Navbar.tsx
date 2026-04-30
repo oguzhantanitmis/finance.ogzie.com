@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react'
 import {
     Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff,
-    MoreHorizontal, Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen,
+    Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen,
     Target, BarChart3, Activity, Wand2, Settings, Sun, Moon, Menu, X,
-    ChevronLeft, ChevronRight, Banknote,
+    ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { useFinance } from './FinanceContext'
 import { useTheme } from './ThemeProvider'
@@ -45,8 +45,7 @@ export default function Navbar() {
                 { name: 'İşlemler', icon: BookOpen, path: '/transactions' },
                 { name: 'Borçlar', icon: CreditCard, path: '/debts' },
                 { name: 'Kartlarım', icon: CreditCard, path: '/cards' },
-                { name: 'Abonelikler', icon: MoreHorizontal, path: '/subscriptions' },
-                { name: 'Sabit Giderler', icon: Repeat, path: '/recurring' },
+                { name: 'Düzenli Ödemeler', icon: Repeat, path: '/expenses' },
             ]
         },
         {
@@ -55,7 +54,6 @@ export default function Navbar() {
                 { name: 'Bütçe', icon: ReceiptText, path: '/budget' },
                 { name: 'Ödeme Planı', icon: CreditCard, path: '/payment-plan' },
                 { name: 'Hedefler', icon: Target, path: '/goals' },
-                { name: 'Komisyonlar', icon: Banknote, path: '/commissions' },
             ]
         },
         {

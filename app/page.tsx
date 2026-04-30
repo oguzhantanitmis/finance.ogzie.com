@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 
 import AIHeader from '@/components/AIHeader'
+import AIQuickAction from '@/components/AIQuickAction'
 import DashboardInsights from '@/components/DashboardInsights'
 import PageShell from '@/components/PageShell'
 import SummaryCards from '@/components/SummaryCards'
@@ -103,6 +104,8 @@ async function DashboardContent({ userId }: { userId: string }) {
             />
 
             <DashboardInsights insights={insights} />
+
+            <AIQuickAction />
 
             <SummaryCards
                 data={{

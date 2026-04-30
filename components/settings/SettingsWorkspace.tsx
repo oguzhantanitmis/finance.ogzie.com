@@ -1,9 +1,13 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { CreditCard, Settings2, Bell, Shield, Loader2, CheckCircle } from 'lucide-react'
+import { useActionState, useEffect, useState, useTransition } from 'react'
+import { CreditCard, Settings2, Bell, Shield, CheckCircle, User2, Lock, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
+import { updateProfileAction, changePasswordAction } from '@/app/settings/profile-actions'
+import FormMessage from '@/components/ui/FormMessage'
+import SubmitButton from '@/components/ui/SubmitButton'
+import { EMPTY_ACTION_RESULT } from '@/lib/action-result'
 
 interface CardSettingsData {
     contractualRate: number; defaultRate: number; cashAdvanceRate: number
@@ -20,29 +24,33 @@ interface Props {
         hasProject: boolean
         hasOrg: boolean
     }
+    userProfile: {
+        name: string
+        email: string
+        createdAt: string
+    }
 }
 
 type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'HYBRID'
 
 const DEBT_STRATEGIES: { key: DebtStrategy; title: string; description: string; icon: string }[] = [
-    { key: 'AVALANCHE', title: 'Çığ Yöntemi', description: 'En yüksek faizli borçtan başla. Matematiksel olarak en az faiz ödenir.', icon: '🏔️' },
-    { key: 'SNOWBALL', title: 'Kartopu Yöntemi', description: 'En düşük bakiyeli borçtan başla. Motivasyon arttırır, hızlı kapanışlar sağlar.', icon: '⛄' },
-    { key: 'HYBRID', title: 'Hibrit Yöntem', description: 'Faiz ve bakiye dengesini gözetir. Hem verimli hem motive edici.', icon: '⚡' },
+    { key: 'AVALANCHE', title: 'Çığ Yöntemi', description: 'En yüksek faizli borçtan başla.', icon: '🏔️' },
+    { key: 'SNOWBALL', title: 'Kartopu Yöntemi', description: 'En düşük bakiyeli borçtan başla.', icon: '⛄' },
+    { key: 'HYBRID', title: 'Hibrit Yöntem', description: 'Faiz ve bakiye dengesini gözetir.', icon: '⚡' },
 ]
 
-export default function SettingsWorkspace({ cardSettings, aiSettings }: Props) {
+export default function SettingsWorkspace({ cardSettings, aiSettings, userProfile }: Props) {
     const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE')
     const [privacyMode, setPrivacyMode] = useState(true)
     const [notifications, setNotifications] = useState({
-        paymentReminder: true,
-        budgetAlert: true,
-        goalProgress: true,
-        weeklyReport: false,
+        paymentReminder: true, budgetAlert: true, goalProgress: true, weeklyReport: false,
     })
     const [saved, setSaved] = useState(false)
 
+    const [profileState, profileAction] = useActionState(updateProfileAction, EMPTY_ACTION_RESULT)
+    const [passwordState, passwordAction] = useActionState(changePasswordAction, EMPTY_ACTION_RESULT)
+
     function handleSavePreferences() {
-        // Client-side state only for now; ayarlar localStorage'a kaydedilebilir
         if (typeof window !== 'undefined') {
             localStorage.setItem('finance_prefs', JSON.stringify({ debtStrategy, privacyMode, notifications }))
         }
@@ -52,48 +60,90 @@ export default function SettingsWorkspace({ cardSettings, aiSettings }: Props) {
 
     return (
         <div className="space-y-8">
-            {/* Bildirim */}
             {saved && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-[color:var(--accent-success)] text-sm font-medium animate-in fade-in slide-in-from-top-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Tercihler kaydedildi.
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-[color:var(--accent-success)] text-sm font-medium">
+                    <CheckCircle className="w-4 h-4" /> Tercihler kaydedildi.
                 </div>
             )}
 
-            {/* Borç Ödeme Stratejisi */}
+            {/* ===== Hesap Bilgileri ===== */}
+            <div className="fintech-card p-6 md:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                    <User2 className="w-5 h-5" style={{ color: 'var(--accent-primary)' }} />
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Hesap Bilgileri</h2>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Profile Form */}
+                    <form action={profileAction} className="space-y-4">
+                        <div>
+                            <label className="form-label">Ad Soyad</label>
+                            <input name="name" defaultValue={userProfile.name} className="form-input" required />
+                        </div>
+                        <div>
+                            <label className="form-label">E-posta</label>
+                            <input value={userProfile.email} className="form-input opacity-60" readOnly />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                            <Calendar className="w-3.5 h-3.5" />
+                            Kayıt: {new Date(userProfile.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </div>
+                        <FormMessage success={profileState.success} message={profileState.message} />
+                        <SubmitButton label="Profili Güncelle" pendingLabel="Güncelleniyor..." />
+                    </form>
+
+                    {/* Password Form */}
+                    <form action={passwordAction} className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Lock className="w-4 h-4" style={{ color: 'var(--accent-warning)' }} />
+                            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Şifre Değiştir</h3>
+                        </div>
+                        <div>
+                            <label className="form-label">Mevcut Şifre</label>
+                            <input name="currentPassword" type="password" className="form-input" required />
+                        </div>
+                        <div>
+                            <label className="form-label">Yeni Şifre</label>
+                            <input name="newPassword" type="password" className="form-input" required minLength={6} />
+                        </div>
+                        <div>
+                            <label className="form-label">Yeni Şifre (Tekrar)</label>
+                            <input name="confirmPassword" type="password" className="form-input" required minLength={6} />
+                        </div>
+                        <FormMessage success={passwordState.success} message={passwordState.message} />
+                        <SubmitButton label="Şifreyi Değiştir" pendingLabel="Değiştiriliyor..." />
+                    </form>
+                </div>
+            </div>
+
+            {/* ===== Borç Ödeme Stratejisi ===== */}
             <div className="fintech-card p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6">
                     <Shield className="w-5 h-5 text-violet-400" />
-                    <h2 className="text-xl font-bold text-white">Borç Ödeme Stratejisi</h2>
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Borç Ödeme Stratejisi</h2>
                 </div>
-                <p className="text-sm text-zinc-400 mb-6">
-                    Birden fazla borcunuz olduğunda hangi strateji ile ödeme planı oluşturulacağını seçin. AI önerileri ve simülasyonlar bu stratejiyi baz alır.
+                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                    Birden fazla borcunuz olduğunda hangi strateji ile ödeme planı oluşturulacağını seçin.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     {DEBT_STRATEGIES.map((s) => (
-                        <button
-                            key={s.key}
-                            onClick={() => setDebtStrategy(s.key)}
-                            className={cn(
-                                'text-left p-4 rounded-2xl border transition-all',
-                                debtStrategy === s.key
-                                    ? 'border-violet-500/40 bg-violet-500/10'
-                                    : 'border-[var(--border-subtle)] bg-white/[0.02] hover:bg-white/[0.05]'
-                            )}
-                        >
+                        <button key={s.key} onClick={() => setDebtStrategy(s.key)} className={cn(
+                            'text-left p-4 rounded-2xl border transition-all cursor-pointer',
+                            debtStrategy === s.key ? 'border-violet-500/40 bg-violet-500/10' : 'border-[var(--border-subtle)] bg-white/[0.02] hover:bg-white/[0.05]'
+                        )}>
                             <span className="text-2xl">{s.icon}</span>
-                            <h3 className="font-semibold text-white mt-2 mb-1 text-sm">{s.title}</h3>
+                            <h3 className="font-semibold mt-2 mb-1 text-sm" style={{ color: 'var(--text-primary)' }}>{s.title}</h3>
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.description}</p>
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Bildirim Tercihleri */}
+            {/* ===== Bildirim Tercihleri ===== */}
             <div className="fintech-card p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6">
                     <Bell className="w-5 h-5 text-[color:var(--accent-warning)]" />
-                    <h2 className="text-xl font-bold text-white">Bildirim Tercihleri</h2>
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bildirim Tercihleri</h2>
                 </div>
                 <div className="space-y-3">
                     {([
@@ -104,16 +154,11 @@ export default function SettingsWorkspace({ cardSettings, aiSettings }: Props) {
                     ] as const).map((item) => (
                         <label key={item.key} className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer">
                             <div>
-                                <p className="text-white font-medium text-sm">{item.label}</p>
+                                <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{item.label}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.desc}</p>
                             </div>
                             <div className="relative">
-                                <input
-                                    type="checkbox"
-                                    checked={notifications[item.key]}
-                                    onChange={(e) => setNotifications((prev) => ({ ...prev, [item.key]: e.target.checked }))}
-                                    className="sr-only peer"
-                                />
+                                <input type="checkbox" checked={notifications[item.key]} onChange={(e) => setNotifications((prev) => ({ ...prev, [item.key]: e.target.checked }))} className="sr-only peer" />
                                 <div className="w-11 h-6 bg-zinc-700 peer-checked:bg-emerald-500 rounded-full transition-colors" />
                                 <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
                             </div>
@@ -122,155 +167,90 @@ export default function SettingsWorkspace({ cardSettings, aiSettings }: Props) {
                 </div>
             </div>
 
-            {/* Gizlilik */}
+            {/* ===== Gizlilik ===== */}
             <div className="fintech-card p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6">
-                    <Settings2 className="w-5 h-5 text-zinc-400" />
-                    <h2 className="text-xl font-bold text-white">Gizlilik & Görünüm</h2>
+                    <Settings2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gizlilik & Görünüm</h2>
                 </div>
                 <label className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer">
                     <div>
-                        <p className="text-white font-medium text-sm">Gizlilik Modu</p>
+                        <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Gizlilik Modu</p>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Tutarları bulanıklaştır (ekran paylaşımı için ideal)</p>
                     </div>
                     <div className="relative">
-                        <input
-                            type="checkbox"
-                            checked={privacyMode}
-                            onChange={(e) => setPrivacyMode(e.target.checked)}
-                            className="sr-only peer"
-                        />
+                        <input type="checkbox" checked={privacyMode} onChange={(e) => setPrivacyMode(e.target.checked)} className="sr-only peer" />
                         <div className="w-11 h-6 bg-zinc-700 peer-checked:bg-emerald-500 rounded-full transition-colors" />
                         <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
                     </div>
                 </label>
-
-                <button
-                    onClick={handleSavePreferences}
-                    className="w-full mt-6 py-3.5 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all"
-                >
+                <button onClick={handleSavePreferences} className="w-full mt-6 py-3.5 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all cursor-pointer">
                     Tercihleri Kaydet
                 </button>
             </div>
 
-            {/* Genel Kart Faiz Ayarları */}
+            {/* ===== Kart Faiz Ayarları ===== */}
             <div className="fintech-card p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6">
                     <CreditCard className="w-5 h-5 text-[color:var(--accent-warning)]" />
-                    <h2 className="text-xl font-bold text-white">Genel Kart Faiz Oranları</h2>
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Genel Kart Faiz Oranları</h2>
                 </div>
-                <p className="text-sm text-zinc-400 mb-6">
-                    Bu oranlar, &quot;Genel oranları kullan&quot; seçili olan tüm kartlara uygulanır. Kartlar kendi özel oranlarını da kullanabilir.
+                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                    Bu oranlar, &quot;Genel oranları kullan&quot; seçili olan tüm kartlara uygulanır.
                 </p>
                 <form action={saveCardFinanceSettingsAction} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Akdi Faiz (%)</label>
-                            <input name="contractualRate" type="number" step="0.01" defaultValue={cardSettings?.contractualRate ?? 4.25} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Temerrüt Faiz (%)</label>
-                            <input name="defaultRate" type="number" step="0.01" defaultValue={cardSettings?.defaultRate ?? 4.75} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Nakit Avans Faiz (%)</label>
-                            <input name="cashAdvanceRate" type="number" step="0.01" defaultValue={cardSettings?.cashAdvanceRate ?? 5.0} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Asgari Ödeme ≤50k (%)</label>
-                            <input name="minPaymentRateBelow50k" type="number" step="0.01" defaultValue={cardSettings?.minPaymentRateBelow50k ?? 0.30} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Asgari Ödeme &gt;50k (%)</label>
-                            <input name="minPaymentRateAbove50k" type="number" step="0.01" defaultValue={cardSettings?.minPaymentRateAbove50k ?? 0.25} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">KKDF (%)</label>
-                            <input name="kkdfRate" type="number" step="0.01" defaultValue={cardSettings?.kkdfRate ?? 15.0} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
-                        <div>
-                            <label className="block text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">BSMV (%)</label>
-                            <input name="bsmvRate" type="number" step="0.01" defaultValue={cardSettings?.bsmvRate ?? 10.0} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                        </div>
+                        <div><label className="form-label">Akdi Faiz (%)</label><input name="contractualRate" type="number" step="0.01" defaultValue={cardSettings?.contractualRate ?? 4.25} className="form-input" required /></div>
+                        <div><label className="form-label">Temerrüt Faiz (%)</label><input name="defaultRate" type="number" step="0.01" defaultValue={cardSettings?.defaultRate ?? 4.75} className="form-input" required /></div>
+                        <div><label className="form-label">Nakit Avans Faiz (%)</label><input name="cashAdvanceRate" type="number" step="0.01" defaultValue={cardSettings?.cashAdvanceRate ?? 5.0} className="form-input" required /></div>
+                        <div><label className="form-label">Asgari Ödeme ≤50k (%)</label><input name="minPaymentRateBelow50k" type="number" step="0.01" defaultValue={cardSettings?.minPaymentRateBelow50k ?? 0.30} className="form-input" required /></div>
+                        <div><label className="form-label">Asgari Ödeme &gt;50k (%)</label><input name="minPaymentRateAbove50k" type="number" step="0.01" defaultValue={cardSettings?.minPaymentRateAbove50k ?? 0.25} className="form-input" required /></div>
+                        <div><label className="form-label">KKDF (%)</label><input name="kkdfRate" type="number" step="0.01" defaultValue={cardSettings?.kkdfRate ?? 15.0} className="form-input" required /></div>
+                        <div><label className="form-label">BSMV (%)</label><input name="bsmvRate" type="number" step="0.01" defaultValue={cardSettings?.bsmvRate ?? 10.0} className="form-input" required /></div>
                     </div>
-                    <textarea name="notes" placeholder="Notlar (opsiyonel)" defaultValue={cardSettings?.notes ?? ''} className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                    <textarea name="notes" placeholder="Notlar (opsiyonel)" defaultValue={cardSettings?.notes ?? ''} className="form-input min-h-20" />
                     {cardSettings?.lastUpdated && (
-                        <p className="text-xs text-zinc-600">Son güncelleme: {new Date(cardSettings.lastUpdated).toLocaleString('tr-TR')}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Son güncelleme: {new Date(cardSettings.lastUpdated).toLocaleString('tr-TR')}</p>
                     )}
-                    <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all">
-                        Kaydet
-                    </button>
+                    <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all cursor-pointer">Kaydet</button>
                 </form>
             </div>
 
-            {/* AI Asistan Ayarları */}
+            {/* ===== AI Durumu ===== */}
             <div className="fintech-card p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-8">
                     <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
-                        </svg>
+                        <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" /></svg>
                     </div>
-                    <h2 className="text-2xl font-bold text-white tracking-tight">AI Çalışma Durumu</h2>
+                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AI Çalışma Durumu</h2>
                 </div>
-                
                 <div className="space-y-3">
-                    <div className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
-                        <span className="text-zinc-400 font-medium">Efektif sağlayıcı</span>
-                        <span className="px-4 py-1.5 rounded-full bg-white text-black text-[10px] font-black tracking-widest uppercase">
-                            OPENAI
-                        </span>
-                    </div>
-
-                    <div className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
-                        <span className="text-zinc-400 font-medium">OPENAI_API_KEY</span>
-                        <span className={cn(
-                            "px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase",
-                            aiSettings.connectionStatus === 'HAZIR' ? "bg-zinc-800 text-zinc-100" : "bg-red-500/20 text-[color:var(--accent-danger)]"
-                        )}>
-                            {aiSettings.connectionStatus === 'HAZIR' ? 'HAZIR' : 'HATA'}
-                        </span>
-                    </div>
-
-                    <div className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
-                        <span className="text-zinc-400 font-medium">Aktif Model</span>
-                        <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase">
-                            {aiSettings.model}
-                        </span>
-                    </div>
-
-                    {aiSettings.baseUrl !== 'https://api.openai.com/v1' && (
-                        <div className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
-                            <span className="text-zinc-400 font-medium">Proxy/Gateway</span>
-                            <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase truncate max-w-[150px]">
-                                VAR
-                            </span>
+                    {[
+                        { label: 'Efektif sağlayıcı', value: 'OPENAI', always: true },
+                        { label: 'OPENAI_API_KEY', value: aiSettings.connectionStatus === 'HAZIR' ? 'HAZIR' : 'HATA', always: true, isError: aiSettings.connectionStatus !== 'HAZIR' },
+                        { label: 'Aktif Model', value: aiSettings.model, always: true },
+                        { label: 'Proxy/Gateway', value: 'VAR', always: aiSettings.baseUrl !== 'https://api.openai.com/v1' },
+                        { label: 'OPENAI_PROJECT', value: aiSettings.hasProject ? 'VAR' : 'YOK', always: true },
+                        { label: 'OPENAI_ORG', value: aiSettings.hasOrg ? 'VAR' : 'YOK', always: true },
+                    ].filter((r) => r.always).map((row) => (
+                        <div key={row.label} className="rounded-3xl p-4 md:p-5 flex items-center justify-between transition-all" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-subtle)' }}>
+                            <span className="font-medium" style={{ color: 'var(--text-muted)' }}>{row.label}</span>
+                            <span className={cn(
+                                "px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase",
+                                row.isError ? "bg-red-500/20 text-[color:var(--accent-danger)]" : "bg-zinc-800 text-zinc-100"
+                            )}>{row.value}</span>
                         </div>
-                    )}
-
-                    <div className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
-                        <span className="text-zinc-400 font-medium">OPENAI_PROJECT</span>
-                        <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase">
-                            {aiSettings.hasProject ? 'VAR' : 'YOK'}
-                        </span>
-                    </div>
-
-                    <div className="bg-[var(--bg-hover)] border border-[var(--border-subtle)] rounded-3xl p-4 md:p-5 flex items-center justify-between group hover:bg-white/[0.05] transition-all">
-                        <span className="text-zinc-400 font-medium">OPENAI_ORG</span>
-                        <span className="px-4 py-1.5 rounded-full bg-zinc-800 text-zinc-100 text-[10px] font-black tracking-widest uppercase">
-                            {aiSettings.hasOrg ? 'VAR' : 'YOK'}
-                        </span>
-                    </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Genel Bilgi */}
+            {/* ===== Uygulama Bilgileri ===== */}
             <div className="fintech-card p-6">
                 <div className="flex items-center gap-3 mb-4">
-                    <Settings2 className="w-5 h-5 text-zinc-400" />
-                    <h2 className="text-xl font-bold text-white">Uygulama Bilgileri</h2>
+                    <Settings2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Uygulama Bilgileri</h2>
                 </div>
-                <div className="space-y-3 text-sm text-zinc-400">
+                <div className="space-y-3 text-sm" style={{ color: 'var(--text-muted)' }}>
                     <p>• Para birimi: TRY (varsayılan)</p>
                     <p>• Finansal hesaplamalar .toFixed(2) hassasiyetinde yapılır</p>
                     <p>• LedgerEntry kayıtları değiştirilemez (immutable)</p>

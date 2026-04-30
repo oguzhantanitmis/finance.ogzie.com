@@ -85,7 +85,11 @@ export default async function SettingsPage() {
                     Genel kart faiz oranları ve uygulama ayarları.
                 </p>
             </header>
-            <SettingsWorkspace cardSettings={cardSettingsData} aiSettings={aiSettings} />
+            <SettingsWorkspace
+                cardSettings={cardSettingsData}
+                aiSettings={aiSettings}
+                userProfile={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
+            />
         </PageShell>
     )
 }
