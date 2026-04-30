@@ -28,10 +28,10 @@ interface Props {
 type Scenario = 'cancel_subs' | 'extra_payment' | 'income_change' | 'card_payment' | 'min_payment_trap' | null
 
 const RISK_CONFIG: Record<RiskLevel, { label: string; color: string; icon: typeof Shield; bg: string }> = {
-    LOW: { label: 'Düşük Risk', color: 'text-emerald-400', icon: Shield, bg: 'bg-emerald-500/10 border-emerald-500/20' },
-    MEDIUM: { label: 'Orta Risk', color: 'text-amber-400', icon: Shield, bg: 'bg-amber-500/10 border-amber-500/20' },
+    LOW: { label: 'Düşük Risk', color: 'text-[color:var(--accent-success)]', icon: Shield, bg: 'bg-emerald-500/10 border-emerald-500/20' },
+    MEDIUM: { label: 'Orta Risk', color: 'text-[color:var(--accent-warning)]', icon: Shield, bg: 'bg-amber-500/10 border-amber-500/20' },
     HIGH: { label: 'Yüksek Risk', color: 'text-orange-400', icon: ShieldAlert, bg: 'bg-orange-500/10 border-orange-500/20' },
-    CRITICAL: { label: 'Kritik Risk', color: 'text-red-400', icon: ShieldX, bg: 'bg-red-500/10 border-red-500/20' },
+    CRITICAL: { label: 'Kritik Risk', color: 'text-[color:var(--accent-danger)]', icon: ShieldX, bg: 'bg-red-500/10 border-red-500/20' },
 }
 
 export default function SimulationsWorkspace({ subscriptions, debts, cards, currentCash, currentMonthlyIncome }: Props) {
@@ -90,30 +90,30 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
         <div>
             {/* Senaryo Seçimi */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-                <button onClick={() => { setScenario('cancel_subs'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'cancel_subs' ? 'border-red-400/40 bg-red-500/5' : 'hover:border-white/10')}>
-                    <XCircle className="w-6 h-6 text-red-400 mb-3" />
+                <button onClick={() => { setScenario('cancel_subs'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'cancel_subs' ? 'border-red-400/40 bg-red-500/5' : 'hover:border-[var(--border-default)]')}>
+                    <XCircle className="w-6 h-6 text-[color:var(--accent-danger)] mb-3" />
                     <h3 className="font-semibold text-white mb-1 text-sm">Abonelik İptali</h3>
-                    <p className="text-xs text-zinc-500">Seçili abonelikleri iptal etsem?</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Seçili abonelikleri iptal etsem?</p>
                 </button>
-                <button onClick={() => { setScenario('extra_payment'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'extra_payment' ? 'border-emerald-400/40 bg-emerald-500/5' : 'hover:border-white/10')}>
-                    <DollarSign className="w-6 h-6 text-emerald-400 mb-3" />
+                <button onClick={() => { setScenario('extra_payment'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'extra_payment' ? 'border-emerald-400/40 bg-emerald-500/5' : 'hover:border-[var(--border-default)]')}>
+                    <DollarSign className="w-6 h-6 text-[color:var(--accent-success)] mb-3" />
                     <h3 className="font-semibold text-white mb-1 text-sm">Ekstra Borç Ödeme</h3>
-                    <p className="text-xs text-zinc-500">Bir borca ekstra ödeme yapsam?</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Bir borca ekstra ödeme yapsam?</p>
                 </button>
-                <button onClick={() => { setScenario('income_change'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'income_change' ? 'border-sky-400/40 bg-sky-500/5' : 'hover:border-white/10')}>
-                    <TrendingUp className="w-6 h-6 text-sky-400 mb-3" />
+                <button onClick={() => { setScenario('income_change'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'income_change' ? 'border-sky-400/40 bg-sky-500/5' : 'hover:border-[var(--border-default)]')}>
+                    <TrendingUp className="w-6 h-6 text-[color:var(--accent-info)] mb-3" />
                     <h3 className="font-semibold text-white mb-1 text-sm">Gelir Değişimi</h3>
-                    <p className="text-xs text-zinc-500">Gelirim artsa/azalsa?</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Gelirim artsa/azalsa?</p>
                 </button>
-                <button onClick={() => { setScenario('card_payment'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'card_payment' ? 'border-violet-400/40 bg-violet-500/5' : 'hover:border-white/10')}>
+                <button onClick={() => { setScenario('card_payment'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'card_payment' ? 'border-violet-400/40 bg-violet-500/5' : 'hover:border-[var(--border-default)]')}>
                     <CreditCard className="w-6 h-6 text-violet-400 mb-3" />
                     <h3 className="font-semibold text-white mb-1 text-sm">Kart Ödeme</h3>
-                    <p className="text-xs text-zinc-500">Farklı tutar ödesem?</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Farklı tutar ödesem?</p>
                 </button>
-                <button onClick={() => { setScenario('min_payment_trap'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'min_payment_trap' ? 'border-amber-400/40 bg-amber-500/5' : 'hover:border-white/10')}>
-                    <AlertTriangle className="w-6 h-6 text-amber-400 mb-3" />
+                <button onClick={() => { setScenario('min_payment_trap'); setResult(null) }} className={cn('fintech-card p-5 text-left transition-all', scenario === 'min_payment_trap' ? 'border-amber-400/40 bg-amber-500/5' : 'hover:border-[var(--border-default)]')}>
+                    <AlertTriangle className="w-6 h-6 text-[color:var(--accent-warning)] mb-3" />
                     <h3 className="font-semibold text-white mb-1 text-sm">Asgari Ödeme Tuzağı</h3>
-                    <p className="text-xs text-zinc-500">Sadece asgari ödesem?</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Sadece asgari ödesem?</p>
                 </button>
             </div>
 
@@ -126,7 +126,7 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                     ) : (
                         <div className="space-y-2 mb-6">
                             {subscriptions.map((sub) => (
-                                <label key={sub.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5 hover:bg-white/5 cursor-pointer transition-all">
+                                <label key={sub.id} className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] cursor-pointer transition-all">
                                     <div className="flex items-center gap-3">
                                         <input type="checkbox" checked={selectedSubs.has(sub.id)} onChange={() => toggleSub(sub.id)} className="rounded" />
                                         <span className="text-white">{sub.name}</span>
@@ -138,8 +138,8 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                     )}
                     {selectedSubs.size > 0 && (
                         <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 mb-4">
-                            <p className="text-emerald-400 font-semibold text-lg mb-1 privacy-blur">Aylık tasarruf: {formatCurrency(cancelSavings, 'TRY')}</p>
-                            <p className="text-emerald-400/70 text-sm privacy-blur">Yıllık tasarruf: {formatCurrency(cancelSavings * 12, 'TRY')}</p>
+                            <p className="text-[color:var(--accent-success)] font-semibold text-lg mb-1 privacy-blur">Aylık tasarruf: {formatCurrency(cancelSavings, 'TRY')}</p>
+                            <p className="text-[color:var(--accent-success)]/70 text-sm privacy-blur">Yıllık tasarruf: {formatCurrency(cancelSavings * 12, 'TRY')}</p>
                         </div>
                     )}
                     {selectedSubs.size > 0 && <SimulateButton onClick={runSimulation} loading={isPending} />}
@@ -153,17 +153,17 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                         <p className="text-zinc-500 text-sm">Aktif borç yok.</p>
                     ) : (
                         <div className="space-y-4">
-                            <select value={extraPaymentDebtId} onChange={(e) => setExtraPaymentDebtId(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                            <select value={extraPaymentDebtId} onChange={(e) => setExtraPaymentDebtId(e.target.value)} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                                 <option value="">Borç seçin</option>
                                 {debts.map((d) => <option key={d.id} value={d.id}>{d.name} ({formatCurrency(d.balance, 'TRY')})</option>)}
                             </select>
-                            <input type="number" value={extraPaymentAmount || ''} onChange={(e) => setExtraPaymentAmount(Number(e.target.value))} placeholder="Ekstra ödeme tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <input type="number" value={extraPaymentAmount || ''} onChange={(e) => setExtraPaymentAmount(Number(e.target.value))} placeholder="Ekstra ödeme tutarı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                             {selectedDebt && extraPaymentAmount > 0 && (
                                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
                                     <p className="text-white font-semibold mb-2">{selectedDebt.name}</p>
                                     <p className="text-zinc-400 text-sm privacy-blur">Borç: {formatCurrency(selectedDebt.balance, 'TRY')} → {formatCurrency(Math.max(0, selectedDebt.balance - extraPaymentAmount), 'TRY')}</p>
                                     <p className="text-zinc-400 text-sm privacy-blur">Nakit: {formatCurrency(currentCash, 'TRY')} → {formatCurrency(currentCash - extraPaymentAmount, 'TRY')}</p>
-                                    {selectedDebt.balance <= extraPaymentAmount && <p className="text-emerald-400 font-semibold mt-2">🎉 Bu borç tamamen kapanır!</p>}
+                                    {selectedDebt.balance <= extraPaymentAmount && <p className="text-[color:var(--accent-success)] font-semibold mt-2">🎉 Bu borç tamamen kapanır!</p>}
                                 </div>
                             )}
                             {selectedDebt && extraPaymentAmount > 0 && <SimulateButton onClick={runSimulation} loading={isPending} />}
@@ -180,11 +180,11 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                             <p className="text-xs text-zinc-500 mb-1">Mevcut aylık gelir</p>
                             <p className="text-xl font-bold text-white mb-4 privacy-blur">{formatCurrency(currentMonthlyIncome, 'TRY')}</p>
                         </div>
-                        <input type="number" value={newIncome || ''} onChange={(e) => setNewIncome(Number(e.target.value))} placeholder="Yeni aylık gelir" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <input type="number" value={newIncome || ''} onChange={(e) => setNewIncome(Number(e.target.value))} placeholder="Yeni aylık gelir" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         {newIncome !== currentMonthlyIncome && (
                             <>
                                 <div className={cn('rounded-2xl p-5 border', incomeChange >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20')}>
-                                    <p className={cn('font-semibold text-lg mb-1 privacy-blur', incomeChange >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                    <p className={cn('font-semibold text-lg mb-1 privacy-blur', incomeChange >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                         {incomeChange >= 0 ? '+' : ''}{formatCurrency(incomeChange, 'TRY')}/ay
                                     </p>
                                     <p className="text-zinc-400 text-sm privacy-blur">Yıllık etki: {incomeChange >= 0 ? '+' : ''}{formatCurrency(incomeChange * 12, 'TRY')}</p>
@@ -203,23 +203,23 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                         <p className="text-zinc-500 text-sm">Aktif kredi kartı yok.</p>
                     ) : (
                         <div className="space-y-4">
-                            <select value={selectedCardId} onChange={(e) => setSelectedCardId(e.target.value)} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                            <select value={selectedCardId} onChange={(e) => setSelectedCardId(e.target.value)} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                                 <option value="">Kart seçin</option>
                                 {cards.map((c) => <option key={c.id} value={c.id}>{c.name} (Borç: {formatCurrency(c.debt, 'TRY')})</option>)}
                             </select>
                             {selectedCard && (
                                 <div className="grid grid-cols-2 gap-3 text-sm">
-                                    <div className="bg-white/5 rounded-xl p-3">
+                                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
                                         <p className="text-zinc-500 text-xs mb-1">Kart Borcu</p>
                                         <p className="text-white font-bold privacy-blur">{formatCurrency(selectedCard.debt, 'TRY')}</p>
                                     </div>
-                                    <div className="bg-white/5 rounded-xl p-3">
+                                    <div className="bg-[var(--bg-hover)] rounded-xl p-3">
                                         <p className="text-zinc-500 text-xs mb-1">Asgari Ödeme</p>
-                                        <p className="text-amber-400 font-bold privacy-blur">{formatCurrency(selectedCard.minPayment, 'TRY')}</p>
+                                        <p className="text-[color:var(--accent-warning)] font-bold privacy-blur">{formatCurrency(selectedCard.minPayment, 'TRY')}</p>
                                     </div>
                                 </div>
                             )}
-                            <input type="number" value={cardPaymentAmount || ''} onChange={(e) => setCardPaymentAmount(Number(e.target.value))} placeholder="Ödeme tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <input type="number" value={cardPaymentAmount || ''} onChange={(e) => setCardPaymentAmount(Number(e.target.value))} placeholder="Ödeme tutarı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                             {selectedCard && cardPaymentAmount > 0 && <SimulateButton onClick={runSimulation} loading={isPending} />}
                         </div>
                     )}
@@ -233,11 +233,11 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                         Tüm kredi kartlarında sadece asgari ödeme yapılırsa 3 ay sonra pozisyonunuz ne olur?
                     </p>
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-white/5 rounded-xl p-3">
+                        <div className="bg-[var(--bg-hover)] rounded-xl p-3">
                             <p className="text-zinc-500 text-xs mb-1">Toplam Kart Borcu</p>
                             <p className="text-white font-bold privacy-blur">{formatCurrency(totalCardDebt, 'TRY')}</p>
                         </div>
-                        <div className="bg-white/5 rounded-xl p-3">
+                        <div className="bg-[var(--bg-hover)] rounded-xl p-3">
                             <p className="text-zinc-500 text-xs mb-1">Aktif Kart</p>
                             <p className="text-white font-bold">{cards.length}</p>
                         </div>
@@ -261,22 +261,22 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
 
                     {/* Mevcut vs Projeksiyon */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div className="bg-white/5 rounded-xl p-4">
+                        <div className="bg-[var(--bg-hover)] rounded-xl p-4">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">Mevcut Durum</p>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between"><span className="text-zinc-400">Nakit</span><span className="text-white font-medium privacy-blur">{formatCurrency(result.currentState.cash, 'TRY')}</span></div>
-                                {result.currentState.totalDebt > 0 && <div className="flex justify-between"><span className="text-zinc-400">Borç</span><span className="text-red-400 font-medium privacy-blur">{formatCurrency(result.currentState.totalDebt, 'TRY')}</span></div>}
+                                {result.currentState.totalDebt > 0 && <div className="flex justify-between"><span className="text-zinc-400">Borç</span><span className="text-[color:var(--accent-danger)] font-medium privacy-blur">{formatCurrency(result.currentState.totalDebt, 'TRY')}</span></div>}
                                 {result.currentState.monthlyExpense > 0 && <div className="flex justify-between"><span className="text-zinc-400">Aylık Yük</span><span className="text-zinc-300 font-medium privacy-blur">{formatCurrency(result.currentState.monthlyExpense, 'TRY')}</span></div>}
                             </div>
                         </div>
-                        <div className="bg-white/5 rounded-xl p-4">
+                        <div className="bg-[var(--bg-hover)] rounded-xl p-4">
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">Projeksiyon</p>
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-zinc-400">Nakit</span>
-                                    <span className={cn('font-medium privacy-blur', result.cashImpact >= 0 ? 'text-emerald-400' : 'text-red-400')}>{formatCurrency(result.projectedState.cash, 'TRY')}</span>
+                                    <span className={cn('font-medium privacy-blur', result.cashImpact >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>{formatCurrency(result.projectedState.cash, 'TRY')}</span>
                                 </div>
-                                {result.projectedState.totalDebt > 0 && <div className="flex justify-between"><span className="text-zinc-400">Borç</span><span className="text-red-400 font-medium privacy-blur">{formatCurrency(result.projectedState.totalDebt, 'TRY')}</span></div>}
+                                {result.projectedState.totalDebt > 0 && <div className="flex justify-between"><span className="text-zinc-400">Borç</span><span className="text-[color:var(--accent-danger)] font-medium privacy-blur">{formatCurrency(result.projectedState.totalDebt, 'TRY')}</span></div>}
                             </div>
                         </div>
                     </div>
@@ -287,14 +287,14 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500 mb-3">3 Aylık Projeksiyon</p>
                             <div className="grid grid-cols-3 gap-3">
                                 {result.projections.map((p, i) => (
-                                    <div key={i} className="bg-white/5 rounded-xl p-3 text-center">
+                                    <div key={i} className="bg-[var(--bg-hover)] rounded-xl p-3 text-center">
                                         <p className="text-xs text-zinc-500 mb-2">{p.month}</p>
                                         <p className="text-sm font-bold text-white privacy-blur">{formatCurrency(p.cash, 'TRY')}</p>
-                                        <p className="text-xs text-zinc-500">nakit</p>
+                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>nakit</p>
                                         {p.debt > 0 && (
                                             <>
-                                                <p className="text-sm font-bold text-red-400 mt-1 privacy-blur">{formatCurrency(p.debt, 'TRY')}</p>
-                                                <p className="text-xs text-zinc-500">borç</p>
+                                                <p className="text-sm font-bold text-[color:var(--accent-danger)] mt-1 privacy-blur">{formatCurrency(p.debt, 'TRY')}</p>
+                                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>borç</p>
                                             </>
                                         )}
                                     </div>

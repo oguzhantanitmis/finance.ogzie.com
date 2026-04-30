@@ -111,7 +111,7 @@ export default function CardGrid({ cards }: { cards: CardData[] }) {
                         {/* Limit Kullanım Barı */}
                         <div className="mb-4 relative z-10">
                             <div className="flex items-center justify-between text-xs mb-1">
-                                <span className="text-zinc-500">Limit Kullanımı</span>
+                                <span style={{ color: 'var(--text-muted)' }}>Limit Kullanımı</span>
                                 <span style={{ color }} className="font-mono font-semibold">
                                     %{utilization.toFixed(1)}
                                 </span>
@@ -133,14 +133,14 @@ export default function CardGrid({ cards }: { cards: CardData[] }) {
                         {/* Footer */}
                         <div className="flex items-center justify-between text-xs relative z-10">
                             {daysUntil !== null ? (
-                                <span className={`px-2 py-1 rounded-lg font-medium ${daysUntil <= 3 ? 'bg-red-500/20 text-red-400' :
+                                <span className={`px-2 py-1 rounded-lg font-medium ${daysUntil <= 3 ? 'bg-red-500/20 text-[color:var(--accent-danger)]' :
                                     daysUntil <= 7 ? 'bg-yellow-500/20 text-yellow-400' :
                                         'bg-zinc-800 text-zinc-400'
                                     }`}>
                                     {daysUntil > 0 ? `${daysUntil} gün kaldı` : daysUntil === 0 ? 'BUGÜN!' : `${Math.abs(daysUntil)} gün gecikti`}
                                 </span>
                             ) : (
-                                <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 font-medium">
+                                <span className="px-2 py-1 rounded-lg bg-emerald-500/20 text-[color:var(--accent-success)] font-medium">
                                     ✓ Temiz
                                 </span>
                             )}

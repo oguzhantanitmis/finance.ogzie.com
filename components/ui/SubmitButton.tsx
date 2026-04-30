@@ -11,7 +11,7 @@ interface SubmitButtonProps {
 export default function SubmitButton({
     label,
     pendingLabel = 'Kaydediliyor...',
-    className = 'w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all disabled:opacity-60',
+    className = 'btn-primary w-full',
 }: SubmitButtonProps) {
     const { pending } = useFormStatus()
 

@@ -23,10 +23,10 @@ export default function Modal({
             <div className={`relative w-full ${maxWidthClassName} fintech-card p-6 md:p-8 z-10 max-h-[90vh] overflow-y-auto`}>
                 <div className="flex items-start justify-between gap-4 mb-6">
                     <div>
-                        <h2 className="text-xl font-bold text-white">{title}</h2>
-                        {subtitle ? <p className="text-sm text-zinc-500 mt-1">{subtitle}</p> : null}
+                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>{title}</h2>
+                        {subtitle ? <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{subtitle}</p> : null}
                     </div>
-                    <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors" aria-label="Pencereyi kapat">
+                    <button onClick={onClose} className="transition-colors cursor-pointer" style={{ color: 'var(--text-muted)' }} aria-label="Pencereyi kapat">
                         ✕
                     </button>
                 </div>

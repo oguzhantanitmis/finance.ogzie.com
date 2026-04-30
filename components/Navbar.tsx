@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
     Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff,
     MoreHorizontal, Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen,
@@ -20,6 +20,14 @@ export default function Navbar() {
     const pathname = usePathname()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [collapsed, setCollapsed] = useState(false)
+
+    // Sync sidebar width CSS variable with collapsed state
+    useEffect(() => {
+        document.documentElement.style.setProperty(
+            '--sidebar-width',
+            collapsed ? '72px' : '280px'
+        )
+    }, [collapsed])
 
     const navGroups = [
         {

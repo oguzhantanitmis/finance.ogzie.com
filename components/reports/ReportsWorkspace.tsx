@@ -29,24 +29,24 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+                        <ArrowDownLeft className="w-4 h-4 text-[color:var(--accent-success)]" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Gelir (6 ay)</p>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <ArrowUpRight className="w-4 h-4 text-red-400" />
+                        <ArrowUpRight className="w-4 h-4 text-[color:var(--accent-danger)]" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Gider (6 ay)</p>
                     </div>
-                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-sky-400" />
+                        <TrendingUp className="w-4 h-4 text-[color:var(--accent-info)]" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Net (6 ay)</p>
                     </div>
-                    <p className={cn('text-2xl font-bold privacy-blur', totalIncome - totalExpense >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', totalIncome - totalExpense >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                         {formatCurrency(totalIncome - totalExpense, 'TRY')}
                     </p>
                 </div>
@@ -61,7 +61,7 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-white/10">
+                                <tr className="border-b border-[var(--border-default)]">
                                     <th className="text-left py-3 text-xs uppercase tracking-[0.25em] text-zinc-500">Ay</th>
                                     <th className="text-right py-3 text-xs uppercase tracking-[0.25em] text-zinc-500">Gelir</th>
                                     <th className="text-right py-3 text-xs uppercase tracking-[0.25em] text-zinc-500">Gider</th>
@@ -70,11 +70,11 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                             </thead>
                             <tbody>
                                 {monthly.map((m) => (
-                                    <tr key={m.month} className="border-b border-white/5">
+                                    <tr key={m.month} className="border-b border-[var(--border-subtle)]">
                                         <td className="py-3 text-white font-medium">{m.month}</td>
-                                        <td className="py-3 text-right text-emerald-400 privacy-blur">{formatCurrency(m.income, 'TRY')}</td>
-                                        <td className="py-3 text-right text-red-400 privacy-blur">{formatCurrency(m.expense, 'TRY')}</td>
-                                        <td className={cn('py-3 text-right font-semibold privacy-blur', m.net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                        <td className="py-3 text-right text-[color:var(--accent-success)] privacy-blur">{formatCurrency(m.income, 'TRY')}</td>
+                                        <td className="py-3 text-right text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(m.expense, 'TRY')}</td>
+                                        <td className={cn('py-3 text-right font-semibold privacy-blur', m.net >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                             {formatCurrency(m.net, 'TRY')}
                                         </td>
                                     </tr>
@@ -102,7 +102,7 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                                             <span className="text-sm text-zinc-300">{TYPE_LABELS[e.type] ?? e.type}</span>
                                             <span className="text-sm font-semibold text-white privacy-blur">{formatCurrency(e.amount, 'TRY')}</span>
                                         </div>
-                                        <div className="w-full h-2 bg-white/5 rounded-full">
+                                        <div className="w-full h-2 bg-[var(--bg-hover)] rounded-full">
                                             <div className="h-full bg-red-400/60 rounded-full" style={{ width: `${pct}%` }} />
                                         </div>
                                     </div>
@@ -120,10 +120,10 @@ export default function ReportsWorkspace({ monthly, expenses, netWorthHistory }:
                     ) : (
                         <div className="space-y-2">
                             {netWorthHistory.map((s, i) => (
-                                <div key={i} className="flex items-center justify-between text-sm border-b border-white/5 py-2">
+                                <div key={i} className="flex items-center justify-between text-sm border-b border-[var(--border-subtle)] py-2">
                                     <span className="text-zinc-400 privacy-blur">{new Date(s.date).toLocaleDateString('tr-TR')}</span>
                                     <div className="flex items-center gap-4">
-                                        <span className={cn('font-semibold privacy-blur', s.netWorth >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                        <span className={cn('font-semibold privacy-blur', s.netWorth >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                             {formatCurrency(s.netWorth, 'TRY')}
                                         </span>
                                         <span className="text-xs text-zinc-500 privacy-blur">Skor: {s.score}</span>

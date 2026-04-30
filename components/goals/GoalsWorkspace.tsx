@@ -104,7 +104,7 @@ export default function GoalsWorkspace({ goals }: Props) {
                     </div>
                     <div className="fintech-card p-5">
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Ortalama İlerleme</p>
-                        <p className="text-2xl font-bold text-sky-400">%{avgProgress}</p>
+                        <p className="text-2xl font-bold text-[color:var(--accent-info)]">%{avgProgress}</p>
                     </div>
                     <div className="fintech-card p-5">
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Biriken / Hedef</p>
@@ -112,7 +112,7 @@ export default function GoalsWorkspace({ goals }: Props) {
                     </div>
                     <div className="fintech-card p-5">
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Tamamlanan</p>
-                        <p className="text-2xl font-bold text-emerald-400">{completed.length}</p>
+                        <p className="text-2xl font-bold text-[color:var(--accent-success)]">{completed.length}</p>
                     </div>
                 </div>
             )}
@@ -132,7 +132,7 @@ export default function GoalsWorkspace({ goals }: Props) {
             ) : (
                 <div className="space-y-8">
                     {overdueCount > 0 && (
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 text-amber-400 text-sm font-medium">
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3 text-[color:var(--accent-warning)] text-sm font-medium">
                             <AlertTriangle className="w-4 h-4 shrink-0" />
                             {overdueCount} hedefin süresi geçti. Tarihlerini güncellemeyi düşünün.
                         </div>
@@ -169,11 +169,11 @@ export default function GoalsWorkspace({ goals }: Props) {
                     <Modal title="" onClose={() => setCelebratingGoal(null)}>
                         <div className="text-center py-4">
                             <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
-                                <Sparkles className="w-8 h-8 text-emerald-400" />
+                                <Sparkles className="w-8 h-8 text-[color:var(--accent-success)]" />
                             </div>
                             <h3 className="text-xl font-bold text-white mb-2">Tebrikler! 🎉</h3>
                             <p className="text-zinc-400 mb-4">&quot;{goal.title}&quot; hedefine ulaştınız!</p>
-                            <p className="text-emerald-400 font-bold text-2xl privacy-blur mb-4">{formatCurrency(goal.targetAmount, 'TRY')}</p>
+                            <p className="text-[color:var(--accent-success)] font-bold text-2xl privacy-blur mb-4">{formatCurrency(goal.targetAmount, 'TRY')}</p>
                             <button
                                 onClick={() => setCelebratingGoal(null)}
                                 className="px-8 py-3 bg-emerald-500 text-black font-bold rounded-2xl hover:bg-emerald-400 transition-all"
@@ -212,15 +212,15 @@ function GoalForm({
     return (
         <form action={action} className="space-y-4">
             {goal ? <input type="hidden" name="goalId" value={goal.id} /> : null}
-            <input name="title" defaultValue={goal?.title ?? ''} placeholder="Hedef başlığı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
-            <textarea name="description" defaultValue={goal?.description ?? ''} placeholder="Açıklama (opsiyonel)" className="w-full min-h-16 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+            <input name="title" defaultValue={goal?.title ?? ''} placeholder="Hedef başlığı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+            <textarea name="description" defaultValue={goal?.description ?? ''} placeholder="Açıklama (opsiyonel)" className="w-full min-h-16 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
             <div className="grid grid-cols-2 gap-4">
-                <input name="targetAmount" type="number" step="0.01" min="0.01" defaultValue={goal?.targetAmount ?? ''} placeholder="Hedef tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
-                <input name="targetDate" type="date" defaultValue={goal?.targetDate.slice(0, 10) ?? ''} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                <input name="targetAmount" type="number" step="0.01" min="0.01" defaultValue={goal?.targetAmount ?? ''} placeholder="Hedef tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                <input name="targetDate" type="date" defaultValue={goal?.targetDate.slice(0, 10) ?? ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <input name="currentAmount" type="number" step="0.01" min="0" defaultValue={goal?.currentAmount ?? 0} placeholder="Birikmiş tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                <select name="category" defaultValue={goal?.category ?? ''} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                <input name="currentAmount" type="number" step="0.01" min="0" defaultValue={goal?.currentAmount ?? 0} placeholder="Birikmiş tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                <select name="category" defaultValue={goal?.category ?? ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                     <option value="">Kategori seçin...</option>
                     <option value="Ev">🏠 Ev</option>
                     <option value="Araba">🚗 Araba</option>
@@ -264,17 +264,17 @@ function GoalCard({
             <div className="flex items-start justify-between mb-3 gap-3">
                 <div className="flex items-center gap-2 min-w-0">
                     {isCompleted || justCompleted ? (
-                        <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                        <CheckCircle className="w-5 h-5 text-[color:var(--accent-success)] shrink-0" />
                     ) : (
                         <span className="text-lg shrink-0">{goal.category ? CATEGORY_EMOJI[goal.category] || '🎯' : '🎯'}</span>
                     )}
                     <h3 className="font-semibold text-white truncate">{goal.title}</h3>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button onClick={onEdit} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5">
+                    <button onClick={onEdit} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-hover)]">
                         <Pencil className="w-4 h-4" />
                     </button>
-                    <button onClick={onDelete} className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10">
+                    <button onClick={onDelete} className="p-2 rounded-xl text-zinc-500 hover:text-[color:var(--accent-danger)] hover:bg-red-500/10">
                         <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
@@ -283,7 +283,7 @@ function GoalCard({
             {goal.description && <p className="text-xs text-zinc-500 mb-3">{goal.description}</p>}
 
             {/* Progress bar */}
-            <div className="w-full h-2.5 bg-white/5 rounded-full mb-3 overflow-hidden">
+            <div className="w-full h-2.5 bg-[var(--bg-hover)] rounded-full mb-3 overflow-hidden">
                 <div
                     className={cn(
                         'h-full rounded-full transition-all duration-500',
@@ -295,12 +295,12 @@ function GoalCard({
 
             <div className="flex items-center justify-between text-sm mb-3">
                 <span className="text-zinc-400 privacy-blur">{formatCurrency(goal.currentAmount, 'TRY')} / {formatCurrency(goal.targetAmount, 'TRY')}</span>
-                <span className={cn('text-xs font-bold', goal.progressPercent >= 100 ? 'text-emerald-400' : 'text-zinc-500')}>%{Math.min(100, Math.round(goal.progressPercent))}</span>
+                <span className={cn('text-xs font-bold', goal.progressPercent >= 100 ? 'text-[color:var(--accent-success)]' : 'text-zinc-500')}>%{Math.min(100, Math.round(goal.progressPercent))}</span>
             </div>
 
             {/* Hız/Durum Analizi */}
             {!isCompleted && (
-                <div className={cn('rounded-xl p-3 text-xs', speed.isOnTrack ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400')}>
+                <div className={cn('rounded-xl p-3 text-xs', speed.isOnTrack ? 'bg-emerald-500/10 text-[color:var(--accent-success)]' : 'bg-amber-500/10 text-[color:var(--accent-warning)]')}>
                     <div className="flex items-center gap-1.5 mb-1">
                         {speed.isOnTrack ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                         <span className="font-medium">{speed.isOnTrack ? 'Hedefe uygun gidiyorsunuz' : 'Hedefe yetişmek için hızlanın'}</span>
@@ -309,7 +309,7 @@ function GoalCard({
                         <p className="text-zinc-500 privacy-blur">Aylık {formatCurrency(speed.monthlyNeeded, 'TRY')} ayırmanız gerekiyor • {speed.daysLeft} gün kaldı</p>
                     )}
                     {speed.daysLeft === 0 && (
-                        <p className="text-red-400">Hedef tarihi geçti!</p>
+                        <p className="text-[color:var(--accent-danger)]">Hedef tarihi geçti!</p>
                     )}
                 </div>
             )}
@@ -327,7 +327,7 @@ function GoalCard({
             {/* Tarih */}
             <div className="flex items-center gap-1 mt-3 text-xs text-zinc-500">
                 <Clock className="w-3 h-3 inline" />
-                <span className={cn(isOverdue && 'text-red-400')}>
+                <span className={cn(isOverdue && 'text-[color:var(--accent-danger)]')}>
                     {new Date(goal.targetDate).toLocaleDateString('tr-TR')}
                     {isOverdue && ' (süresi geçti)'}
                 </span>

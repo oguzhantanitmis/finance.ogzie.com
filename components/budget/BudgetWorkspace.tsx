@@ -131,12 +131,12 @@ export default function BudgetWorkspace({
                     </div>
                     <form action={monthAction} className="space-y-4">
                         <input type="hidden" name="month" value={summary.month} />
-                        <input name="plannedIncome" type="number" step="0.01" defaultValue={summary.plannedIncome} placeholder="Planlanan gelir" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
-                        <input name="fixedCommitments" type="number" step="0.01" defaultValue={summary.fixedCommitments} placeholder="Sabit giderler" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
-                        <input name="debtCommitments" type="number" step="0.01" defaultValue={summary.debtCommitments} placeholder="Borç ödemeleri" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
-                        <input name="freeCash" type="number" step="0.01" defaultValue={summary.freeCash} placeholder="Serbest nakit" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
-                        <input name="bufferTarget" type="number" step="0.01" defaultValue={summary.bufferTarget} placeholder="Hedef tampon" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
-                        <textarea name="notes" defaultValue={summary.notes ?? ''} placeholder="Ay notları ve manuel ayarlar" className="w-full min-h-24 bg-black border border-white/10 rounded-2xl py-3 px-4" />
+                        <input name="plannedIncome" type="number" step="0.01" defaultValue={summary.plannedIncome} placeholder="Planlanan gelir" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                        <input name="fixedCommitments" type="number" step="0.01" defaultValue={summary.fixedCommitments} placeholder="Sabit giderler" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                        <input name="debtCommitments" type="number" step="0.01" defaultValue={summary.debtCommitments} placeholder="Borç ödemeleri" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                        <input name="freeCash" type="number" step="0.01" defaultValue={summary.freeCash} placeholder="Serbest nakit" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                        <input name="bufferTarget" type="number" step="0.01" defaultValue={summary.bufferTarget} placeholder="Hedef tampon" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                        <textarea name="notes" defaultValue={summary.notes ?? ''} placeholder="Ay notları ve manuel ayarlar" className="w-full min-h-24 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
                         <FormMessage success={monthState.success} message={monthState.message} />
                         <SubmitButton label="Bütçeyi Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -153,11 +153,11 @@ export default function BudgetWorkspace({
                     ) : (
                         <div className="space-y-3">
                             {summary.alerts.map((alert) => (
-                                <div key={alert.id} className="rounded-3xl border border-white/8 bg-white/[0.03] p-4 flex items-start justify-between gap-4">
+                                <div key={alert.id} className="rounded-3xl border border-white/8 bg-[var(--bg-hover)] p-4 flex items-start justify-between gap-4">
                                     <div>
                                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{formatAlertTypeLabel(alert.type)}</p>
                                         <h3 className="font-semibold mb-1">{alert.title}</h3>
-                                        <p className="text-sm text-zinc-400">{alert.content}</p>
+                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{alert.content}</p>
                                     </div>
                                     <button onClick={() => handleDismissAlert(alert.id)} className="text-xs text-zinc-500 hover:text-white">
                                         Kapat
@@ -175,7 +175,7 @@ export default function BudgetWorkspace({
                     ) : (
                         <div className="space-y-3">
                             {summary.incomeSources.map((income) => (
-                                <div key={income.id} className="rounded-3xl border border-white/8 bg-white/[0.03] p-4 flex items-center justify-between gap-4">
+                                <div key={income.id} className="rounded-3xl border border-white/8 bg-[var(--bg-hover)] p-4 flex items-center justify-between gap-4">
                                     <div>
                                         <p className="font-semibold">{income.name}</p>
                                         <p className="text-sm text-zinc-500">
@@ -228,23 +228,23 @@ function IncomeSourceForm({
     return (
         <form action={action} className="space-y-4">
             {income ? <input type="hidden" name="incomeId" value={income.id} /> : null}
-            <input name="name" defaultValue={income?.name ?? ''} placeholder="Maaş, freelance, kira geliri" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+            <input name="name" defaultValue={income?.name ?? ''} placeholder="Maaş, freelance, kira geliri" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
             <div className="grid grid-cols-2 gap-4">
-                <input name="amount" type="number" step="0.01" defaultValue={income?.amount ?? ''} placeholder="0.00" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
-                <select name="currency" defaultValue={income?.currency ?? 'TRY'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                <input name="amount" type="number" step="0.01" defaultValue={income?.amount ?? ''} placeholder="0.00" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
+                <select name="currency" defaultValue={income?.currency ?? 'TRY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                 </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <select name="billingCycle" defaultValue={income?.billingCycle ?? 'MONTHLY'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                <select name="billingCycle" defaultValue={income?.billingCycle ?? 'MONTHLY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
                     <option value="MONTHLY">Aylık</option>
                     <option value="YEARLY">Yıllık</option>
                 </select>
-                <input name="payday" type="number" min="1" max="31" defaultValue={income?.payday ?? ''} placeholder="Ödeme günü" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" />
+                <input name="payday" type="number" min="1" max="31" defaultValue={income?.payday ?? ''} placeholder="Ödeme günü" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
             </div>
-            <select name="status" defaultValue={income?.status ?? 'ACTIVE'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+            <select name="status" defaultValue={income?.status ?? 'ACTIVE'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
                 <option value="ACTIVE">Aktif</option>
                 <option value="PAUSED">Duraklatıldı</option>
                 <option value="CANCELED">İptal Edildi</option>

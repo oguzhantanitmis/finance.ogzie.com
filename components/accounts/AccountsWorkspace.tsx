@@ -123,13 +123,13 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Bakiye</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', totalBalance < 0 ? 'text-red-400' : 'text-white')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', totalBalance < 0 ? 'text-[color:var(--accent-danger)]' : 'text-white')}>
                         {formatCurrency(totalBalance, 'TRY')}
                     </p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Kullanılabilir Nakit</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', availableCash < 0 ? 'text-red-400' : 'text-emerald-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', availableCash < 0 ? 'text-[color:var(--accent-danger)]' : 'text-[color:var(--accent-success)]')}>
                         {formatCurrency(availableCash, 'TRY')}
                     </p>
                 </div>
@@ -155,7 +155,7 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                             setSelectedAccount(null)
                             setModal('transfer')
                         }}
-                        className="flex items-center gap-2 px-5 py-3 border border-white/10 text-zinc-300 rounded-2xl hover:bg-white/5 transition-all"
+                        className="flex items-center gap-2 px-5 py-3 border border-[var(--border-default)] text-zinc-300 rounded-2xl hover:bg-[var(--bg-hover)] transition-all"
                     >
                         <ArrowLeftRight className="w-4 h-4" /> Transfer Yap
                     </button>
@@ -207,13 +207,13 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                             type="number"
                             step="0.01"
                             placeholder="Yeni bakiye"
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                             required
                         />
                         <input
                             name="description"
                             placeholder="Aciklama (opsiyonel)"
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                         />
                         <FormMessage success={adjustState.success} message={adjustState.message} />
                         <SubmitButton label="Bakiyeyi Guncelle" pendingLabel="Guncelleniyor..." />
@@ -244,13 +244,13 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                             step="0.01"
                             min="0.01"
                             placeholder="Tutar"
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                             required
                         />
                         <input
                             name="description"
                             placeholder="Aciklama (opsiyonel)"
-                            className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                         />
                         <FormMessage success={transferState.success} message={transferState.message} />
                         <SubmitButton label="Transferi Gerceklestir" pendingLabel="Kaydediliyor..." />
@@ -283,7 +283,7 @@ function AccountForm({
                 name="name"
                 placeholder="Hesap adi (Ziraat Vadesiz, Nakit Cuzdan)"
                 defaultValue={account?.name ?? ''}
-                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                 required
             />
             <div className="grid grid-cols-2 gap-4">
@@ -291,7 +291,7 @@ function AccountForm({
                     name="type"
                     defaultValue={account?.type ?? 'BANK_ACCOUNT'}
                     onChange={(event) => setAccountType(event.target.value as Account['type'])}
-                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                 >
                     <option value="BANK_ACCOUNT">Banka Hesabi</option>
                     <option value="CASH">Nakit</option>
@@ -302,7 +302,7 @@ function AccountForm({
                 <select
                     name="currency"
                     defaultValue={account?.currency ?? 'TRY'}
-                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                 >
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
@@ -315,24 +315,24 @@ function AccountForm({
                     type="number"
                     step="0.01"
                     placeholder="Baslangic bakiyesi"
-                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                 />
             ) : null}
             <input
                 name="bankName"
                 placeholder="Banka adi (opsiyonel)"
                 defaultValue={account?.bankName ?? ''}
-                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
             />
             <input
                 name="iban"
                 placeholder="IBAN (opsiyonel)"
                 defaultValue={account?.iban ?? ''}
-                className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
             />
 
             {accountType === 'BANK_ACCOUNT' ? (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-4">
+                <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-hover)] p-4 space-y-4">
                     <label className="flex items-center gap-2 text-sm text-zinc-300">
                         <input
                             name="hasKmh"
@@ -353,7 +353,7 @@ function AccountForm({
                                     step="0.01"
                                     defaultValue={account?.kmhLimit ?? ''}
                                     placeholder="KMH limiti"
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
                                 <input
                                     name="kmhInterestRate"
@@ -361,7 +361,7 @@ function AccountForm({
                                     step="0.01"
                                     defaultValue={account?.kmhInterestRate ?? 4.25}
                                     placeholder="KMH faiz oranı (%)"
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -372,7 +372,7 @@ function AccountForm({
                                     max="31"
                                     defaultValue={account?.kmhCutOffDay ?? ''}
                                     placeholder="Hesap kesim günü"
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
                                 <input
                                     name="kmhPaymentDueDay"
@@ -381,10 +381,10 @@ function AccountForm({
                                     max="31"
                                     defaultValue={account?.kmhPaymentDueDay ?? ''}
                                     placeholder="Son ödeme günü"
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
                             </div>
-                            <p className="text-xs text-zinc-500">
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                                 KMH borcu hesaba eksi bakiyeye düştüğünde borç ekranına otomatik yansır. Garanti BBVA Avans Hesap örneğine göre yalnızca kullanılan tutar için faiz işletilir.
                             </p>
                         </>
@@ -396,7 +396,7 @@ function AccountForm({
                 name="notes"
                 placeholder="Not (opsiyonel)"
                 defaultValue={account?.notes ?? ''}
-                className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
             />
             <label className="flex items-center gap-2 text-sm text-zinc-400">
                 <input

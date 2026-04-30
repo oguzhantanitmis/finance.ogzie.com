@@ -7,16 +7,16 @@ import { formatCurrency, cn } from '@/lib/utils'
 import { addIncomeAction, addExpenseAction } from '@/app/transactions/actions'
 
 const TYPE_META: Record<string, { label: string; icon: typeof ArrowDownLeft; color: string }> = {
-    INCOME: { label: 'Gelir', icon: ArrowDownLeft, color: 'text-emerald-400' },
-    EXPENSE: { label: 'Gider', icon: ArrowUpRight, color: 'text-red-400' },
-    COLLECTION: { label: 'Tahsilat', icon: ArrowDownLeft, color: 'text-emerald-400' },
-    PAYMENT_TO_PERSON: { label: 'Kişiye Ödeme', icon: ArrowUpRight, color: 'text-red-400' },
-    CARD_PAYMENT: { label: 'Kart Ödeme', icon: CreditCard, color: 'text-red-400' },
-    SUBSCRIPTION_PAYMENT: { label: 'Abonelik', icon: ReceiptText, color: 'text-red-400' },
-    DEBT_PAYMENT: { label: 'Borç Ödeme', icon: ArrowUpRight, color: 'text-red-400' },
-    DEBT_ADDITION: { label: 'Borç Ekleme', icon: ArrowUpRight, color: 'text-amber-400' },
-    RECEIVABLE_ADDITION: { label: 'Alacak Ekleme', icon: ArrowDownLeft, color: 'text-sky-400' },
-    TRANSFER: { label: 'Transfer', icon: ArrowLeftRight, color: 'text-sky-400' },
+    INCOME: { label: 'Gelir', icon: ArrowDownLeft, color: 'text-[color:var(--accent-success)]' },
+    EXPENSE: { label: 'Gider', icon: ArrowUpRight, color: 'text-[color:var(--accent-danger)]' },
+    COLLECTION: { label: 'Tahsilat', icon: ArrowDownLeft, color: 'text-[color:var(--accent-success)]' },
+    PAYMENT_TO_PERSON: { label: 'Kişiye Ödeme', icon: ArrowUpRight, color: 'text-[color:var(--accent-danger)]' },
+    CARD_PAYMENT: { label: 'Kart Ödeme', icon: CreditCard, color: 'text-[color:var(--accent-danger)]' },
+    SUBSCRIPTION_PAYMENT: { label: 'Abonelik', icon: ReceiptText, color: 'text-[color:var(--accent-danger)]' },
+    DEBT_PAYMENT: { label: 'Borç Ödeme', icon: ArrowUpRight, color: 'text-[color:var(--accent-danger)]' },
+    DEBT_ADDITION: { label: 'Borç Ekleme', icon: ArrowUpRight, color: 'text-[color:var(--accent-warning)]' },
+    RECEIVABLE_ADDITION: { label: 'Alacak Ekleme', icon: ArrowDownLeft, color: 'text-[color:var(--accent-info)]' },
+    TRANSFER: { label: 'Transfer', icon: ArrowLeftRight, color: 'text-[color:var(--accent-info)]' },
     BALANCE_ADJUSTMENT: { label: 'Bakiye Düzeltme', icon: Settings, color: 'text-zinc-400' },
 }
 
@@ -111,8 +111,8 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                 <div className={cn(
                     'mb-4 px-5 py-3 rounded-2xl text-sm font-medium border animate-in fade-in slide-in-from-top-2',
                     message.type === 'success'
-                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                        : 'bg-red-500/10 border-red-500/20 text-red-400'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-[color:var(--accent-success)]'
+                        : 'bg-red-500/10 border-red-500/20 text-[color:var(--accent-danger)]'
                 )}>
                     {message.text}
                 </div>
@@ -122,11 +122,11 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Giriş</p>
-                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Çıkış</p>
-                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Kayıt</p>
@@ -138,7 +138,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
             <div className="flex flex-wrap gap-3 mb-6">
                 <button
                     onClick={() => { resetForm(); setModal('income') }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-[color:var(--accent-success)] text-sm font-medium hover:bg-emerald-500/20 transition-all"
                     disabled={accounts.length === 0}
                 >
                     <ArrowDownLeft className="w-4 h-4" />
@@ -146,14 +146,14 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                 </button>
                 <button
                     onClick={() => { resetForm(); setModal('expense') }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-all"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-[color:var(--accent-danger)] text-sm font-medium hover:bg-red-500/20 transition-all"
                     disabled={accounts.length === 0}
                 >
                     <ArrowUpRight className="w-4 h-4" />
                     Gider Ekle
                 </button>
                 {accounts.length === 0 && (
-                    <Link href="/accounts" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/5 border border-white/10 text-zinc-400 text-sm font-medium hover:bg-white/10 transition-all">
+                    <Link href="/accounts" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--bg-hover)] border border-[var(--border-default)] text-zinc-400 text-sm font-medium hover:bg-[var(--bg-elevated)] transition-all">
                         <Plus className="w-4 h-4" />
                         Önce hesap oluştur
                     </Link>
@@ -168,13 +168,13 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="İşlem ara..."
-                        className="w-full bg-black border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-white text-sm"
+                        className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 pl-11 pr-4 text-white text-sm"
                     />
                 </div>
                 <select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
-                    className="bg-black border border-white/10 rounded-2xl py-3 px-4 text-white text-sm"
+                    className="bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
                 >
                     <option value="all">Tüm Tipler</option>
                     {Object.entries(TYPE_META).map(([key, meta]) => (
@@ -197,7 +197,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                         return (
                             <div key={entry.id} className="fintech-card p-4 flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
-                                    <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center bg-white/5', meta.color)}>
+                                    <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--bg-hover)]', meta.color)}>
                                         <Icon className="w-4 h-4" />
                                     </div>
                                     <div>
@@ -218,7 +218,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         ) : null}
                                     </div>
                                 </div>
-                                <p className={cn('font-bold tabular-nums privacy-blur', isPositive ? 'text-emerald-400' : 'text-red-400')}>
+                                <p className={cn('font-bold tabular-nums privacy-blur', isPositive ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                     {isPositive ? '+' : ''}{formatCurrency(entry.amount, entry.currency)}
                                 </p>
                             </div>
@@ -239,7 +239,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                         <div className="flex items-center gap-3 mb-6">
                             <div className={cn(
                                 'w-10 h-10 rounded-xl flex items-center justify-center',
-                                modal === 'income' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
+                                modal === 'income' ? 'bg-emerald-500/10 text-[color:var(--accent-success)]' : 'bg-red-500/10 text-[color:var(--accent-danger)]'
                             )}>
                                 {modal === 'income' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                             </div>
@@ -258,7 +258,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
                                     placeholder="0.00"
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white text-lg font-bold tabular-nums"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-lg font-bold tabular-nums"
                                     autoFocus
                                 />
                             </div>
@@ -268,7 +268,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                 <select
                                     value={accountId}
                                     onChange={(e) => setAccountId(e.target.value)}
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
                                 >
                                     {accounts.map((acc) => (
                                         <option key={acc.id} value={acc.id}>{acc.name}</option>
@@ -283,7 +283,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     placeholder={modal === 'income' ? 'Ör: Maaş, freelance ödeme...' : 'Ör: Market alışverişi, yakıt...'}
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
                                 />
                             </div>
 
@@ -292,7 +292,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                 <select
                                     value={category}
                                     onChange={(e) => setCategory(e.target.value)}
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
                                 >
                                     <option value="">Seçiniz...</option>
                                     {categories.map((cat) => (
@@ -307,7 +307,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                     type="date"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
                                 />
                             </div>
                         </div>

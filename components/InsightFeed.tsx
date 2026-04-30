@@ -40,7 +40,7 @@ export default function InsightFeed({ insights: initialInsights }: { insights: I
                                 insight.type === 'RISK' ? "bg-red-500/5 border-red-500/20" :
                                     insight.type === 'WARNING' ? "bg-amber-500/5 border-amber-500/20" :
                                         insight.type === 'SUCCESS' ? "bg-emerald-500/5 border-emerald-500/20" :
-                                            "bg-zinc-900/50 border-white/5"
+                                            "bg-zinc-900/50 border-[var(--border-subtle)]"
                             )}
                         >
                             <button
@@ -56,7 +56,7 @@ export default function InsightFeed({ insights: initialInsights }: { insights: I
                                     insight.type === 'RISK' ? "bg-red-500/20 text-red-500" :
                                         insight.type === 'WARNING' ? "bg-amber-500/20 text-amber-500" :
                                             insight.type === 'SUCCESS' ? "bg-emerald-500/20 text-emerald-500" :
-                                                "bg-white/10 text-white"
+                                                "bg-[var(--bg-elevated)] text-white"
                                 )}>
                                     {insight.type === 'RISK' ? <AlertTriangle className="w-5 h-5" /> :
                                         insight.type === 'WARNING' ? <AlertTriangle className="w-5 h-5" /> :

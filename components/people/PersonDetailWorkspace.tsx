@@ -24,10 +24,10 @@ import {
 type ModalState = 'closed' | 'editPerson' | 'addRP' | 'editRP' | 'collect' | 'pay'
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
-    OPEN: { text: 'Açık', color: 'text-sky-400 bg-sky-500/10' },
-    PARTIAL: { text: 'Kısmi', color: 'text-amber-400 bg-amber-500/10' },
-    CLOSED: { text: 'Kapandı', color: 'text-emerald-400 bg-emerald-500/10' },
-    OVERDUE: { text: 'Gecikmiş', color: 'text-red-400 bg-red-500/10' },
+    OPEN: { text: 'Açık', color: 'text-[color:var(--accent-info)] bg-sky-500/10' },
+    PARTIAL: { text: 'Kısmi', color: 'text-[color:var(--accent-warning)] bg-amber-500/10' },
+    CLOSED: { text: 'Kapandı', color: 'text-[color:var(--accent-success)] bg-emerald-500/10' },
+    OVERDUE: { text: 'Gecikmiş', color: 'text-[color:var(--accent-danger)] bg-red-500/10' },
 }
 
 interface Props {
@@ -164,15 +164,15 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Alacak</p>
-                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(totalReceivable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(totalReceivable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Verecek</p>
-                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(totalPayable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(totalPayable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Net Durum</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', totalReceivable - totalPayable >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', totalReceivable - totalPayable >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                         {formatCurrency(totalReceivable - totalPayable, 'TRY')}
                     </p>
                 </div>
@@ -228,9 +228,9 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                     <div>
                                         <div className="flex items-center gap-3 mb-1">
                                             {isReceivable ? (
-                                                <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+                                                <ArrowDownLeft className="w-4 h-4 text-[color:var(--accent-success)]" />
                                             ) : (
-                                                <ArrowUpRight className="w-4 h-4 text-red-400" />
+                                                <ArrowUpRight className="w-4 h-4 text-[color:var(--accent-danger)]" />
                                             )}
                                             <h3 className="font-semibold text-white">{rp.description}</h3>
                                             <span className={cn('text-[10px] uppercase tracking-[0.25em] px-2 py-0.5 rounded-lg', statusMeta.color)}>
@@ -249,8 +249,8 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                     </div>
                                     <div className="flex items-center gap-4 md:gap-6">
                                         <div className="text-right">
-                                            <p className="text-xs text-zinc-500">Kalan</p>
-                                            <p className={cn('text-xl font-bold privacy-blur', isReceivable ? 'text-emerald-400' : 'text-red-400')}>
+                                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Kalan</p>
+                                            <p className={cn('text-xl font-bold privacy-blur', isReceivable ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                                 {formatCurrency(rp.remainingAmount, rp.currency)}
                                             </p>
                                             <p className="text-xs text-zinc-600 privacy-blur">/ {formatCurrency(rp.originalAmount, rp.currency)}</p>
@@ -263,7 +263,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                                 }}
                                                 className={cn(
                                                     'px-4 py-2 rounded-xl text-sm font-semibold transition-all',
-                                                    isReceivable ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500/30',
+                                                    isReceivable ? 'bg-emerald-500/20 text-[color:var(--accent-success)] hover:bg-emerald-500/30' : 'bg-red-500/20 text-[color:var(--accent-danger)] hover:bg-red-500/30',
                                                 )}
                                             >
                                                 {isReceivable ? 'Tahsilat Gir' : 'Ödeme Yap'}
@@ -274,14 +274,14 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                                 setSelectedRPId(rp.id)
                                                 setModal('editRP')
                                             }}
-                                            className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+                                            className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-elevated)] transition-colors"
                                             aria-label={`${rp.description} kaydını düzenle`}
                                         >
                                             <Pencil className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDeleteRP(rp.id)}
-                                            className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                            className="p-2 rounded-xl text-zinc-500 hover:text-[color:var(--accent-danger)] hover:bg-red-500/10 transition-colors"
                                             aria-label={`${rp.description} kaydını sil`}
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -290,7 +290,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                 </div>
 
                                 {rp.transactions.length > 0 ? (
-                                    <div className="border-t border-white/5 pt-3 mt-3">
+                                    <div className="border-t border-[var(--border-subtle)] pt-3 mt-3">
                                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-600 mb-2">Hareket Geçmişi</p>
                                         <div className="space-y-2">
                                             {rp.transactions.map((transaction) => (
@@ -317,12 +317,12 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                 <Modal title="Kişiyi Düzenle" onClose={() => setModal('closed')}>
                     <form action={updatePersonActionState} className="space-y-4">
                         <input type="hidden" name="personId" value={person.id} />
-                        <input name="name" defaultValue={person.name} placeholder="Ad Soyad" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="name" defaultValue={person.name} placeholder="Ad Soyad" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="phone" defaultValue={person.phone ?? ''} placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                            <input name="email" type="email" defaultValue={person.email ?? ''} placeholder="E-posta (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <input name="phone" defaultValue={person.phone ?? ''} placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                            <input name="email" type="email" defaultValue={person.email ?? ''} placeholder="E-posta (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         </div>
-                        <textarea name="notes" defaultValue={person.notes ?? ''} placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" defaultValue={person.notes ?? ''} placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={updatePersonState.success} message={updatePersonState.message} />
                         <SubmitButton label="Kişiyi Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -333,21 +333,21 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                 <Modal title="Alacak / Verecek Ekle" onClose={() => setModal('closed')}>
                     <form action={createRPActionState} className="space-y-4">
                         <input type="hidden" name="personId" value={person.id} />
-                        <select name="type" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                        <select name="type" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                             <option value="RECEIVABLE">Bana borçlu (Alacak)</option>
                             <option value="PAYABLE">Benim borcum (Verecek)</option>
                         </select>
-                        <input name="description" placeholder="Açıklama" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="description" placeholder="Açıklama" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Toplam tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
-                            <select name="currency" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                            <input name="amount" type="number" step="0.01" min="0.01" placeholder="Toplam tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                            <select name="currency" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                                 <option value="TRY">TRY</option>
                                 <option value="USD">USD</option>
                                 <option value="EUR">EUR</option>
                             </select>
                         </div>
-                        <input name="dueDate" type="date" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <input name="dueDate" type="date" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={createRPState.success} message={createRPState.message} />
                         <SubmitButton label="Kaydı Kaydet" pendingLabel="Kaydediliyor..." />
                     </form>
@@ -359,22 +359,22 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                     <form action={updateRPActionState} className="space-y-4">
                         <input type="hidden" name="rpId" value={selectedRP.id} />
                         <input type="hidden" name="personId" value={person.id} />
-                        <select name="type" defaultValue={selectedRP.type} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                        <select name="type" defaultValue={selectedRP.type} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                             <option value="RECEIVABLE">Bana borçlu (Alacak)</option>
                             <option value="PAYABLE">Benim borcum (Verecek)</option>
                         </select>
-                        <input name="description" defaultValue={selectedRP.description} placeholder="Açıklama" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="description" defaultValue={selectedRP.description} placeholder="Açıklama" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={selectedRP.originalAmount} placeholder="Toplam tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
-                            <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={selectedRP.remainingAmount} placeholder="Kalan tutar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                            <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={selectedRP.originalAmount} placeholder="Toplam tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                            <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={selectedRP.remainingAmount} placeholder="Kalan tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         </div>
-                        <select name="currency" defaultValue={selectedRP.currency} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                        <select name="currency" defaultValue={selectedRP.currency} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                             <option value="TRY">TRY</option>
                             <option value="USD">USD</option>
                             <option value="EUR">EUR</option>
                         </select>
-                        <input name="dueDate" type="date" defaultValue={selectedRP.dueDate ? selectedRP.dueDate.slice(0, 10) : ''} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <input name="dueDate" type="date" defaultValue={selectedRP.dueDate ? selectedRP.dueDate.slice(0, 10) : ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={updateRPState.success} message={updateRPState.message} />
                         <SubmitButton label="Kaydı Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -387,12 +387,12 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         <input type="hidden" name="rpId" value={selectedRP.id} />
                         <input type="hidden" name="personId" value={person.id} />
                         <div className="fintech-card p-4 mb-2">
-                            <p className="text-xs text-zinc-500">Kalan alacak</p>
-                            <p className="text-xl font-bold text-emerald-400">{formatCurrency(selectedRP.remainingAmount, selectedRP.currency)}</p>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Kalan alacak</p>
+                            <p className="text-xl font-bold text-[color:var(--accent-success)]">{formatCurrency(selectedRP.remainingAmount, selectedRP.currency)}</p>
                         </div>
-                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Tahsilat tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Tahsilat tutarı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <AccountSelect accounts={accounts} name="accountId" label="Paranın yatacağı hesap" required />
-                        <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={collectionState.success} message={collectionState.message} />
                         <SubmitButton label="Tahsilatı Kaydet" pendingLabel="Kaydediliyor..." className="w-full bg-emerald-500 text-black font-bold py-4 rounded-2xl hover:bg-emerald-400 transition-all disabled:opacity-60" />
                     </form>
@@ -405,12 +405,12 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         <input type="hidden" name="rpId" value={selectedRP.id} />
                         <input type="hidden" name="personId" value={person.id} />
                         <div className="fintech-card p-4 mb-2">
-                            <p className="text-xs text-zinc-500">Kalan borç</p>
-                            <p className="text-xl font-bold text-red-400">{formatCurrency(selectedRP.remainingAmount, selectedRP.currency)}</p>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Kalan borç</p>
+                            <p className="text-xl font-bold text-[color:var(--accent-danger)]">{formatCurrency(selectedRP.remainingAmount, selectedRP.currency)}</p>
                         </div>
-                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Ödeme tutarı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Ödeme tutarı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <AccountSelect accounts={accounts} name="accountId" label="Paranın çıkacağı hesap" required />
-                        <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={paymentState.success} message={paymentState.message} />
                         <SubmitButton label="Ödemeyi Kaydet" pendingLabel="Kaydediliyor..." className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl hover:bg-red-400 transition-all disabled:opacity-60" />
                     </form>

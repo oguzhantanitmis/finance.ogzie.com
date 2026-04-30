@@ -19,7 +19,7 @@ export default function BrandLogo({ name, src, color = '#27272A', size = 56 }: B
     if (!src) {
         return (
             <div
-                className="rounded-2xl border border-white/10 flex items-center justify-center text-sm font-bold text-white"
+                className="rounded-2xl border border-[var(--border-default)] flex items-center justify-center text-sm font-bold text-white"
                 style={{ width: size, height: size, backgroundColor: color }}
             >
                 {initials || 'OS'}
@@ -29,7 +29,7 @@ export default function BrandLogo({ name, src, color = '#27272A', size = 56 }: B
 
     return (
         <div
-            className="rounded-2xl border border-white/10 overflow-hidden flex items-center justify-center bg-black/30"
+            className="rounded-2xl border border-[var(--border-default)] overflow-hidden flex items-center justify-center bg-black/30"
             style={{ width: size, height: size }}
         >
             <Image

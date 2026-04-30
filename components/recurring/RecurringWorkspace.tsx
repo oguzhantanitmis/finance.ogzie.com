@@ -87,7 +87,7 @@ export default function RecurringWorkspace({
                 <button onClick={() => setShowAdd(true)} className="w-full bg-white text-black font-bold py-4 rounded-2xl">
                     Yeni Sabit Gider Ekle
                 </button>
-                <div className="rounded-3xl border border-white/8 bg-white/[0.03] p-4 mt-6">
+                <div className="rounded-3xl border border-white/8 bg-[var(--bg-hover)] p-4 mt-6">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Aylık yük</p>
                     <h3 className="text-3xl font-bold privacy-blur">{formatCurrency(recurringLoad, 'TRY')}</h3>
                     <p className="text-zinc-400 mt-2 text-sm">Aylık normalize sabit gider etkisi</p>
@@ -108,7 +108,7 @@ export default function RecurringWorkspace({
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <h3 className="text-lg font-semibold truncate">{expense.name}</h3>
                                     <span className="text-[10px] uppercase tracking-[0.25em] text-zinc-500">{expense.category}</span>
-                                    {expense.isEssential ? <span className="text-[10px] uppercase tracking-[0.25em] text-amber-400">Kritik</span> : null}
+                                    {expense.isEssential ? <span className="text-[10px] uppercase tracking-[0.25em] text-[color:var(--accent-warning)]">Kritik</span> : null}
                                 </div>
                                 <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-500 mt-2">
                                     <span className="flex items-center gap-1 privacy-blur">
@@ -123,7 +123,7 @@ export default function RecurringWorkspace({
                                 <div className="text-right">
                                     <p className="text-xl font-bold privacy-blur">{formatCurrency(expense.amount, expense.currency)}</p>
                                 </div>
-                                <button onClick={() => setEditingExpense(expense)} className="p-3 text-zinc-600 hover:text-white hover:bg-white/10 rounded-xl transition-all">
+                                <button onClick={() => setEditingExpense(expense)} className="p-3 text-zinc-600 hover:text-white hover:bg-[var(--bg-elevated)] rounded-xl transition-all">
                                     <Pencil className="w-5 h-5" />
                                 </button>
                                 <button onClick={() => handleDelete(expense.id)} className="p-3 text-zinc-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all">
@@ -162,24 +162,24 @@ function RecurringExpenseForm({
     return (
         <form action={action} className="space-y-4">
             {expense ? <input type="hidden" name="expenseId" value={expense.id} /> : null}
-            <input name="name" defaultValue={expense?.name ?? ''} placeholder="Kira, Turkcell Fiber, Özel Sigorta" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
+            <input name="name" defaultValue={expense?.name ?? ''} placeholder="Kira, Turkcell Fiber, Özel Sigorta" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
             <div className="grid grid-cols-2 gap-4">
-                <input name="amount" type="number" step="0.01" defaultValue={expense?.amount ?? ''} placeholder="0.00" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
-                <select name="currency" defaultValue={expense?.currency ?? 'TRY'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                <input name="amount" type="number" step="0.01" defaultValue={expense?.amount ?? ''} placeholder="0.00" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
+                <select name="currency" defaultValue={expense?.currency ?? 'TRY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                 </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <input name="category" defaultValue={expense?.category ?? ''} placeholder="Barınma, fatura, sigorta..." className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
-                <select name="billingCycle" defaultValue={expense?.billingCycle ?? 'MONTHLY'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+                <input name="category" defaultValue={expense?.category ?? ''} placeholder="Barınma, fatura, sigorta..." className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
+                <select name="billingCycle" defaultValue={expense?.billingCycle ?? 'MONTHLY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
                     <option value="MONTHLY">Aylık</option>
                     <option value="YEARLY">Yıllık</option>
                 </select>
             </div>
-            <input name="nextPayment" type="date" defaultValue={expense?.nextPayment.slice(0, 10) ?? ''} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4" required />
-            <select name="status" defaultValue={expense?.status ?? 'ACTIVE'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4">
+            <input name="nextPayment" type="date" defaultValue={expense?.nextPayment.slice(0, 10) ?? ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
+            <select name="status" defaultValue={expense?.status ?? 'ACTIVE'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
                 <option value="ACTIVE">Aktif</option>
                 <option value="PAUSED">Duraklatıldı</option>
                 <option value="CANCELED">İptal Edildi</option>
@@ -188,7 +188,7 @@ function RecurringExpenseForm({
                 name="notes"
                 defaultValue={expense?.notes ?? ''}
                 placeholder="Açıklama veya hesap bilgisi"
-                className="w-full min-h-24 bg-black border border-white/10 rounded-2xl py-3 px-4"
+                className="w-full min-h-24 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4"
             />
             <div className="flex items-center justify-between text-sm text-zinc-400">
                 <label className="flex items-center gap-2">

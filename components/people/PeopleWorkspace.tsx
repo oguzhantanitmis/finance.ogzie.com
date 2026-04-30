@@ -84,30 +84,30 @@ export default function PeopleWorkspace({ people, summary }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
+                        <ArrowDownLeft className="w-4 h-4 text-[color:var(--accent-success)]" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Alacak</p>
                     </div>
-                    <p className="text-2xl font-bold text-emerald-400 privacy-blur">{formatCurrency(summary.totalReceivable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(summary.totalReceivable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <ArrowUpRight className="w-4 h-4 text-red-400" />
+                        <ArrowUpRight className="w-4 h-4 text-[color:var(--accent-danger)]" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Toplam Verecek</p>
                     </div>
-                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(summary.totalPayable, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(summary.totalPayable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Net Durum</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', summary.net >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', summary.net >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                         {formatCurrency(summary.net, 'TRY')}
                     </p>
                 </div>
                 <div className="fintech-card p-5">
                     <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" />
+                        <AlertTriangle className="w-4 h-4 text-[color:var(--accent-warning)]" />
                         <p className="text-xs uppercase tracking-[0.25em] text-zinc-500">Geciken</p>
                     </div>
-                    <p className="text-2xl font-bold text-amber-400 privacy-blur">{summary.overdueCount}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-warning)] privacy-blur">{summary.overdueCount}</p>
                 </div>
             </div>
 
@@ -123,11 +123,11 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                         setSelectedPersonId(people[0]?.id ?? null)
                         setShowAddRecord(true)
                     }}
-                    className="flex items-center gap-2 px-5 py-3 border border-white/10 text-zinc-300 rounded-2xl hover:bg-white/5 transition-all"
+                    className="flex items-center gap-2 px-5 py-3 border border-[var(--border-default)] text-zinc-300 rounded-2xl hover:bg-[var(--bg-hover)] transition-all"
                 >
                     <ArrowUpRight className="w-4 h-4" /> Alacak / Verecek Kaydı
                 </button>
-                <div className="flex gap-1 bg-white/5 rounded-2xl p-1">
+                <div className="flex gap-1 bg-[var(--bg-hover)] rounded-2xl p-1">
                     {(['all', 'receivable', 'payable'] as const).map((item) => (
                         <button
                             key={item}
@@ -161,7 +161,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                     {filtered.map((person) => (
                         <div key={person.id} className="fintech-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-white/20 transition-all">
                             <Link href={`/people/${person.id}`} className="flex items-center gap-4 min-w-0">
-                                <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center text-white font-bold shrink-0">
+                                <div className="w-11 h-11 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center text-white font-bold shrink-0">
                                     {person.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
@@ -175,19 +175,19 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             <div className="flex items-center gap-6">
                                 {person.totalReceivable > 0 ? (
                                     <div className="text-right">
-                                        <p className="text-xs text-zinc-500">Alacak</p>
-                                        <p className="font-bold text-emerald-400 privacy-blur">{formatCurrency(person.totalReceivable, 'TRY')}</p>
+                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Alacak</p>
+                                        <p className="font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(person.totalReceivable, 'TRY')}</p>
                                     </div>
                                 ) : null}
                                 {person.totalPayable > 0 ? (
                                     <div className="text-right">
-                                        <p className="text-xs text-zinc-500">Verecek</p>
-                                        <p className="font-bold text-red-400 privacy-blur">{formatCurrency(person.totalPayable, 'TRY')}</p>
+                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Verecek</p>
+                                        <p className="font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(person.totalPayable, 'TRY')}</p>
                                     </div>
                                 ) : null}
                                 <div className="text-right">
-                                    <p className="text-xs text-zinc-500">Net</p>
-                                    <p className={cn('font-bold privacy-blur', person.netPosition >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Net</p>
+                                    <p className={cn('font-bold privacy-blur', person.netPosition >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                         {formatCurrency(person.netPosition, 'TRY')}
                                     </p>
                                 </div>
@@ -197,20 +197,20 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                             setSelectedPersonId(person.id)
                                             setShowAddRecord(true)
                                         }}
-                                        className="px-3 py-2 rounded-xl text-xs text-zinc-300 border border-white/10 hover:bg-white/5 transition-colors"
+                                        className="px-3 py-2 rounded-xl text-xs text-zinc-300 border border-[var(--border-default)] hover:bg-[var(--bg-hover)] transition-colors"
                                     >
                                         Kayıt ekle
                                     </button>
                                     <button
                                         onClick={() => setEditingPerson(person)}
-                                        className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+                                        className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-elevated)] transition-colors"
                                         aria-label={`${person.name} kaydını düzenle`}
                                     >
                                         <Pencil className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(person.id)}
-                                        className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                        className="p-2 rounded-xl text-zinc-500 hover:text-[color:var(--accent-danger)] hover:bg-red-500/10 transition-colors"
                                         aria-label={`${person.name} kaydını sil`}
                                     >
                                         <Trash2 className="w-4 h-4" />
@@ -225,12 +225,12 @@ export default function PeopleWorkspace({ people, summary }: Props) {
             {showAdd ? (
                 <Modal title="Kişi Ekle" onClose={() => setShowAdd(false)}>
                     <form action={createAction} className="space-y-4">
-                        <input name="name" placeholder="Ad Soyad" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="name" placeholder="Ad Soyad" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="phone" placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                            <input name="email" type="email" placeholder="Email (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <input name="phone" placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                            <input name="email" type="email" placeholder="Email (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         </div>
-                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={createState.success} message={createState.message} />
                         <SubmitButton label="Kişiyi Kaydet" pendingLabel="Kaydediliyor..." />
                     </form>
@@ -241,12 +241,12 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                 <Modal title="Kişiyi Düzenle" onClose={() => setEditingPerson(null)}>
                     <form action={updateAction} className="space-y-4">
                         <input type="hidden" name="personId" value={editingPerson.id} />
-                        <input name="name" defaultValue={editingPerson.name} placeholder="Ad Soyad" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                        <input name="name" defaultValue={editingPerson.name} placeholder="Ad Soyad" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="phone" defaultValue={editingPerson.phone ?? ''} placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                            <input name="email" type="email" defaultValue={editingPerson.email ?? ''} placeholder="Email (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <input name="phone" defaultValue={editingPerson.phone ?? ''} placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                            <input name="email" type="email" defaultValue={editingPerson.email ?? ''} placeholder="Email (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         </div>
-                        <textarea name="notes" defaultValue={editingPerson.notes ?? ''} placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" defaultValue={editingPerson.notes ?? ''} placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                         <FormMessage success={updateState.success} message={updateState.message} />
                         <SubmitButton label="Kişiyi Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -256,17 +256,17 @@ export default function PeopleWorkspace({ people, summary }: Props) {
             {showAddRecord ? (
                 <Modal title="Alacak / Verecek Kaydı Ekle" onClose={() => setShowAddRecord(false)}>
                     {people.length === 0 ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-sm text-zinc-400">
+                        <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-hover)] p-5 text-sm text-zinc-400">
                             Önce kişi eklemen gerekiyor. Kişi kaydı olmadan şahsi alacak veya verecek açılmaz.
                         </div>
                     ) : (
                         <form action={createRecordAction} className="space-y-4">
                             <div>
-                                <label className="text-sm text-zinc-400 mb-2 block">Kişi</label>
+                                <label className="form-label">Kişi</label>
                                 <select
                                     name="personId"
                                     defaultValue={selectedPersonId ?? people[0]?.id}
-                                    className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white"
+                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                     required
                                 >
                                     {people.map((person) => (
@@ -276,36 +276,36 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm text-zinc-400 mb-2 block">Kayıt türü</label>
-                                    <select name="type" defaultValue="PAYABLE" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                                    <label className="form-label">Kayıt türü</label>
+                                    <select name="type" defaultValue="PAYABLE" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                                         <option value="PAYABLE">Benim borcum</option>
                                         <option value="RECEIVABLE">Bana borçlu</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm text-zinc-400 mb-2 block">Tutar</label>
-                                    <input name="amount" type="number" min="0.01" step="0.01" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                                    <label className="form-label">Tutar</label>
+                                    <input name="amount" type="number" min="0.01" step="0.01" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-sm text-zinc-400 mb-2 block">Açıklama</label>
-                                <input name="description" placeholder="Örn: Ahmet'e elden verilen borç" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+                                <label className="form-label">Açıklama</label>
+                                <input name="description" placeholder="Örn: Ahmet'e elden verilen borç" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm text-zinc-400 mb-2 block">Para birimi</label>
-                                    <select name="currency" defaultValue="TRY" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                                    <label className="form-label">Para birimi</label>
+                                    <select name="currency" defaultValue="TRY" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                                         <option value="TRY">TRY</option>
                                         <option value="USD">USD</option>
                                         <option value="EUR">EUR</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm text-zinc-400 mb-2 block">Vade</label>
-                                    <input name="dueDate" type="date" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                                    <label className="form-label">Vade</label>
+                                    <input name="dueDate" type="date" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                                 </div>
                             </div>
-                            <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                            <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
                             <FormMessage success={createRecordState.success} message={createRecordState.message} />
                             <SubmitButton label="Kaydı Oluştur" pendingLabel="Kaydediliyor..." />
                         </form>

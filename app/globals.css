@@ -311,6 +311,13 @@ body.privacy-active .tabular-nums {
    ============================================================ */
 
 @layer components {
+  .data-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border-default);
+    border-radius: 0.75rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .data-table {
     width: 100%;
     border-collapse: separate;

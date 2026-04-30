@@ -6,15 +6,15 @@ import { formatCurrency, cn } from '@/lib/utils'
 import type { PaymentPlan, Strategy } from '@/lib/debt-priority-engine'
 
 const STRATEGY_META: Record<Strategy, { label: string; desc: string; icon: typeof Shield; color: string }> = {
-    SAFE: { label: 'Güvenli Mod', desc: 'Asgari ödemeler + yaklaşan vadeler önce', icon: Shield, color: 'text-sky-400' },
-    AVALANCHE: { label: 'Çığ Modu', desc: 'En yüksek faizli borç önce — toplam faiz minimize', icon: TrendingDown, color: 'text-amber-400' },
-    SNOWBALL: { label: 'Kartopu Modu', desc: 'En küçük borç önce — motivasyon etkisi', icon: Snowflake, color: 'text-purple-400' },
+    SAFE: { label: 'Güvenli Mod', desc: 'Asgari ödemeler + yaklaşan vadeler önce', icon: Shield, color: 'text-[color:var(--accent-info)]' },
+    AVALANCHE: { label: 'Çığ Modu', desc: 'En yüksek faizli borç önce — toplam faiz minimize', icon: TrendingDown, color: 'text-[color:var(--accent-warning)]' },
+    SNOWBALL: { label: 'Kartopu Modu', desc: 'En küçük borç önce — motivasyon etkisi', icon: Snowflake, color: 'text-[color:var(--accent-purple)]' },
 }
 
 const RISK_META: Record<string, { label: string; color: string }> = {
-    LOW: { label: 'Düşük Risk', color: 'text-emerald-400 bg-emerald-500/10' },
-    MEDIUM: { label: 'Orta Risk', color: 'text-amber-400 bg-amber-500/10' },
-    HIGH: { label: 'Yüksek Risk', color: 'text-red-400 bg-red-500/10' },
+    LOW: { label: 'Düşük Risk', color: 'text-[color:var(--accent-success)] bg-emerald-500/10' },
+    MEDIUM: { label: 'Orta Risk', color: 'text-[color:var(--accent-warning)] bg-amber-500/10' },
+    HIGH: { label: 'Yüksek Risk', color: 'text-[color:var(--accent-danger)] bg-red-500/10' },
     CRITICAL: { label: 'Kritik', color: 'text-red-500 bg-red-500/20' },
 }
 
@@ -33,7 +33,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Asgari</p>
-                    <p className="text-2xl font-bold text-red-400 privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
+                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Kullanılabilir</p>
@@ -41,7 +41,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                 </div>
                 <div className="fintech-card p-5">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Fazla / Açık</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', plan.surplus >= 0 ? 'text-emerald-400' : 'text-red-400')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', plan.surplus >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                         {formatCurrency(plan.surplus, 'TRY')}
                     </p>
                 </div>
@@ -55,7 +55,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
             {plan.warnings.length > 0 && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-6 space-y-2">
                     {plan.warnings.map((w, i) => (
-                        <p key={i} className="flex items-start gap-2 text-sm text-red-400">
+                        <p key={i} className="flex items-start gap-2 text-sm text-[color:var(--accent-danger)]">
                             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" /> {w}
                         </p>
                     ))}
@@ -81,7 +81,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                                 <Icon className={cn('w-5 h-5', meta.color)} />
                                 <h3 className="font-semibold text-white">{meta.label}</h3>
                             </div>
-                            <p className="text-xs text-zinc-500">{meta.desc}</p>
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.desc}</p>
                         </button>
                     )
                 })}
@@ -97,7 +97,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                     {plan.items.map((item) => (
                         <div key={item.id} className="fintech-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white font-bold text-sm">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center text-white font-bold text-sm">
                                     {item.priority}
                                 </div>
                                 <div>
@@ -111,17 +111,17 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                             </div>
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
-                                    <p className="text-xs text-zinc-500">Borç</p>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Borç</p>
                                     <p className="font-bold text-white privacy-blur">{formatCurrency(item.balance, 'TRY')}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-xs text-zinc-500">Asgari</p>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Asgari</p>
                                     <p className="font-semibold text-zinc-400 privacy-blur">{formatCurrency(item.minPayment, 'TRY')}</p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-zinc-600" />
                                 <div className="text-right">
-                                    <p className="text-xs text-zinc-500">Önerilen</p>
-                                    <p className="font-bold text-emerald-400 privacy-blur">{formatCurrency(item.suggestedPayment, 'TRY')}</p>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Önerilen</p>
+                                    <p className="font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(item.suggestedPayment, 'TRY')}</p>
                                 </div>
                             </div>
                         </div>

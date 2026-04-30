@@ -72,11 +72,11 @@ export default function AssetsWorkspace({
             <header className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Varlık Yönetimi</h1>
-                    <p className="text-zinc-500">Kaydettiğin tüm varlıkları gerçek tutarlarıyla takip et.</p>
+                    <p style={{ color: 'var(--text-muted)' }}>Kaydettiğin tüm varlıkları gerçek tutarlarıyla takip et.</p>
                 </div>
                 <button
                     onClick={() => setShowAdd(true)}
-                    className="bg-white text-black px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-zinc-200"
+                    className="btn-primary"
                 >
                     <Plus className="w-4 h-4" /> Varlık Ekle
                 </button>
@@ -100,7 +100,7 @@ export default function AssetsWorkspace({
             <div className="fintech-card overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-[#1a1a1a] text-zinc-400">
+                        <thead className="bg-[var(--bg-elevated)] text-zinc-400">
                             <tr>
                                 <th className="p-4 font-medium">Varlık</th>
                                 <th className="p-4 font-medium">Tür</th>
@@ -112,10 +112,10 @@ export default function AssetsWorkspace({
                         </thead>
                         <tbody className="divide-y divide-white/5">
                             {assets.map((asset) => (
-                                <tr key={asset.id} className="hover:bg-white/5 transition-colors">
+                                <tr key={asset.id} className="hover:bg-[var(--bg-hover)] transition-colors">
                                     <td className="p-4 font-medium text-white">{asset.name}</td>
                                     <td className="p-4 text-zinc-400">
-                                        <span className="bg-white/5 px-2 py-1 rounded text-xs border border-white/5">
+                                        <span className="bg-[var(--bg-hover)] px-2 py-1 rounded text-xs border border-[var(--border-subtle)]">
                                             {asset.type}
                                         </span>
                                     </td>
@@ -130,10 +130,10 @@ export default function AssetsWorkspace({
                                     </td>
                                     <td className="p-4">
                                         <div className="flex items-center justify-end gap-2">
-                                            <button onClick={() => setEditingAsset(asset)} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/10">
+                                            <button onClick={() => setEditingAsset(asset)} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-elevated)]">
                                                 <Pencil className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => handleDelete(asset.id)} className="p-2 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/10">
+                                            <button onClick={() => handleDelete(asset.id)} className="p-2 rounded-xl text-zinc-500 hover:text-[color:var(--accent-danger)] hover:bg-red-500/10">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
@@ -179,9 +179,9 @@ function AssetForm({
     return (
         <form action={action} className="space-y-4">
             {asset ? <input type="hidden" name="assetId" value={asset.id} /> : null}
-            <input name="name" defaultValue={asset?.name ?? ''} placeholder="Örn: Ziraat Bankası, Altın Hesabı" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+            <input name="name" defaultValue={asset?.name ?? ''} placeholder="Örn: Ziraat Bankası, Altın Hesabı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
             <div className="grid grid-cols-2 gap-4">
-                <select name="type" defaultValue={asset?.type ?? 'CASH'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                <select name="type" defaultValue={asset?.type ?? 'CASH'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                     <option value="CASH">Nakit</option>
                     <option value="BANK">Banka Hesabı</option>
                     <option value="GOLD">Altın</option>
@@ -191,7 +191,7 @@ function AssetForm({
                     <option value="ESTATE">Gayrimenkul</option>
                     <option value="OTHER">Diğer</option>
                 </select>
-                <select name="currency" defaultValue={asset?.currency ?? 'TRY'} className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white">
+                <select name="currency" defaultValue={asset?.currency ?? 'TRY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
@@ -199,10 +199,10 @@ function AssetForm({
                     <option value="XAU">XAU</option>
                 </select>
             </div>
-            <input name="amount" type="number" step="0.01" defaultValue={asset?.amount ?? ''} placeholder="Miktar" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" required />
+            <input name="amount" type="number" step="0.01" defaultValue={asset?.amount ?? ''} placeholder="Miktar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
             <div className="grid grid-cols-2 gap-4">
-                <input name="unitPrice" type="number" step="0.01" defaultValue={asset?.unitPrice ?? ''} placeholder="Maliyet / birim fiyat" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
-                <input name="lastValue" type="number" step="0.01" defaultValue={asset?.lastValue ?? ''} placeholder="Güncel toplam değer (opsiyonel)" className="w-full bg-black border border-white/10 rounded-2xl py-3 px-4 text-white" />
+                <input name="unitPrice" type="number" step="0.01" defaultValue={asset?.unitPrice ?? ''} placeholder="Maliyet / birim fiyat" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                <input name="lastValue" type="number" step="0.01" defaultValue={asset?.lastValue ?? ''} placeholder="Güncel toplam değer (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
             </div>
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label={asset ? 'Varlığı Güncelle' : 'Varlığı Kaydet'} pendingLabel={asset ? 'Güncelleniyor...' : 'Kaydediliyor...'} />

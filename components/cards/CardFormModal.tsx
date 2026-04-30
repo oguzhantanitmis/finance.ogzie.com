@@ -72,7 +72,7 @@ export default function CardFormModal({
                 <input type="hidden" name="color" value={selectedColor} />
 
                 <div>
-                    <label className="text-sm text-zinc-400 mb-1 block">Kart Adı</label>
+                    <label className="form-label">Kart Adı</label>
                     <input
                         name="cardName"
                         required
@@ -83,7 +83,7 @@ export default function CardFormModal({
                 </div>
 
                 <div>
-                    <label className="text-sm text-zinc-400 mb-1 block">Banka</label>
+                    <label className="form-label">Banka</label>
                     <select
                         name="bankName"
                         required
@@ -96,7 +96,7 @@ export default function CardFormModal({
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Son 4 Hane</label>
+                        <label className="form-label">Son 4 Hane</label>
                         <input
                             name="last4Digits"
                             maxLength={4}
@@ -106,7 +106,7 @@ export default function CardFormModal({
                         />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Kart Ağı</label>
+                        <label className="form-label">Kart Ağı</label>
                         <select
                             name="cardNetwork"
                             defaultValue={card?.cardNetwork ?? 'VISA'}
@@ -121,7 +121,7 @@ export default function CardFormModal({
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Toplam Limit (₺)</label>
+                        <label className="form-label">Toplam Limit (₺)</label>
                         <input
                             name="totalLimit"
                             type="number"
@@ -132,7 +132,7 @@ export default function CardFormModal({
                         />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Nakit Avans Limiti (₺)</label>
+                        <label className="form-label">Nakit Avans Limiti (₺)</label>
                         <input
                             name="cashAdvanceLimit"
                             type="number"
@@ -145,7 +145,7 @@ export default function CardFormModal({
 
                 <div className="grid grid-cols-3 gap-4">
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Hesap Kesim Günü</label>
+                        <label className="form-label">Hesap Kesim Günü</label>
                         <input
                             name="cutOffDay"
                             type="number"
@@ -158,7 +158,7 @@ export default function CardFormModal({
                         />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Son Ödeme Günü</label>
+                        <label className="form-label">Son Ödeme Günü</label>
                         <input
                             name="paymentDueDay"
                             type="number"
@@ -171,7 +171,7 @@ export default function CardFormModal({
                         />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Birikmiş Puan</label>
+                        <label className="form-label">Birikmiş Puan</label>
                         <input
                             name="rewardsPoints"
                             type="number"
@@ -184,37 +184,37 @@ export default function CardFormModal({
 
                 <div className="grid grid-cols-3 gap-3">
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Akdi Faiz (%)</label>
+                        <label className="form-label">Akdi Faiz (%)</label>
                         <input name="contractualRate" type="number" step="0.01" defaultValue={card?.contractualRate ?? 4.42} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Gecikme (%)</label>
+                        <label className="form-label">Gecikme (%)</label>
                         <input name="defaultRate" type="number" step="0.01" defaultValue={card?.defaultRate ?? 5.42} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">N. Avans (%)</label>
+                        <label className="form-label">N. Avans (%)</label>
                         <input name="cashAdvanceRate" type="number" step="0.01" defaultValue={card?.cashAdvanceRate ?? 5.92} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Asgari Oran</label>
+                        <label className="form-label">Asgari Oran</label>
                         <input name="minPaymentRate" type="number" step="0.01" defaultValue={card?.minPaymentRate ?? 0.2} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">KKDF</label>
+                        <label className="form-label">KKDF</label>
                         <input name="kkdfRate" type="number" step="0.01" defaultValue={card?.kkdfRate ?? 0.15} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
                     </div>
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">BSMV</label>
+                        <label className="form-label">BSMV</label>
                         <input name="bsmvRate" type="number" step="0.01" defaultValue={card?.bsmvRate ?? 0.15} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
                     </div>
                 </div>
 
                 {card ? (
                     <div>
-                        <label className="text-sm text-zinc-400 mb-1 block">Durum</label>
+                        <label className="form-label">Durum</label>
                         <select name="status" defaultValue={card.status} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white">
                             <option value="ACTIVE">Aktif</option>
                             <option value="FROZEN">Donduruldu</option>
@@ -224,7 +224,7 @@ export default function CardFormModal({
                 ) : null}
 
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Kart Rengi</label>
+                    <label className="form-label">Kart Rengi</label>
                     <div className="flex gap-2 flex-wrap">
                         {CARD_COLORS.map((color) => (
                             <button

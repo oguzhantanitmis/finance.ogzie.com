@@ -41,10 +41,10 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
 
     const typeConfig = {
         STRATEGY: { icon: LineChart, color: 'text-blue-400', bg: 'bg-blue-400/10', label: 'Strateji' },
-        SAVING: { icon: HandCoins, color: 'text-emerald-400', bg: 'bg-emerald-400/10', label: 'Tasarruf' },
+        SAVING: { icon: HandCoins, color: 'text-[color:var(--accent-success)]', bg: 'bg-emerald-400/10', label: 'Tasarruf' },
         WARNING: { icon: ShieldAlert, color: 'text-rose-400', bg: 'bg-rose-400/10', label: 'Uyarı' },
-        OPPORTUNITY: { icon: TrendingUp, color: 'text-purple-400', bg: 'bg-purple-400/10', label: 'Fırsat' },
-        MILESTONE: { icon: Trophy, color: 'text-amber-400', bg: 'bg-amber-400/10', label: 'Başarı' },
+        OPPORTUNITY: { icon: TrendingUp, color: 'text-[color:var(--accent-purple)]', bg: 'bg-purple-400/10', label: 'Fırsat' },
+        MILESTONE: { icon: Trophy, color: 'text-[color:var(--accent-warning)]', bg: 'bg-amber-400/10', label: 'Başarı' },
         ALERT: { icon: Bell, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Acil' },
         DEFAULT: { icon: Sparkles, color: 'text-zinc-400', bg: 'bg-zinc-400/10', label: 'Öneri' }
     }
@@ -59,7 +59,7 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                     <BrainCircuit className="w-5 h-5 text-zinc-400" />
                     <h2 className="font-semibold text-lg tracking-tight">Akıllı Finansal İçgörüler</h2>
                     {recommendations.length > 0 && (
-                        <span className="text-xs text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">
+                        <span className="text-xs text-zinc-500 bg-[var(--bg-hover)] px-2 py-0.5 rounded-full">
                             {recommendations.length} öneri
                         </span>
                     )}
@@ -67,9 +67,9 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                 <button
                     onClick={handleRunAnalysis}
                     disabled={isAnalyzing}
-                    className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-[var(--bg-hover)] hover:bg-[var(--bg-elevated)] transition-colors disabled:opacity-50"
                 >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-amber-400' : 'text-zinc-400'}`} />
+                    <RefreshCw className={`w-3.5 h-3.5 ${isAnalyzing ? 'animate-spin text-[color:var(--accent-warning)]' : 'text-zinc-400'}`} />
                     {isAnalyzing ? 'Analiz Ediliyor...' : 'Yeniden Analiz Et'}
                 </button>
             </div>
@@ -109,7 +109,7 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.08 }}
-                                    className={`fintech-card p-5 flex flex-col ${isAlert ? 'border border-red-500/30 bg-red-500/5' : 'border border-white/5'}`}
+                                    className={`fintech-card p-5 flex flex-col ${isAlert ? 'border border-red-500/30 bg-red-500/5' : 'border border-[var(--border-subtle)]'}`}
                                 >
                                     <div className="flex items-center gap-3 mb-3">
                                         <div className={`p-2 rounded-lg ${conf.bg}`}>
@@ -119,7 +119,7 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                                             <div className="flex items-center gap-2">
                                                 <h3 className="font-semibold text-[15px] truncate">{rec.title}</h3>
                                                 {isHighPriority && (
-                                                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-400">
+                                                    <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-[color:var(--accent-danger)]">
                                                         ÖNCELİKLİ
                                                     </span>
                                                 )}
@@ -132,7 +132,7 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                                     </p>
 
                                     {(rec.reasoning || rec.suggestedAction || rec.risk) && (
-                                        <div className="mt-auto space-y-2 pt-4 border-t border-white/5 text-xs">
+                                        <div className="mt-auto space-y-2 pt-4 border-t border-[var(--border-subtle)] text-xs">
                                             {rec.reasoning && (
                                                 <div className="flex items-start gap-2 text-zinc-500">
                                                     <span className="font-semibold mt-0.5 shrink-0">Neden:</span>
@@ -146,7 +146,7 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                                                 </div>
                                             )}
                                             {rec.suggestedAction && (
-                                                <div className="flex items-start gap-2 text-emerald-400/80">
+                                                <div className="flex items-start gap-2 text-[color:var(--accent-success)]/80">
                                                     <span className="font-semibold mt-0.5 shrink-0">Aksiyon:</span>
                                                     <span className="leading-snug">{rec.suggestedAction}</span>
                                                 </div>

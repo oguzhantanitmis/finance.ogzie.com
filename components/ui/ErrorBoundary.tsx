@@ -38,14 +38,14 @@ export default class ErrorBoundary extends Component<Props, State> {
             return (
                 <div className="fintech-card p-8 text-center">
                     <div className="w-14 h-14 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                        <AlertTriangle className="w-7 h-7 text-red-400" />
+                        <AlertTriangle className="w-7 h-7 text-[color:var(--accent-danger)]" />
                     </div>
                     <h3 className="text-lg font-bold text-white mb-2">Bir hata oluştu</h3>
                     <p className="text-zinc-400 text-sm mb-4 max-w-md mx-auto">
                         Bu bileşen yüklenirken bir sorun oluştu. Lütfen sayfayı yenileyin veya tekrar deneyin.
                     </p>
                     {this.state.error && (
-                        <p className="text-xs text-zinc-600 mb-4 font-mono bg-white/5 p-3 rounded-xl max-w-md mx-auto overflow-auto">
+                        <p className="text-xs text-zinc-600 mb-4 font-mono bg-[var(--bg-hover)] p-3 rounded-xl max-w-md mx-auto overflow-auto">
                             {this.state.error.message}
                         </p>
                     )}

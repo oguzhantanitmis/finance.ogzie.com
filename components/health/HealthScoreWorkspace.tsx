@@ -28,10 +28,10 @@ const CRITERIA_LABELS: Record<string, string> = {
 }
 
 const LEVEL_LABELS: Record<string, { text: string; color: string }> = {
-    EXCELLENT: { text: 'Mükemmel', color: 'text-emerald-400' },
-    GOOD: { text: 'İyi', color: 'text-sky-400' },
-    MODERATE: { text: 'Orta', color: 'text-amber-400' },
-    HIGH: { text: 'Yüksek Risk', color: 'text-red-400' },
+    EXCELLENT: { text: 'Mükemmel', color: 'text-[color:var(--accent-success)]' },
+    GOOD: { text: 'İyi', color: 'text-[color:var(--accent-info)]' },
+    MODERATE: { text: 'Orta', color: 'text-[color:var(--accent-warning)]' },
+    HIGH: { text: 'Yüksek Risk', color: 'text-[color:var(--accent-danger)]' },
     CRITICAL: { text: 'Kritik', color: 'text-red-500' },
 }
 
@@ -41,7 +41,7 @@ export default function HealthScoreWorkspace({ result }: Props) {
     if (!result.isReady) {
         return (
             <div className="fintech-card p-8 text-center">
-                <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-5">
+                <div className="w-16 h-16 rounded-full bg-[var(--bg-hover)] flex items-center justify-center mx-auto mb-5">
                     <Activity className="w-7 h-7 text-zinc-500" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-3">Sağlık puanı için veri yetersiz</h2>
@@ -72,13 +72,13 @@ export default function HealthScoreWorkspace({ result }: Props) {
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span className="text-4xl font-bold text-white privacy-blur">{result.score}</span>
-                        <span className="text-xs text-zinc-500">/100</span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>/100</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <span className={cn('text-xl font-bold', levelMeta.color)}>{levelMeta.text}</span>
-                    {result.trend === 'improving' && <TrendingUp className="w-5 h-5 text-emerald-400" />}
-                    {result.trend === 'declining' && <TrendingDown className="w-5 h-5 text-red-400" />}
+                    {result.trend === 'improving' && <TrendingUp className="w-5 h-5 text-[color:var(--accent-success)]" />}
+                    {result.trend === 'declining' && <TrendingDown className="w-5 h-5 text-[color:var(--accent-danger)]" />}
                     {result.trend === 'stable' && <Minus className="w-5 h-5 text-zinc-400" />}
                 </div>
             </div>
@@ -91,9 +91,9 @@ export default function HealthScoreWorkspace({ result }: Props) {
                         <div key={key} className="fintech-card p-5">
                             <div className="flex items-center justify-between mb-2">
                                 <h3 className="text-sm font-semibold text-white">{CRITERIA_LABELS[key] ?? key}</h3>
-                                <span className="text-xs text-zinc-500">%{item.weight} ağırlık</span>
+                                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>%{item.weight} ağırlık</span>
                             </div>
-                            <div className="w-full h-2 bg-white/5 rounded-full mb-2">
+                            <div className="w-full h-2 bg-[var(--bg-hover)] rounded-full mb-2">
                                 <div className={cn('h-full rounded-full', barColor)} style={{ width: `${item.score}%` }} />
                             </div>
                             <div className="flex items-center justify-between text-xs">
@@ -111,7 +111,7 @@ export default function HealthScoreWorkspace({ result }: Props) {
                 <div className="space-y-3">
                     {result.improvements.map((tip, i) => (
                         <div key={i} className="flex items-start gap-3 text-sm">
-                            <Activity className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
+                            <Activity className="w-4 h-4 text-[color:var(--accent-info)] mt-0.5 shrink-0" />
                             <p className="text-zinc-300">{tip}</p>
                         </div>
                     ))}

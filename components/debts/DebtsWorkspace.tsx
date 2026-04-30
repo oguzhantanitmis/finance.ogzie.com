@@ -64,8 +64,8 @@ export default function DebtsWorkspace({
         <div>
             <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Borç Yönetimi</h1>
-                    <p className="text-zinc-500">
+                    <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Borç Yönetimi</h1>
+                    <p style={{ color: 'var(--text-secondary)' }}>
                         Kredi, şahsi borç, kart borcu ve KMH kullanımını tek ekranda ama doğru kaynaktan takip et.
                     </p>
                 </div>
@@ -74,7 +74,7 @@ export default function DebtsWorkspace({
                         setCreateType('LOAN')
                         setShowAdd(true)
                     }}
-                    className="bg-white text-black px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-zinc-200"
+                    className="btn-primary"
                 >
                     <Plus className="w-4 h-4" /> Borç Ekle
                 </button>
@@ -82,49 +82,55 @@ export default function DebtsWorkspace({
 
             <FormMessage success={feedback?.success} message={feedback?.message} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-8">
-                <div className="fintech-card p-5">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-8 stagger-children">
+                <div className="kpi-card kpi-card-info">
                     <div className="flex items-center gap-3 mb-3">
-                        <CreditCard className="w-5 h-5 text-sky-400" />
-                        <h2 className="font-semibold">Kart borçları otomatik</h2>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-info-bg)' }}>
+                            <CreditCard className="w-4 h-4" style={{ color: 'var(--accent-info)' }} />
+                        </div>
+                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Kart borçları otomatik</h2>
                     </div>
-                    <p className="text-sm text-zinc-400">
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         Kartlarım bölümüne eklediğin kredi kartları burada ayrıca borç olarak görünür. Elle kart borcu girmen gerekmez.
                     </p>
-                    <Link href="/cards" className="inline-flex items-center gap-2 text-sm text-white mt-4">
+                    <Link href="/cards" className="inline-flex items-center gap-2 text-sm font-medium mt-4 cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
                         Kartlarımı aç →
                     </Link>
                 </div>
 
-                <div className="fintech-card p-5">
+                <div className="kpi-card kpi-card-warning">
                     <div className="flex items-center gap-3 mb-3">
-                        <Landmark className="w-5 h-5 text-amber-400" />
-                        <h2 className="font-semibold">KMH hesaplardan gelir</h2>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-warning-bg)' }}>
+                            <Landmark className="w-4 h-4" style={{ color: 'var(--accent-warning)' }} />
+                        </div>
+                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>KMH hesaplardan gelir</h2>
                     </div>
-                    <p className="text-sm text-zinc-400">
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         KMH limiti, faiz oranı, hesap kesimi ve son ödeme günü hesap kaydında tutulur. Eksi bakiye oluşunca borca yansır.
                     </p>
-                    <Link href="/accounts" className="inline-flex items-center gap-2 text-sm text-white mt-4">
+                    <Link href="/accounts" className="inline-flex items-center gap-2 text-sm font-medium mt-4 cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
                         Hesapları aç →
                     </Link>
                 </div>
 
-                <div className="fintech-card p-5">
+                <div className="kpi-card kpi-card-success">
                     <div className="flex items-center gap-3 mb-3">
-                        <Users className="w-5 h-5 text-emerald-400" />
-                        <h2 className="font-semibold">Şahsi borç kişiyle bağlanır</h2>
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-success-bg)' }}>
+                            <Users className="w-4 h-4" style={{ color: 'var(--accent-success)' }} />
+                        </div>
+                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Şahsi borç kişiyle bağlanır</h2>
                     </div>
-                    <p className="text-sm text-zinc-400">
+                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         Şahsi borç eklerken kişi seçersin. Sonra tahsilat ve ödeme hareketleri kişi kartında ve borç ekranında birlikte görünür.
                     </p>
-                    <Link href="/people" className="inline-flex items-center gap-2 text-sm text-white mt-4">
+                    <Link href="/people" className="inline-flex items-center gap-2 text-sm font-medium mt-4 cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
                         Kişilere git →
                     </Link>
                 </div>
             </div>
 
             {syncedCount > 0 ? (
-                <p className="text-sm text-zinc-500 mb-4">
+                <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
                     {syncedCount} kayıt hesaplar ve kartlardan otomatik yansıyor.
                 </p>
             ) : null}
@@ -191,14 +197,18 @@ function DebtCreateForm({
                         key={option.value}
                         type="button"
                         onClick={() => onTypeChange(option.value)}
-                        className={`rounded-2xl border p-4 text-left transition-all ${
-                            type === option.value
-                                ? 'border-white bg-white text-black'
-                                : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]'
-                        }`}
+                        className="filter-tab cursor-pointer"
+                        style={{
+                            border: type === option.value ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
+                            background: type === option.value ? 'var(--accent-primary)' : 'var(--bg-elevated)',
+                            color: type === option.value ? '#000' : 'var(--text-primary)',
+                            borderRadius: '1rem',
+                            padding: '1rem',
+                            textAlign: 'left' as const,
+                        }}
                     >
                         <p className="font-semibold mb-2">{option.label}</p>
-                        <p className={`text-sm ${type === option.value ? 'text-black/70' : 'text-zinc-400'}`}>{option.description}</p>
+                        <p className="text-sm" style={{ color: type === option.value ? 'rgba(0,0,0,0.7)' : 'var(--text-secondary)' }}>{option.description}</p>
                     </button>
                 ))}
             </div>
@@ -230,12 +240,12 @@ function PersonalDebtCreateForm({
 
     if (people.length === 0) {
         return (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                <p className="text-white font-semibold mb-2">Önce kişi eklemen gerekiyor</p>
-                <p className="text-sm text-zinc-400 mb-4">
+            <div className="fintech-card p-5">
+                <p className="font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>Önce kişi eklemen gerekiyor</p>
+                <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
                     Şahsi borçlar kişi bazlı tutulur. Önce kişi oluştur, sonra buradan seç.
                 </p>
-                <Link href="/people" className="inline-flex items-center gap-2 text-sm text-white">
+                <Link href="/people" className="inline-flex items-center gap-2 text-sm font-medium cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
                     Kişiler sayfasına git →
                 </Link>
             </div>
@@ -247,8 +257,8 @@ function PersonalDebtCreateForm({
             <input type="hidden" name="type" value="PAYABLE" />
 
             <div>
-                <label className="text-sm text-zinc-400 mb-2 block">Kişi</label>
-                <select name="personId" className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" required defaultValue={people[0]?.id}>
+                <label className="form-label">Kişi</label>
+                <select name="personId" className="form-input" required defaultValue={people[0]?.id}>
                     {people.map((person) => (
                         <option key={person.id} value={person.id}>{person.name}</option>
                     ))}
@@ -257,33 +267,33 @@ function PersonalDebtCreateForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Borç açıklaması</label>
-                    <input name="description" placeholder="Örn: Ahmet'e verilen nakit, elden borç" className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" required />
+                    <label className="form-label">Borç açıklaması</label>
+                    <input name="description" placeholder="Örn: Ahmet'e verilen nakit, elden borç" className="form-input" required />
                 </div>
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Borç tutarı</label>
-                    <input name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" required />
+                    <label className="form-label">Borç tutarı</label>
+                    <input name="amount" type="number" step="0.01" min="0.01" placeholder="0.00" className="form-input" required />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Para birimi</label>
-                    <select name="currency" defaultValue="TRY" className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5">
+                    <label className="form-label">Para birimi</label>
+                    <select name="currency" defaultValue="TRY" className="form-input">
                         <option value="TRY">TRY</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
                     </select>
                 </div>
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Ödeme tarihi</label>
-                    <input name="dueDate" type="date" className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" />
+                    <label className="form-label">Ödeme tarihi</label>
+                    <input name="dueDate" type="date" className="form-input" />
                 </div>
             </div>
 
             <div>
-                <label className="text-sm text-zinc-400 mb-2 block">Not</label>
-                <textarea name="notes" placeholder="İsteğe bağlı not" className="w-full min-h-24 bg-[#1a1a1a] rounded-xl p-3 border border-white/5" />
+                <label className="form-label">Not</label>
+                <textarea name="notes" placeholder="İsteğe bağlı not" className="form-input min-h-24" />
             </div>
 
             <FormMessage success={state.success} message={state.message} />
@@ -318,39 +328,39 @@ function PersonalDebtEditForm({
             <input type="hidden" name="personId" value={debt.personId} />
             <input type="hidden" name="type" value="PAYABLE" />
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-hover)] p-4">
                 <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Bağlı kişi</p>
                 <p className="font-semibold text-white">{personName}</p>
             </div>
 
             <div>
-                <label className="text-sm text-zinc-400 mb-2 block">Borç açıklaması</label>
-                <input name="description" defaultValue={debt.subtitle ?? debt.name} className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" required />
+                <label className="form-label">Borç açıklaması</label>
+                <input name="description" defaultValue={debt.subtitle ?? debt.name} className="form-input" required />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Toplam borç</label>
-                    <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={debt.totalBalance} className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" required />
+                    <label className="form-label">Toplam borç</label>
+                    <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={debt.totalBalance} className="form-input" required />
                 </div>
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Kalan borç</label>
-                    <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={debt.remainingBalance} className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" required />
+                    <label className="form-label">Kalan borç</label>
+                    <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={debt.remainingBalance} className="form-input" required />
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Para birimi</label>
-                    <select name="currency" defaultValue="TRY" className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5">
+                    <label className="form-label">Para birimi</label>
+                    <select name="currency" defaultValue="TRY" className="form-input">
                         <option value="TRY">TRY</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
                     </select>
                 </div>
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Ödeme tarihi</label>
-                    <input name="dueDate" type="date" defaultValue={debt.dueDate ? debt.dueDate.slice(0, 10) : ''} className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5" />
+                    <label className="form-label">Ödeme tarihi</label>
+                    <input name="dueDate" type="date" defaultValue={debt.dueDate ? debt.dueDate.slice(0, 10) : ''} className="form-input" />
                 </div>
             </div>
 
@@ -392,12 +402,12 @@ function StoredDebtForm({
 
             {mode === 'edit' ? (
                 <div>
-                    <label className="text-sm text-zinc-400 mb-2 block">Borç türü</label>
+                    <label className="form-label">Borç türü</label>
                     <select
                         name="type"
                         defaultValue={activeType}
                         onChange={(event) => setEditType(event.target.value as DebtType)}
-                        className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5"
+                        className="form-input"
                     >
                         <option value="LOAN">Banka Kredisi</option>
                         <option value="MANUAL">Diğer Borç</option>
@@ -411,7 +421,7 @@ function StoredDebtForm({
             )}
 
             <div>
-                <label className="text-sm text-zinc-400 mb-2 block">
+                <label className="form-label">
                     {isLoan ? 'Kredi adı' : isKmh ? 'KMH kayıt adı' : isCard ? 'Kart borcu kayıt adı' : 'Borç adı'}
                 </label>
                 <input
@@ -426,7 +436,7 @@ function StoredDebtForm({
                                     ? 'Örn: Eski Kart Borcu'
                                     : 'Örn: Vergi Borcu'
                     }
-                    className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5"
+                    className="form-input"
                     required
                 />
             </div>
@@ -492,7 +502,7 @@ function StoredDebtForm({
             ) : null}
 
             {mode === 'create' ? (
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     Kart borçları ve KMH kullanımı bu formdan eklenmez; ilgili kart veya hesap kaydından otomatik yansır.
                 </p>
             ) : null}
@@ -524,7 +534,7 @@ function Field({
 }) {
     return (
         <div>
-            <label className="text-sm text-zinc-400 mb-2 block">{label}</label>
+            <label className="form-label">{label}</label>
             <input
                 name={name}
                 type={type}
@@ -533,7 +543,7 @@ function Field({
                 max={max}
                 defaultValue={defaultValue ?? ''}
                 required={required}
-                className="w-full bg-[#1a1a1a] rounded-xl p-3 border border-white/5"
+                className="form-input"
             />
         </div>
     )

@@ -186,10 +186,10 @@ export default function CardDetailView({ card }: CardDetailProps) {
                 <p className="text-zinc-500 text-sm mt-1">{card.bankName} · {card.cardNetwork}</p>
             </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setShowEditCard(true)} className="p-2 rounded-xl text-zinc-600 hover:text-white hover:bg-white/10 transition-all">
+                    <button onClick={() => setShowEditCard(true)} className="p-2 rounded-xl text-zinc-600 hover:text-white hover:bg-[var(--bg-elevated)] transition-all">
                         <Pencil className="w-5 h-5" />
                     </button>
-                    <button onClick={handleDelete} className="p-2 rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                    <button onClick={handleDelete} className="p-2 rounded-xl text-zinc-600 hover:text-[color:var(--accent-danger)] hover:bg-red-500/10 transition-all">
                         <Trash2 className="w-5 h-5" />
                     </button>
                 </div>
@@ -214,7 +214,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                             updateCardPoints(card.id, parseFloat(newPoints))
                         }
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-white/5 rounded-2xl text-xs font-semibold hover:bg-zinc-800 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-[var(--border-subtle)] rounded-2xl text-xs font-semibold hover:bg-zinc-800 transition-all"
                 >
                     <Star className="w-4 h-4 text-amber-500" /> Puanı Güncelle
                 </button>
@@ -291,7 +291,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                     {costBreakdown && (
                         <div className="fintech-card p-6">
                             <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                <TrendingDown className="w-5 h-5 text-red-400" />
+                                <TrendingDown className="w-5 h-5 text-[color:var(--accent-danger)]" />
                                 {costBreakdown.label} (30 Gün Tahmini)
                             </h3>
                             <div className="space-y-3">
@@ -303,7 +303,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                 ))}
                                 <div className="border-t border-zinc-800 pt-3 flex items-center justify-between">
                                     <span className="text-white font-semibold">TOPLAM MALİYET</span>
-                                    <span className="font-mono font-bold text-red-400 privacy-blur">{formatCurrency(costBreakdown.total)}</span>
+                                    <span className="font-mono font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(costBreakdown.total)}</span>
                                 </div>
                             </div>
                         </div>
@@ -327,7 +327,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                 </div>
                                 <div className="bg-zinc-900 rounded-xl p-4">
                                     <p className="text-zinc-500 text-xs">Toplam Faiz</p>
-                                    <p className="text-xl font-bold text-red-400 font-mono privacy-blur">{formatCurrency(minimumTrap.totalInterest)}</p>
+                                    <p className="text-xl font-bold text-[color:var(--accent-danger)] font-mono privacy-blur">{formatCurrency(minimumTrap.totalInterest)}</p>
                                 </div>
                                 <div className="bg-zinc-900 rounded-xl p-4">
                                     <p className="text-zinc-500 text-xs">Toplam Vergi</p>
@@ -336,7 +336,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                             </div>
                             <p className="text-zinc-500 text-sm mt-4">
                                 ⚠️ Sadece asgari ödeme yaparsan, bu borcu kapatman <strong className="text-yellow-400">{minimumTrap.months} ay</strong> sürer
-                                ve <strong className="text-red-400">{formatCurrency(minimumTrap.totalInterest + minimumTrap.totalTax)}</strong> ekstra maliyet ödersin.
+                                ve <strong className="text-[color:var(--accent-danger)]">{formatCurrency(minimumTrap.totalInterest + minimumTrap.totalTax)}</strong> ekstra maliyet ödersin.
                             </p>
                         </div>
                     )}
@@ -345,14 +345,14 @@ export default function CardDetailView({ card }: CardDetailProps) {
                     <div className="fintech-card p-6">
                         <h3 className="font-semibold mb-4">📋 Kart Detayları</h3>
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div><span className="text-zinc-500">Toplam Limit:</span> <span className="font-mono privacy-blur">{formatCurrency(card.totalLimit)}</span></div>
-                            <div><span className="text-zinc-500">Nakit Avans Limiti:</span> <span className="font-mono privacy-blur">{formatCurrency(card.cashAdvanceLimit)}</span></div>
-                            <div><span className="text-zinc-500">Hesap Kesim:</span> <span className="font-mono">Her ayın {card.cutOffDay}. günü</span></div>
-                            <div><span className="text-zinc-500">Son Ödeme:</span> <span className="font-mono">Her ayın {card.paymentDueDay}. günü</span></div>
-                            <div><span className="text-zinc-500">Akdi Faiz:</span> <span className="font-mono">%{card.contractualRate}/ay</span></div>
-                            <div><span className="text-zinc-500">Gecikme Faizi:</span> <span className="font-mono">%{card.defaultRate}/ay</span></div>
-                            <div><span className="text-zinc-500">N. Avans Faizi:</span> <span className="font-mono">%{card.cashAdvanceRate}/ay</span></div>
-                            <div><span className="text-zinc-500">Asgari Oran:</span> <span className="font-mono">%{(card.minPaymentRate * 100).toFixed(0)}</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Toplam Limit:</span> <span className="font-mono privacy-blur">{formatCurrency(card.totalLimit)}</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Nakit Avans Limiti:</span> <span className="font-mono privacy-blur">{formatCurrency(card.cashAdvanceLimit)}</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Hesap Kesim:</span> <span className="font-mono">Her ayın {card.cutOffDay}. günü</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Son Ödeme:</span> <span className="font-mono">Her ayın {card.paymentDueDay}. günü</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Akdi Faiz:</span> <span className="font-mono">%{card.contractualRate}/ay</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Gecikme Faizi:</span> <span className="font-mono">%{card.defaultRate}/ay</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>N. Avans Faizi:</span> <span className="font-mono">%{card.cashAdvanceRate}/ay</span></div>
+                            <div><span style={{ color: 'var(--text-muted)' }}>Asgari Oran:</span> <span className="font-mono">%{(card.minPaymentRate * 100).toFixed(0)}</span></div>
                         </div>
                     </div>
                 </div>
@@ -374,7 +374,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                         <form onSubmit={handleAddTransaction} className="fintech-card p-6 mb-6 space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="text-sm text-zinc-400">Tür</label>
+                                    <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>Tür</label>
                                     <select name="type" className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm mt-1">
                                         <option value="PURCHASE">Alışveriş</option>
                                         <option value="INSTALLMENT_PURCHASE">Taksitli Alışveriş</option>
@@ -384,16 +384,16 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="text-sm text-zinc-400">Tutar (₺)</label>
+                                    <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>Tutar (₺)</label>
                                     <input name="amount" type="number" step="0.01" required className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-mono text-sm mt-1" />
                                 </div>
                             </div>
                             <div>
-                                <label className="text-sm text-zinc-400">Açıklama</label>
+                                <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>Açıklama</label>
                                 <input name="description" required placeholder="Migros Market" className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm mt-1" />
                             </div>
                             <div>
-                                <label className="text-sm text-zinc-400">Mağaza (opsiyonel)</label>
+                                <label className="text-sm" style={{ color: 'var(--text-secondary)' }}>Mağaza (opsiyonel)</label>
                                 <input name="merchant" placeholder="Migros" className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm mt-1" />
                             </div>
                             <button type="submit" disabled={loading} className="w-full py-2.5 rounded-xl bg-white text-black font-semibold text-sm disabled:opacity-50">
@@ -409,22 +409,22 @@ export default function CardDetailView({ card }: CardDetailProps) {
                             {card.transactions.map(tx => (
                                 <div key={tx.id} className="fintech-card p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${tx.type === 'REFUND' ? 'bg-emerald-500/20 text-emerald-400' :
-                                            tx.isCashAdvance ? 'bg-purple-500/20 text-purple-400' :
+                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm ${tx.type === 'REFUND' ? 'bg-emerald-500/20 text-[color:var(--accent-success)]' :
+                                            tx.isCashAdvance ? 'bg-purple-500/20 text-[color:var(--accent-purple)]' :
                                                 'bg-zinc-800 text-zinc-400'
                                             }`}>
                                             {tx.type === 'REFUND' ? '↩' : tx.isCashAdvance ? '💵' : tx.type === 'FEE' ? '📄' : '🛒'}
                                         </div>
                                         <div>
                                             <p className="text-sm font-medium">{tx.description}</p>
-                                            <p className="text-xs text-zinc-500">
+                                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                                                 {formatDate(tx.transactionDate)}
                                                 {tx.merchant && ` · ${tx.merchant}`}
                                                 {tx.totalInstallments > 1 && ` · ${tx.totalInstallments} taksit`}
                                             </p>
                                         </div>
                                     </div>
-                                    <span className={`font-mono font-bold text-sm privacy-blur ${tx.type === 'REFUND' ? 'text-emerald-400' : 'text-white'
+                                    <span className={`font-mono font-bold text-sm privacy-blur ${tx.type === 'REFUND' ? 'text-[color:var(--accent-success)]' : 'text-white'
                                         }`}>
                                         {tx.type === 'REFUND' ? '+' : '-'}{formatCurrency(tx.amount)}
                                     </span>
@@ -443,8 +443,8 @@ export default function CardDetailView({ card }: CardDetailProps) {
                     ) : (
                         <div className="space-y-3">
                             {card.statements.map(stmt => {
-                                const statusColor = stmt.status === 'PAID' ? 'text-emerald-400' :
-                                    stmt.status === 'OVERDUE' ? 'text-red-400' :
+                                const statusColor = stmt.status === 'PAID' ? 'text-[color:var(--accent-success)]' :
+                                    stmt.status === 'OVERDUE' ? 'text-[color:var(--accent-danger)]' :
                                         stmt.status === 'OPEN' ? 'text-yellow-400' : 'text-zinc-400'
                                 const statusLabel = stmt.status === 'PAID' ? 'ÖDENDİ' :
                                     stmt.status === 'OVERDUE' ? 'GECİKMİŞ' :
@@ -470,11 +470,11 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                             </div>
                                             <div>
                                                 <span className="text-zinc-500 text-xs">Ödemeler</span>
-                                                <p className="font-mono text-emerald-400 privacy-blur">{formatCurrency(stmt.paymentsReceived)}</p>
+                                                <p className="font-mono text-[color:var(--accent-success)] privacy-blur">{formatCurrency(stmt.paymentsReceived)}</p>
                                             </div>
                                             <div>
                                                 <span className="text-zinc-500 text-xs">Faiz + Vergi</span>
-                                                <p className="font-mono text-red-400 privacy-blur">{formatCurrency(stmt.interestCharged + stmt.taxCharged)}</p>
+                                                <p className="font-mono text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(stmt.interestCharged + stmt.taxCharged)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -489,7 +489,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                 <div className="max-w-lg">
                     <div className="fintech-card p-6 mb-6">
                         <h3 className="font-semibold mb-4 flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-emerald-400" />
+                            <DollarSign className="w-5 h-5 text-[color:var(--accent-success)]" />
                             Ödeme Yap
                         </h3>
 
@@ -514,7 +514,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                 <>
                                     <button
                                         onClick={() => setPaymentAmount(card.currentDebt.toFixed(2))}
-                                        className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 text-xs font-medium hover:bg-emerald-500/30"
+                                        className="px-3 py-1.5 rounded-lg bg-emerald-500/20 text-[color:var(--accent-success)] text-xs font-medium hover:bg-emerald-500/30"
                                     >
                                         Tamamını Öde
                                     </button>
@@ -539,7 +539,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                         </div>
 
                         <div className="mb-4">
-                            <label className="text-sm text-zinc-400 mb-1 block">Ödeme Tutarı (₺)</label>
+                            <label className="form-label">Ödeme Tutarı (₺)</label>
                             <input
                                 type="number"
                                 step="0.01"
@@ -559,13 +559,13 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-zinc-400">Asgari Karşılandı?</span>
-                                    <span className={preview.minimumSatisfied ? 'text-emerald-400' : 'text-red-400'}>
+                                    <span className={preview.minimumSatisfied ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]'}>
                                         {preview.minimumSatisfied ? '✅ Evet' : '❌ Hayır'}
                                     </span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-zinc-400">Tahmini Faiz (30g)</span>
-                                    <span className="font-mono text-red-400 privacy-blur">{formatCurrency(preview.projectedInterest.totalCost)}</span>
+                                    <span className="font-mono text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(preview.projectedInterest.totalCost)}</span>
                                 </div>
                             </div>
                         )}
