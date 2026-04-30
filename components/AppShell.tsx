@@ -16,10 +16,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <div className="min-h-screen bg-black text-white selection:bg-white/20 pb-20 md:pb-0">
+        <div
+            className="min-h-screen selection:bg-[var(--accent-primary)]/20"
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+        >
             <Navbar />
-            <ErrorBoundary>{children}</ErrorBoundary>
+            {/* Main Content Area — offset for sidebar (desktop) and top/bottom bars (mobile) */}
+            <main className="lg:ml-[var(--sidebar-width)] pt-[57px] pb-[72px] lg:pt-0 lg:pb-0 min-h-screen transition-all duration-300">
+                <ErrorBoundary>{children}</ErrorBoundary>
+            </main>
         </div>
     )
 }
-

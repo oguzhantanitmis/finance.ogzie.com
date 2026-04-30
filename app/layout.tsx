@@ -4,12 +4,18 @@ import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import AppShell from "@/components/AppShell";
 import { FinanceProvider } from "@/components/FinanceContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { ToastProvider } from "@/components/ui/Toast";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Ogzie Finans",
-  description: "Kişisel finans yönetim paneli",
+  description: "Kişisel finans yönetim paneli — Borç, alacak, bütçe ve nakit akışını tek panelden yönetin.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -31,11 +37,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className="dark" suppressHydrationWarning>
-      <body className={`${inter.className} bg-black text-white antialiased`}>
+      <body
+        className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased`}
+        style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}
+      >
         <AuthProvider>
-          <FinanceProvider>
-            <AppShell>{children}</AppShell>
-          </FinanceProvider>
+          <ThemeProvider>
+            <ToastProvider>
+              <FinanceProvider>
+                <AppShell>{children}</AppShell>
+              </FinanceProvider>
+            </ToastProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

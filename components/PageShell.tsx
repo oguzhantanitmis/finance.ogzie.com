@@ -4,6 +4,8 @@ interface PageShellProps {
     children: React.ReactNode
     width?: 'dar' | 'normal' | 'genis'
     className?: string
+    title?: string
+    description?: string
 }
 
 const WIDTH_CLASSNAMES: Record<NonNullable<PageShellProps['width']>, string> = {
@@ -12,18 +14,32 @@ const WIDTH_CLASSNAMES: Record<NonNullable<PageShellProps['width']>, string> = {
     genis: 'max-w-[1820px]',
 }
 
-export default function PageShell({ children, width = 'genis', className }: PageShellProps) {
+export default function PageShell({ children, width = 'genis', className, title, description }: PageShellProps) {
     return (
-        <main className="min-w-0 pb-24 lg:pl-72">
+        <div className="min-w-0">
             <div
                 className={cn(
-                    'mx-auto w-full px-4 py-5 sm:px-6 md:px-8 lg:px-10 xl:px-12',
+                    'mx-auto w-full px-4 py-6 sm:px-6 md:px-8 lg:px-10 xl:px-12',
                     WIDTH_CLASSNAMES[width],
                     className,
                 )}
             >
+                {(title || description) && (
+                    <div className="mb-6 md:mb-8">
+                        {title && (
+                            <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>
+                                {title}
+                            </h1>
+                        )}
+                        {description && (
+                            <p className="mt-1.5 text-sm md:text-base" style={{ color: 'var(--text-secondary)' }}>
+                                {description}
+                            </p>
+                        )}
+                    </div>
+                )}
                 {children}
             </div>
-        </main>
+        </div>
     )
 }
