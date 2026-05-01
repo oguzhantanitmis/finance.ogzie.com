@@ -151,28 +151,98 @@ export async function POST(req: Request) {
 
         // AI Chat — streaming response with slim context
         const context = await composeFinancialContext(user.id, 'slim')
+        const apiKey = process.env.OPENAI_API_KEY
 
-        const openaiStream = await streamOpenAI(context, prompt)
-
-        if (!openaiStream) {
-            // Fallback: no API key or error — return context-based response
-            const lines = context.split('\n').filter((l) => l.trim() && !l.startsWith('===')).slice(0, 12)
+        if (!apiKey) {
             return NextResponse.json({
-                text: lines.join('\n') + '\n\n💡 Daha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.',
+                text: generateFormattedFallback(context),
             })
         }
 
-        const textStream = createTextStream(openaiStream)
+        // Try streaming first
+        const openaiStream = await streamOpenAI(context, prompt)
 
-        return new Response(textStream, {
-            headers: {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Cache-Control': 'no-cache',
-                'Transfer-Encoding': 'chunked',
-            },
+        if (openaiStream) {
+            const textStream = createTextStream(openaiStream)
+            return new Response(textStream, {
+                headers: {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Cache-Control': 'no-cache',
+                    'Transfer-Encoding': 'chunked',
+                },
+            })
+        }
+
+        // Streaming failed — try non-streaming fallback
+        try {
+            const model = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
+            const rawBaseUrl = process.env.OPENAI_BASE_URL
+            const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
+
+            const fallbackRes = await fetch(`${baseUrl}/chat/completions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({
+                    model,
+                    messages: [
+                        { role: 'system', content: buildSystemPrompt() },
+                        { role: 'user', content: buildChatPrompt(context, prompt) },
+                    ],
+                    max_completion_tokens: 1500,
+                    temperature: 0.3,
+                }),
+            })
+
+            if (fallbackRes.ok) {
+                const data = await fallbackRes.json()
+                const text = data.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
+                return NextResponse.json({ text })
+            }
+        } catch (e) {
+            console.error('Non-streaming fallback error:', e)
+        }
+
+        // All AI attempts failed — return formatted context
+        return NextResponse.json({
+            text: generateFormattedFallback(context),
         })
     } catch (error) {
         console.error('AI API Error:', error)
         return NextResponse.json({ error: `AI Service Unavailable: ${String(error)}` }, { status: 500 })
     }
 }
+
+/** Format context data into a readable summary instead of raw dump */
+function generateFormattedFallback(context: string): string {
+    const sections: string[] = []
+
+    const balanceMatch = context.match(/Toplam bakiye: (.+)/)
+    const cashMatch = context.match(/Kullanılabilir nakit: (.+)/)
+    const healthMatch = context.match(/FİNANSAL SAĞLIK: (\d+)\/100/)
+
+    if (balanceMatch || cashMatch) {
+        sections.push('📊 **Finansal Durum**')
+        if (balanceMatch) sections.push(`• Toplam bakiye: ${balanceMatch[1]}`)
+        if (cashMatch) sections.push(`• Kullanılabilir nakit: ${cashMatch[1]}`)
+    }
+
+    if (healthMatch) {
+        const score = Number(healthMatch[1])
+        const emoji = score >= 70 ? '🟢' : score >= 40 ? '🟡' : '🔴'
+        sections.push(`\n${emoji} Sağlık Puanı: ${score}/100`)
+    }
+
+    const freeMatch = context.match(/Serbest nakit: (.+)/)
+    if (freeMatch) {
+        sections.push(`\n💰 Aylık serbest nakit: ${freeMatch[1]}`)
+    }
+
+    if (sections.length === 0) {
+        sections.push('Finansal verilerine erişildi ancak AI analizi şu an kullanılamıyor.')
+    }
+
+    sections.push('\n💡 Detaylı AI analizi için Ayarlar sayfasından API bağlantısını kontrol edin.')
+
+    return sections.join('\n')
+}
+
