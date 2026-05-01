@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Bot, User, Zap, Send } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import PageShell from '@/components/PageShell'
@@ -20,35 +20,55 @@ const QUICK_PROMPTS = [
     { label: 'Hedef takibi', prompt: 'Aktif hedeflerim ne durumda?' },
 ]
 
+/** Read a streaming response and call onChunk for each text piece */
+async function readStream(response: Response, onChunk: (text: string) => void) {
+    const contentType = response.headers.get('content-type') ?? ''
+
+    // Non-streaming JSON response (greeting, add expense, fallback)
+    if (contentType.includes('application/json')) {
+        const data = await response.json()
+        onChunk(data.text || data.error || 'Yanıt alınamadı.')
+        return
+    }
+
+    // Streaming text response
+    const reader = response.body?.getReader()
+    if (!reader) {
+        onChunk('⚠️ Bağlantı hatası.')
+        return
+    }
+
+    const decoder = new TextDecoder()
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        if (chunk) onChunk(chunk)
+    }
+    reader.releaseLock()
+}
+
 export default function AIPage() {
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: 'Merhaba. Ben finans asistanınım. Aşağıdaki hızlı butonları kullanabilir ya da doğrudan soru sorabilirsin.\n\nDurum analizi, borç stratejisi, abonelik tasarrufu ve sağlık puanı gibi konularda yardımcı olurum.' }
     ])
     const [input, setInput] = useState('')
     const [loading, setLoading] = useState(false)
-    const [showReasoningInfo, setShowReasoningInfo] = useState(false)
     const scrollRef = useRef<HTMLDivElement>(null)
-
-    // Gönderim uzun sürerse (3 sn sonrası) bilgi mesajı göster
-    useEffect(() => {
-        let timer: NodeJS.Timeout
-        if (loading) {
-            timer = setTimeout(() => setShowReasoningInfo(true), 3000)
-        } else {
-            setShowReasoningInfo(false)
-        }
-        return () => clearTimeout(timer)
-    }, [loading])
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
     }, [messages])
 
-    const sendMessage = async (text: string) => {
+    const sendMessage = useCallback(async (text: string) => {
         if (!text.trim() || loading) return
         setInput('')
         setMessages(prev => [...prev, { role: 'user', content: text }])
         setLoading(true)
+
+        // Add empty assistant message that will be streamed into
+        const assistantIndex = messages.length + 1 // after user message
+        setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
         try {
             const res = await fetch('/api/ai', {
@@ -56,16 +76,30 @@ export default function AIPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: text }),
             })
-            const data = await res.json()
-            if (data.text) {
-                setMessages(prev => [...prev, { role: 'assistant', content: data.text }])
-            }
+
+            await readStream(res, (chunk) => {
+                setMessages(prev => {
+                    const updated = [...prev]
+                    const last = updated[updated.length - 1]
+                    if (last && last.role === 'assistant') {
+                        updated[updated.length - 1] = { ...last, content: last.content + chunk }
+                    }
+                    return updated
+                })
+            })
         } catch {
-            setMessages(prev => [...prev, { role: 'assistant', content: '⚠️ Bağlantı hatası. Lütfen tekrar dene.' }])
+            setMessages(prev => {
+                const updated = [...prev]
+                const last = updated[updated.length - 1]
+                if (last && last.role === 'assistant') {
+                    updated[updated.length - 1] = { ...last, content: '⚠️ Bağlantı hatası. Lütfen tekrar dene.' }
+                }
+                return updated
+            })
         } finally {
             setLoading(false)
         }
-    }
+    }, [loading, messages.length])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -81,18 +115,25 @@ export default function AIPage() {
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Finans Asistanı</h1>
-                        <p className="text-zinc-500 text-sm">Gerçek verilerinle çalışır</p>
+                        <p className="text-sm flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--accent-success)' }} />
+                                <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: 'var(--accent-success)' }} />
+                            </span>
+                            Streaming aktif — gerçek verilerinle çalışır
+                        </p>
                     </div>
                 </header>
 
-                {/* Hızlı Butonlar */}
+                {/* Quick Prompts */}
                 <div className="flex flex-wrap gap-2 mb-4">
                     {QUICK_PROMPTS.map((qp) => (
                         <button
                             key={qp.label}
                             onClick={() => sendMessage(qp.prompt)}
                             disabled={loading}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-zinc-300 hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-all disabled:opacity-50 cursor-pointer"
+                            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-default)' }}
                         >
                             <Zap className="w-3 h-3" />
                             {qp.label}
@@ -120,46 +161,21 @@ export default function AIPage() {
                             <div className={cn(
                                 "p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
                                 msg.role === 'user'
-                                    ? "bg-[#1a1a1a] text-white border border-white/5 rounded-tr-sm"
+                                    ? "rounded-tr-sm border"
                                     : "bg-white text-black rounded-tl-sm shadow-xl"
-                            )}>
-                                {msg.content}
+                            )}
+                            style={msg.role === 'user' ? { background: 'var(--bg-elevated)', color: 'var(--text-primary)', borderColor: 'var(--border-default)' } : undefined}
+                            >
+                                {msg.content || (loading && idx === messages.length - 1 ? (
+                                    <span className="flex gap-1">
+                                        <span className="w-2 h-2 bg-black rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                        <span className="w-2 h-2 bg-black rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                        <span className="w-2 h-2 bg-black rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    </span>
+                                ) : null)}
                             </div>
                         </motion.div>
                     ))}
-                    {loading && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex flex-col gap-2 max-w-[85%]"
-                        >
-                            <div className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shrink-0">
-                                    <Bot className="w-4 h-4 text-black" />
-                                </div>
-                                <div className="p-4 rounded-2xl bg-white/10 text-white rounded-tl-sm w-24 flex items-center justify-center">
-                                    <div className="flex gap-1">
-                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <AnimatePresence>
-                                {showReasoningInfo && (
-                                    <motion.p
-                                        initial={{ opacity: 0, y: -10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0 }}
-                                        className="text-xs text-amber-500/80 ml-11 font-medium bg-amber-500/5 px-3 py-2 rounded-xl border border-amber-500/10 inline-block w-fit"
-                                    >
-                                        🧠 Yapay zeka detaylı finansal durumunuzu analiz ediyor. <br/>Kapsamlı modellerde bu işlem 10-15 saniyeyi bulabilir...
-                                    </motion.p>
-                                )}
-                            </AnimatePresence>
-                        </motion.div>
-                    )}
                 </div>
 
                 <form onSubmit={handleSubmit} className="relative">
@@ -167,13 +183,14 @@ export default function AIPage() {
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Finansal bir soru sor..."
-                        className="w-full bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl py-4 pl-4 pr-12 focus:outline-none focus:border-white/20 transition-colors"
+                        className="w-full rounded-2xl py-4 pl-4 pr-12 focus:outline-none transition-colors"
+                        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', color: 'var(--text-primary)' }}
                         disabled={loading}
                     />
                     <button
                         type="submit"
                         disabled={loading}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50 cursor-pointer"
                     >
                         <Send className="w-4 h-4 text-black" />
                     </button>

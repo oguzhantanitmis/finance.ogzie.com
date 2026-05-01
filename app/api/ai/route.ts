@@ -2,34 +2,20 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 
 import { authOptions } from '@/lib/auth'
-import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
-import { getSetting } from '@/lib/settings-service'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 30
 
-type CommandType = 'ADD_EXPENSE' | 'ADD_INCOME' | 'QUERY_BALANCE' | 'QUERY_DEBT' | 'QUERY_CARDS' | 'QUERY_HEALTH' | 'QUERY_GOALS' | 'QUERY_ACCOUNTS' | 'QUERY_SUBSCRIPTIONS' | 'GREETING' | 'AI_CHAT' | 'UNKNOWN'
+type CommandType = 'ADD_EXPENSE' | 'ADD_INCOME' | 'GREETING' | 'AI_CHAT'
 
 function parseCommand(text: string): CommandType {
-    const lowerText = text.toLowerCase()
-
-    if (['selam', 'merhaba', 'günaydın', 'iyi geceler', 'hey', 'naber'].some((word) => lowerText.includes(word))) return 'GREETING'
-
-    const incomeMatch = lowerText.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)
-    const expenseMatch = lowerText.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)
-    if (incomeMatch) return 'ADD_INCOME'
-    if (expenseMatch) return 'ADD_EXPENSE'
-
-    if (lowerText.includes('sağlık') || lowerText.includes('puan') || lowerText.includes('skor')) return 'QUERY_HEALTH'
-    if (lowerText.includes('hedef')) return 'QUERY_GOALS'
-    if (lowerText.includes('hesap') || lowerText.includes('bakiye')) return 'QUERY_ACCOUNTS'
-    if (lowerText.includes('abonelik') || lowerText.includes('tasarruf')) return 'QUERY_SUBSCRIPTIONS'
-    if (lowerText.includes('kart') || lowerText.includes('ekstre') || lowerText.includes('asgari') || lowerText.includes('faiz')) return 'QUERY_CARDS'
-    if (lowerText.includes('borç') || lowerText.includes('borcum') || lowerText.includes('kredi') || lowerText.includes('ödemem')) return 'QUERY_DEBT'
-    if (lowerText.includes('durum') || lowerText.includes('analiz') || lowerText.includes('risk') || lowerText.includes('rapor') || lowerText.includes('özetle') || lowerText.includes('özet')) return 'QUERY_BALANCE'
-
+    const lower = text.toLowerCase()
+    if (['selam', 'merhaba', 'günaydın', 'iyi geceler', 'hey', 'naber'].some((w) => lower.includes(w))) return 'GREETING'
+    if (lower.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)) return 'ADD_INCOME'
+    if (lower.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)) return 'ADD_EXPENSE'
     return 'AI_CHAT'
 }
 
@@ -38,6 +24,83 @@ function mapCurrency(input?: string) {
     if (['usd', 'dolar'].includes(input)) return 'USD'
     if (['eur', 'euro'].includes(input)) return 'EUR'
     return 'TRY'
+}
+
+/** OpenAI streaming helper — returns a ReadableStream of text chunks */
+async function streamOpenAI(context: string, userMessage: string): Promise<ReadableStream<Uint8Array> | null> {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey) return null
+
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+    const rawBaseUrl = process.env.OPENAI_BASE_URL
+    const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+            model,
+            stream: true,
+            messages: [
+                { role: 'system', content: buildSystemPrompt() },
+                { role: 'user', content: buildChatPrompt(context, userMessage) },
+            ],
+            max_completion_tokens: 1500,
+            temperature: 0.3,
+        }),
+    })
+
+    if (!response.ok || !response.body) {
+        console.error('OpenAI stream error:', response.status, response.statusText)
+        return null
+    }
+
+    return response.body
+}
+
+/** SSE stream parser — converts OpenAI SSE format to plain text chunks */
+function createTextStream(openaiStream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    return new ReadableStream({
+        async start(controller) {
+            const reader = openaiStream.getReader()
+            try {
+                while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
+
+                    buffer += decoder.decode(value, { stream: true })
+                    const lines = buffer.split('\n')
+                    buffer = lines.pop() ?? ''
+
+                    for (const line of lines) {
+                        const trimmed = line.trim()
+                        if (!trimmed || !trimmed.startsWith('data: ')) continue
+                        const data = trimmed.slice(6)
+                        if (data === '[DONE]') continue
+
+                        try {
+                            const parsed = JSON.parse(data)
+                            const content = parsed.choices?.[0]?.delta?.content
+                            if (content) {
+                                controller.enqueue(encoder.encode(content))
+                            }
+                        } catch {
+                            // Skip malformed chunks
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Stream read error:', err)
+            } finally {
+                controller.close()
+                reader.releaseLock()
+            }
+        },
+    })
 }
 
 export async function POST(req: Request) {
@@ -53,202 +116,63 @@ export async function POST(req: Request) {
         const { prompt } = (await req.json()) as { prompt: string }
         const commandType = parseCommand(prompt)
 
-        // Context-aware: tüm finansal veriyi topla
-        const context = await composeFinancialContext(user.id)
-        const summary = await getMonthlyBudgetSummary(user.id)
+        // Quick responses that don't need AI
+        if (commandType === 'GREETING') {
+            return NextResponse.json({
+                text: `Merhaba! Ben finans asistanınım. Bana şunları sorabilirsin:\n• "Bu ayki durumumu özetle"\n• "Borç stratejisi öner"\n• "Abonelik analizi yap"\n• "Sağlık puanımı açıkla"`,
+            })
+        }
 
-        let responseText = ''
-
-        // OpenAI API key kontrolü
-        const apiKey = process.env.OPENAI_API_KEY
-
-        switch (commandType) {
-            case 'GREETING':
-                responseText = `Merhaba! Ben senin finans koçunum. ${context.split('\n').slice(0, 5).join(' ').substring(0, 200)}...
-
-Bana şunları sorabilirsin:
-• "Bu ayki durumumu özetle"
-• "Borç stratejisi öner"
-• "Abonelik analizi yap"
-• "Sağlık puanımı açıkla"`
-                break
-
-            case 'ADD_INCOME': {
-                const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)
-                if (match) {
-                    const amount = Number(match[1].replace(',', '.'))
-                    const currency = mapCurrency(match[2])
-                    const category = match[3].trim() || 'Gelir'
-                    await prisma.transaction.create({
-                        data: { userId: user.id, amount, type: 'INCOME', category, description: `AI Chat: ${category}` },
-                    })
-                    responseText = `✅ ${amount.toLocaleString('tr-TR', { style: 'currency', currency })} gelir olarak işlendi.`
-                }
-                break
-            }
-
-            case 'ADD_EXPENSE': {
-                const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)
-                if (match) {
-                    const amount = Number(match[1].replace(',', '.'))
-                    const currency = mapCurrency(match[2])
-                    const category = match[3].trim() || 'Gider'
-                    await prisma.transaction.create({
-                        data: { userId: user.id, amount, type: 'EXPENSE', category, description: `AI Chat: ${category}` },
-                    })
-                    responseText = `✅ ${amount.toLocaleString('tr-TR', { style: 'currency', currency })} gider olarak işlendi.`
-                }
-                break
-            }
-
-            case 'AI_CHAT': {
-                // OpenAI varsa gerçek AI, yoksa context-based fallback
-                if (apiKey) {
-                    try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
-                        const rawBaseUrl = process.env.OPENAI_BASE_URL
-                        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
-
-                        // Denenecek modeller
-                        const modelsToTry = [requestedModel]
-                        if (requestedModel !== 'gpt-5-mini') modelsToTry.push('gpt-5-mini')
-
-                        let aiResponse: Response | null = null
-                        let aiData: any = null
-
-                        for (const model of modelsToTry) {
-                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                                body: JSON.stringify({
-                                    model,
-                                    messages: [
-                                        { role: 'system', content: buildSystemPrompt() },
-                                        { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ],
-                                    max_completion_tokens: 4096
-                                }),
-                            })
-                            aiData = await aiResponse.json()
-
-                            if (aiResponse.ok) break
-
-                            const errorMsg = aiData?.error?.message || ''
-                            if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
-                                console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
-                                continue
-                            }
-                            break
-                        }
-
-                        if (!aiResponse?.ok) {
-                            console.error('OpenAI API Error:', aiData)
-                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen hata'}`
-                        } else {
-                            responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
-                        }
-                    } catch (aiError) {
-                        console.error('OpenAI Error:', aiError)
-                        responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateFallbackAnalysis(context)}`
-                    }
-                } else {
-                    responseText = generateFallbackAnalysis(context) + '\n\n💡 Daha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.'
-                }
-                break
-            }
-
-            default: {
-                // Diğer tüm sorgu türleri de context-aware
-                if (apiKey) {
-                    try {
-                        const requestedModel = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
-                        const rawBaseUrl = process.env.OPENAI_BASE_URL
-                        const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
-
-                        // Denenecek modeller
-                        const modelsToTry = [requestedModel]
-                        if (requestedModel !== 'gpt-5-mini') modelsToTry.push('gpt-5-mini')
-
-                        let aiResponse: Response | null = null
-                        let aiData: any = null
-
-                        for (const model of modelsToTry) {
-                            aiResponse = await fetch(`${baseUrl}/chat/completions`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                                body: JSON.stringify({
-                                    model,
-                                    messages: [
-                                        { role: 'system', content: buildSystemPrompt() },
-                                        { role: 'user', content: buildChatPrompt(context, prompt) },
-                                    ]
-                                }),
-                            })
-                            aiData = await aiResponse.json()
-
-                            if (aiResponse.ok) break
-
-                            const errorMsg = aiData?.error?.message || ''
-                            if (errorMsg.includes('access to model') || errorMsg.includes('does not exist')) {
-                                console.warn(`Model ${model} erişim hatası, sonraki model deneniyor...`)
-                                continue
-                            }
-                            break
-                        }
-
-                        if (!aiResponse?.ok) {
-                            console.error('OpenAI API Error:', aiData)
-                            responseText = `API Hatası: ${aiData?.error?.message || 'Bilinmeyen hata'}`
-                        } else {
-                            responseText = aiData.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
-                        }
-                    } catch (aiError) {
-                        console.error('OpenAI Error:', aiError)
-                        responseText = `⚠️ AI servisi şu an yanıt veremiyor. Hataya rağmen verilerine bakayım:\n\n${generateContextResponse(commandType, context, summary)}`
-                    }
-                } else {
-                    responseText = generateContextResponse(commandType, context, summary)
-                }
+        if (commandType === 'ADD_INCOME') {
+            const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)
+            if (match) {
+                const amount = Number(match[1].replace(',', '.'))
+                const currency = mapCurrency(match[2])
+                const category = match[3].trim() || 'Gelir'
+                await prisma.transaction.create({
+                    data: { userId: user.id, amount, type: 'INCOME', category, description: `AI Chat: ${category}` },
+                })
+                return NextResponse.json({ text: `✅ ${amount.toLocaleString('tr-TR', { style: 'currency', currency })} gelir olarak işlendi.` })
             }
         }
 
-        return NextResponse.json({ text: responseText, role: 'assistant' })
+        if (commandType === 'ADD_EXPENSE') {
+            const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)
+            if (match) {
+                const amount = Number(match[1].replace(',', '.'))
+                const currency = mapCurrency(match[2])
+                const category = match[3].trim() || 'Gider'
+                await prisma.transaction.create({
+                    data: { userId: user.id, amount, type: 'EXPENSE', category, description: `AI Chat: ${category}` },
+                })
+                return NextResponse.json({ text: `✅ ${amount.toLocaleString('tr-TR', { style: 'currency', currency })} gider olarak işlendi.` })
+            }
+        }
+
+        // AI Chat — streaming response with slim context
+        const context = await composeFinancialContext(user.id, 'slim')
+
+        const openaiStream = await streamOpenAI(context, prompt)
+
+        if (!openaiStream) {
+            // Fallback: no API key or error — return context-based response
+            const lines = context.split('\n').filter((l) => l.trim() && !l.startsWith('===')).slice(0, 12)
+            return NextResponse.json({
+                text: lines.join('\n') + '\n\n💡 Daha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.',
+            })
+        }
+
+        const textStream = createTextStream(openaiStream)
+
+        return new Response(textStream, {
+            headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Cache-Control': 'no-cache',
+                'Transfer-Encoding': 'chunked',
+            },
+        })
     } catch (error) {
         console.error('AI API Error:', error)
         return NextResponse.json({ error: `AI Service Unavailable: ${String(error)}` }, { status: 500 })
     }
-}
-
-function generateContextResponse(type: CommandType, context: string, summary: { plannedIncome: number; fixedCommitments: number; debtCommitments: number; freeCash: number; netWorth: number }) {
-    const fmt = (n: number) => n.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
-
-    switch (type) {
-        case 'QUERY_BALANCE':
-            return `📊 Finansal Özet:\n\n• Planlanan gelir: ${fmt(summary.plannedIncome)}\n• Sabit yük: ${fmt(summary.fixedCommitments)}\n• Borç baskısı: ${fmt(summary.debtCommitments)}\n• Serbest nakit: ${fmt(summary.freeCash)}\n• Net değer: ${fmt(summary.netWorth)}`
-        case 'QUERY_HEALTH':
-            return extractSection(context, 'FİNANSAL SAĞLIK') || 'Sağlık puanı hesaplanamadı.'
-        case 'QUERY_GOALS':
-            return extractSection(context, 'AKTİF HEDEFLER') || 'Aktif hedef bulunamadı. /goals sayfasından hedef ekleyebilirsin.'
-        case 'QUERY_ACCOUNTS':
-            return extractSection(context, 'HESAPLAR') || 'Hesap bulunamadı. /accounts sayfasından hesap ekleyebilirsin.'
-        case 'QUERY_SUBSCRIPTIONS':
-            return extractSection(context, 'AYLIK GELİR-GİDER') || 'Abonelik verisi bulunamadı.'
-        case 'QUERY_CARDS':
-            return extractSection(context, 'KREDİ KARTLARI') || 'Kayıtlı kredi kartı bulunamadı.'
-        case 'QUERY_DEBT':
-            return (extractSection(context, 'BORÇLAR') || '') + '\n\n' + `Borç baskısı: ${fmt(summary.debtCommitments)}`
-        default:
-            return `Finansal verilerine göre:\n\n${context.split('\n').slice(0, 15).join('\n')}\n\nDaha detaylı analiz için Ayarlar sayfasından OpenAI API key ekleyebilirsin.`
-    }
-}
-
-function extractSection(context: string, sectionName: string): string | null {
-    const regex = new RegExp(`=== ${sectionName}.*?===\\n([\\s\\S]*?)(?=\\n===|$)`)
-    const match = context.match(regex)
-    return match ? match[1].trim() : null
-}
-
-function generateFallbackAnalysis(context: string): string {
-    const lines = context.split('\n').filter((l) => l.trim() && !l.startsWith('==='))
-    return lines.slice(0, 12).join('\n')
 }

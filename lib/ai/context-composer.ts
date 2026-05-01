@@ -9,26 +9,12 @@ import { formatCurrency } from '@/lib/utils'
 
 /**
  * Kullanıcının tüm finansal verisini AI'a context olarak hazırlar.
- * Tarihsel trendler ve pattern analizi dahil.
+ * mode='slim': Chat/QuickAction için kısa context (~50 satır, hızlı inference)
+ * mode='full': Proaktif analiz için detaylı context (tarihsel trendler dahil)
  */
-export async function composeFinancialContext(userId: string): Promise<string> {
-    const [
-        totalBalance,
-        availableCash,
-        rpSummary,
-        healthScore,
-        cards,
-        debts,
-        subscriptions,
-        recurring,
-        incomes,
-        accounts,
-        goals,
-        recentLedger,
-        monthlyReports,
-        netWorthHistory,
-        healthSnapshots,
-    ] = await Promise.all([
+export async function composeFinancialContext(userId: string, mode: 'full' | 'slim' = 'full'): Promise<string> {
+    // Core queries (always needed)
+    const corePromises = [
         getTotalBalance(userId),
         getAvailableCash(userId),
         getRPSummary(userId),
@@ -43,11 +29,41 @@ export async function composeFinancialContext(userId: string): Promise<string> {
         prisma.incomeSource.findMany({ where: { userId }, select: { name: true, amount: true, billingCycle: true } }),
         prisma.account.findMany({ where: { userId, isActive: true }, select: { name: true, type: true, balance: true, currency: true } }),
         prisma.financialGoal.findMany({ where: { userId, status: 'GOAL_ACTIVE' }, select: { id: true, title: true, targetAmount: true, currentAmount: true, targetDate: true, createdAt: true } }),
+    ] as const
+
+    // Heavy queries — only in full mode
+    const heavyPromises = mode === 'full' ? [
         prisma.ledgerEntry.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 10, select: { type: true, amount: true, description: true, date: true } }),
         getMonthlyReports(userId, 3),
         getNetWorthHistory(userId),
         prisma.healthSnapshot.findMany({ where: { userId }, orderBy: { calculatedAt: 'desc' }, take: 3, select: { score: true, calculatedAt: true } }),
-    ])
+    ] as const : [
+        Promise.resolve([]),
+        Promise.resolve([]),
+        Promise.resolve([]),
+        Promise.resolve([]),
+    ] as const
+
+    const [
+        totalBalance,
+        availableCash,
+        rpSummary,
+        healthScore,
+        cards,
+        debts,
+        subscriptions,
+        recurring,
+        incomes,
+        accounts,
+        goals,
+    ] = await Promise.all(corePromises)
+
+    const [
+        recentLedger,
+        monthlyReports,
+        netWorthHistory,
+        healthSnapshots,
+    ] = await Promise.all(heavyPromises) as [any[], any[], any[], any[]]
 
     const lines: string[] = []
 
@@ -114,7 +130,7 @@ export async function composeFinancialContext(userId: string): Promise<string> {
 
         // En yüksek artış gösteren kategori
         for (const cat of latest.byCategory.slice(0, 3)) {
-            const prevCat = previous.byCategory.find(c => c.category === cat.category)
+            const prevCat = previous.byCategory.find((c: { category: string; amount: number }) => c.category === cat.category)
             if (prevCat && cat.amount > prevCat.amount * 1.3) {
                 const increase = ((cat.amount - prevCat.amount) / prevCat.amount * 100).toFixed(0)
                 patterns.push(`${cat.category} kategorisi %${increase} arttı`)
