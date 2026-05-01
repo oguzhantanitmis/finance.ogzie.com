@@ -31,7 +31,7 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
     const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) return null
 
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini'
+    const model = process.env.OPENAI_MODEL ?? 'gpt-5-mini'
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
