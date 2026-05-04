@@ -33,7 +33,7 @@ export interface MarketTickerItem {
 }
 
 export interface MarketTickerResult {
-    status: 'missing_key' | 'ok' | 'stale' | 'empty' | 'error'
+    status: 'missing_key' | 'invalid_key' | 'ok' | 'stale' | 'empty' | 'error'
     message: string
     lastUpdatedAt: string | null
     cacheMinutes: number
@@ -130,6 +130,26 @@ function getEnabledSeries(settings: EvdsSettings) {
     return settings.series.filter((series) => series.enabled && (series.buySeriesCode || series.sellSeriesCode))
 }
 
+function hasAnyRate(items: MarketTickerItem[]) {
+    return items.some((item) => item.buyRate !== null || item.sellRate !== null)
+}
+
+async function getEvdsApiKeyState(userId: string) {
+    const raw = await getSetting(userId, SETTINGS_KEYS.apiKey)
+    if (!raw) {
+        return { status: 'missing' as const, apiKey: null }
+    }
+
+    try {
+        const apiKey = await getSecureSetting(userId, SETTINGS_KEYS.apiKey)
+        return apiKey
+            ? { status: 'ok' as const, apiKey }
+            : { status: 'missing' as const, apiKey: null }
+    } catch {
+        return { status: 'invalid' as const, apiKey: null }
+    }
+}
+
 export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
     const [apiKey, cacheRaw, seriesRaw] = await Promise.all([
         getSecureSetting(userId, SETTINGS_KEYS.apiKey).catch(() => null),
@@ -176,6 +196,8 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             where: { userId, currencyCode: series.code },
             orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
         })
+        if (!latest) continue
+
         const previous = latest
             ? await prisma.marketRate.findFirst({
                 where: {
@@ -221,9 +243,20 @@ function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number) {
 
 export async function refreshEvdsRates(userId: string): Promise<MarketTickerResult> {
     const settings = await getEvdsSettings(userId)
-    const apiKey = await getSecureSetting(userId, SETTINGS_KEYS.apiKey).catch(() => null)
+    const apiKeyState = await getEvdsApiKeyState(userId)
 
-    if (!apiKey) {
+    if (apiKeyState.status === 'invalid') {
+        const items = await getLatestStoredRates(userId, settings)
+        return {
+            status: 'invalid_key',
+            message: 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
+            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            cacheMinutes: settings.cacheMinutes,
+            items,
+        }
+    }
+
+    if (!apiKeyState.apiKey) {
         const items = await getLatestStoredRates(userId, settings)
         return {
             status: 'missing_key',
@@ -252,7 +285,7 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
 
     try {
         const response = await fetch(url, {
-            headers: { key: apiKey },
+            headers: { key: apiKeyState.apiKey },
             cache: 'no-store',
         })
 
@@ -304,6 +337,16 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         }
 
         const items = await getLatestStoredRates(userId, settings)
+        if (!hasAnyRate(items)) {
+            return {
+                status: 'empty',
+                message: 'EVDS bağlantısı başarılı ancak seçili seriler için son 10 günde veri bulunamadı. Seri kodlarını kontrol edin.',
+                lastUpdatedAt: null,
+                cacheMinutes: settings.cacheMinutes,
+                items: [],
+            }
+        }
+
         return {
             status: 'ok',
             message: 'Piyasa verileri TCMB EVDS üzerinden güncellendi.',
@@ -313,12 +356,13 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         }
     } catch (error) {
         const items = await getLatestStoredRates(userId, settings)
+        const hasStoredRate = hasAnyRate(items)
         return {
-            status: items.length > 0 ? 'stale' : 'error',
-            message: items.length > 0 ? 'Veri güncellenemedi. Son başarılı veri gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
+            status: hasStoredRate ? 'stale' : 'error',
+            message: hasStoredRate ? 'Veri güncellenemedi. Son başarılı veri gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
             lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
             cacheMinutes: settings.cacheMinutes,
-            items: items.map((item) => ({ ...item, stale: true, warning: 'Veri güncellenemedi' })),
+            items: hasStoredRate ? items.map((item) => ({ ...item, stale: true, warning: 'Veri güncellenemedi' })) : [],
         }
     }
 }
@@ -326,8 +370,19 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
 export async function getMarketTicker(userId: string): Promise<MarketTickerResult> {
     const settings = await getEvdsSettings(userId)
     const items = await getLatestStoredRates(userId, settings)
+    const apiKeyState = await getEvdsApiKeyState(userId)
 
-    if (!settings.hasApiKey) {
+    if (apiKeyState.status === 'invalid') {
+        return {
+            status: 'invalid_key',
+            message: 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
+            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            cacheMinutes: settings.cacheMinutes,
+            items,
+        }
+    }
+
+    if (!apiKeyState.apiKey) {
         return {
             status: 'missing_key',
             message: 'EVDS API anahtarı girilmedi.',

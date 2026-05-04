@@ -49,7 +49,11 @@ export default function MarketTicker({ ticker }: { ticker: MarketTickerResult })
             {showEmpty ? (
                 <div className="rounded-2xl p-5" style={{ border: '1px dashed var(--border-default)', background: 'var(--bg-hover)' }}>
                     <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
-                        {ticker.status === 'missing_key' ? 'EVDS API anahtarı girilmedi' : 'Gösterilecek piyasa verisi yok'}
+                        {ticker.status === 'missing_key'
+                            ? 'EVDS API anahtarı girilmedi'
+                            : ticker.status === 'invalid_key'
+                                ? 'EVDS API anahtarı yeniden kaydedilmeli'
+                                : 'Gösterilecek piyasa verisi yok'}
                     </p>
                     <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
                         Ayarlar sayfasında TCMB / EVDS bölümünden API anahtarı ve seri kodlarını tanımlayın.
