@@ -126,6 +126,34 @@ function parseEvdsDate(value: unknown) {
     return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]))
 }
 
+function parseTcmbXmlDate(xml: string) {
+    const dateMatch = xml.match(/\bTarih="(\d{2})\.(\d{2})\.(\d{4})"/)
+    if (dateMatch) {
+        return new Date(Number(dateMatch[3]), Number(dateMatch[2]) - 1, Number(dateMatch[1]))
+    }
+
+    const isoMatch = xml.match(/\bDate="(\d{2})\/(\d{2})\/(\d{4})"/)
+    if (isoMatch) {
+        return new Date(Number(isoMatch[3]), Number(isoMatch[1]) - 1, Number(isoMatch[2]))
+    }
+
+    return new Date()
+}
+
+function parseTcmbCurrency(xml: string, currencyCode: string) {
+    const blockMatch = xml.match(new RegExp(`<Currency[^>]+CurrencyCode="${currencyCode}"[\\s\\S]*?<\\/Currency>`))
+    const block = blockMatch?.[0]
+    if (!block) return null
+
+    const buy = block.match(/<ForexBuying>([^<]+)<\/ForexBuying>/)?.[1]
+    const sell = block.match(/<ForexSelling>([^<]+)<\/ForexSelling>/)?.[1]
+
+    return {
+        buyRate: parseNumber(buy),
+        sellRate: parseNumber(sell),
+    }
+}
+
 function getEnabledSeries(settings: EvdsSettings) {
     return settings.series.filter((series) => series.enabled && (series.buySeriesCode || series.sellSeriesCode))
 }
@@ -148,6 +176,74 @@ async function getEvdsApiKeyState(userId: string) {
     } catch {
         return { status: 'invalid' as const, apiKey: null }
     }
+}
+
+async function refreshTcmbDailyXmlRates(userId: string, settings: EvdsSettings) {
+    const enabled = getEnabledSeries(settings)
+    const fallbackCurrencyMap: Partial<Record<EvdsTickerCode, string>> = {
+        USDTRY: 'USD',
+        EURTRY: 'EUR',
+        GBPTRY: 'GBP',
+    }
+    const fallbackSeries = enabled.filter((series) => fallbackCurrencyMap[series.code])
+
+    if (fallbackSeries.length === 0) {
+        return false
+    }
+
+    const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml', {
+        cache: 'no-store',
+        headers: {
+            Accept: 'application/xml,text/xml,*/*',
+            'User-Agent': 'OgzieFinance/1.0',
+        },
+    })
+
+    if (!response.ok) {
+        throw new Error(`TCMB günlük kur HTTP ${response.status}`)
+    }
+
+    const xml = await response.text()
+    const rateDate = parseTcmbXmlDate(xml)
+    let storedCount = 0
+
+    for (const series of fallbackSeries) {
+        const fallbackCurrency = fallbackCurrencyMap[series.code]
+        if (!fallbackCurrency) continue
+
+        const parsed = parseTcmbCurrency(xml, fallbackCurrency)
+        if (!parsed || (parsed.buyRate === null && parsed.sellRate === null)) continue
+
+        await prisma.marketRate.upsert({
+            where: {
+                userId_source_currencyCode_seriesCode_rateDate: {
+                    userId,
+                    source: 'TCMB_DAILY_XML',
+                    currencyCode: series.code,
+                    seriesCode: `TCMB_DAILY_XML:${fallbackCurrency}`,
+                    rateDate,
+                },
+            },
+            create: {
+                userId,
+                source: 'TCMB_DAILY_XML',
+                currencyCode: series.code,
+                seriesCode: `TCMB_DAILY_XML:${fallbackCurrency}`,
+                buyRate: parsed.buyRate,
+                sellRate: parsed.sellRate,
+                rateDate,
+                rawResponse: { source: 'https://www.tcmb.gov.tr/kurlar/today.xml' },
+            },
+            update: {
+                buyRate: parsed.buyRate,
+                sellRate: parsed.sellRate,
+                rawResponse: { source: 'https://www.tcmb.gov.tr/kurlar/today.xml' },
+            },
+        })
+        storedCount += 1
+    }
+
+    return storedCount > 0
 }
 
 export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
@@ -246,13 +342,16 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
     const apiKeyState = await getEvdsApiKeyState(userId)
 
     if (apiKeyState.status === 'invalid') {
+        await refreshTcmbDailyXmlRates(userId, settings).catch(() => false)
         const items = await getLatestStoredRates(userId, settings)
         return {
-            status: 'invalid_key',
-            message: 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
+            status: hasAnyRate(items) ? 'stale' : 'invalid_key',
+            message: hasAnyRate(items)
+                ? 'EVDS API anahtarı çözülemedi. Resmi TCMB günlük kur yedeği gösteriliyor.'
+                : 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
             lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
             cacheMinutes: settings.cacheMinutes,
-            items,
+            items: hasAnyRate(items) ? items.map((item) => ({ ...item, stale: true, warning: 'TCMB günlük kur yedeği' })) : [],
         }
     }
 
@@ -293,7 +392,13 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             throw new Error(`EVDS HTTP ${response.status}`)
         }
 
-        const raw = await response.json()
+        const responseText = await response.text()
+        const contentType = response.headers.get('content-type') ?? ''
+        if (!contentType.includes('json') && responseText.trim().startsWith('<')) {
+            throw new Error('EVDS JSON yerine HTML döndürdü. API anahtarını ve EVDS erişimini kontrol edin.')
+        }
+
+        const raw = JSON.parse(responseText)
         const rows = Array.isArray(raw?.items) ? raw.items : []
 
         for (const series of enabled) {
@@ -355,14 +460,15 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             items,
         }
     } catch (error) {
+        await refreshTcmbDailyXmlRates(userId, settings).catch(() => false)
         const items = await getLatestStoredRates(userId, settings)
         const hasStoredRate = hasAnyRate(items)
         return {
             status: hasStoredRate ? 'stale' : 'error',
-            message: hasStoredRate ? 'Veri güncellenemedi. Son başarılı veri gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
+            message: hasStoredRate ? 'EVDS verisi alınamadı. Resmi TCMB günlük kur yedeği gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
             lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
             cacheMinutes: settings.cacheMinutes,
-            items: hasStoredRate ? items.map((item) => ({ ...item, stale: true, warning: 'Veri güncellenemedi' })) : [],
+            items: hasStoredRate ? items.map((item) => ({ ...item, stale: true, warning: 'TCMB günlük kur yedeği' })) : [],
         }
     }
 }
