@@ -139,7 +139,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         }).catch(() => []),
     ])
 
-    const marketRates = await getMarketRates()
+    const marketRates = await getMarketRates(userId)
     const totalAssets = assets.reduce(
         (sum, asset) => sum + calculateAssetValue(asset.amount, asset.type, asset.currency, marketRates),
         0,

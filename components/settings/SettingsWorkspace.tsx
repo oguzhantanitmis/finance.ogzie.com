@@ -241,30 +241,44 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                                 </tr>
                             </thead>
                             <tbody>
-                                {evdsSettings.series.map((series) => (
-                                    <tr key={series.code}>
-                                        <td>
-                                            <input
-                                                name={`${series.code}_enabled`}
-                                                type="checkbox"
-                                                defaultChecked={series.enabled}
-                                                className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
-                                            />
-                                        </td>
-                                        <td>
-                                            <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
-                                        </td>
-                                        <td>
-                                            <input name={`${series.code}_buy`} defaultValue={series.buySeriesCode} placeholder="TP.DK.USD.A.YTL" className="form-input font-mono" />
-                                        </td>
-                                        <td>
-                                            <input name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} placeholder="TP.DK.USD.S.YTL" className="form-input font-mono" />
-                                        </td>
-                                    </tr>
-                                ))}
+                                {evdsSettings.series.map((series) => {
+                                    const isGramGold = series.code === 'XAU_GRAM'
+                                    const isRepublicGold = series.code === 'XAU_REPUBLIC'
+                                    const isGold = isGramGold || isRepublicGold
+                                    const sellPlaceholder = isGramGold
+                                        ? 'TP.MK.KUL.YTL'
+                                        : isRepublicGold
+                                            ? 'TP.MK.CUM.YTL'
+                                            : 'TP.DK.USD.S.YTL'
+
+                                    return (
+                                        <tr key={series.code}>
+                                            <td>
+                                                <input
+                                                    name={`${series.code}_enabled`}
+                                                    type="checkbox"
+                                                    defaultChecked={series.enabled}
+                                                    className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
+                                                />
+                                            </td>
+                                            <td>
+                                                <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
+                                            </td>
+                                            <td>
+                                                <input name={`${series.code}_buy`} defaultValue={series.buySeriesCode} placeholder={isGold ? 'Altında boş bırakılabilir' : 'TP.DK.USD.A.YTL'} className="form-input font-mono" />
+                                            </td>
+                                            <td>
+                                                <input name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} placeholder={sellPlaceholder} className="form-input font-mono" />
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
                     </div>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Gram altın için TCMB EVDS serisi TP.MK.KUL.YTL, Cumhuriyet altını için TP.MK.CUM.YTL kullanılır. Bu seriler aylık satış fiyatıdır; döviz seri kodları altın kartlarında otomatik düzeltilir.
+                    </p>
 
                     <FormMessage success={evdsState.success} message={evdsState.message} />
                     <SubmitButton label="EVDS Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />

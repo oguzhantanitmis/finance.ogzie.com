@@ -1,5 +1,5 @@
-// Basit Mock Data Servisi
-// İleride burası TCMB veya başka bir API'ye bağlanabilir.
+import { getMarketTicker, refreshEvdsRates } from '@/lib/evds-service'
+import { prisma } from '@/lib/prisma'
 
 export interface MarketRates {
     USD: number
@@ -8,23 +8,85 @@ export interface MarketRates {
     GA: number // Gram Altın
     BTC: number
     ETH: number
+    source: string | null
+    updatedAt: Date | null
+    rateDate: Date | null
 }
 
-export async function getMarketRates(): Promise<MarketRates> {
-    // Simüle edilmiş veriler (API çağrısı yerine)
-    // Gerçek hayatta burası `fetch('https://api.vis.com/rates')` olur.
+const EMPTY_MARKET_RATES: MarketRates = {
+    USD: 0,
+    EUR: 0,
+    GBP: 0,
+    GA: 0,
+    BTC: 0,
+    ETH: 0,
+    source: null,
+    updatedAt: null,
+    rateDate: null,
+}
 
-    // Rastgele hafif değişim simülasyonu
-    const randomF = (base: number) => base + (Math.random() * 0.5 - 0.25)
+const RATE_CODES = {
+    USD: 'USDTRY',
+    EUR: 'EURTRY',
+    GBP: 'GBPTRY',
+    GA: 'XAU_GRAM',
+} as const
+
+function getRateValue(rate: { buyRate: number | null, sellRate: number | null } | null | undefined) {
+    return rate?.sellRate ?? rate?.buyRate ?? 0
+}
+
+function hasFiatRate(rates: MarketRates) {
+    return rates.USD > 0 || rates.EUR > 0 || rates.GBP > 0
+}
+
+async function readStoredMarketRates(userId: string): Promise<MarketRates> {
+    const rows = await prisma.marketRate.findMany({
+        where: {
+            userId,
+            currencyCode: { in: Object.values(RATE_CODES) },
+        },
+        orderBy: [
+            { rateDate: 'desc' },
+            { createdAt: 'desc' },
+        ],
+    })
+
+    const latestByCode = new Map<string, (typeof rows)[number]>()
+    for (const row of rows) {
+        if (!latestByCode.has(row.currencyCode)) {
+            latestByCode.set(row.currencyCode, row)
+        }
+    }
+
+    const latestMeta = Array.from(latestByCode.values()).sort((a, b) =>
+        b.createdAt.getTime() - a.createdAt.getTime(),
+    )[0]
 
     return {
-        USD: randomF(32.85),
-        EUR: randomF(35.40),
-        GBP: randomF(41.50),
-        GA: randomF(2450), // 2450 TL
-        BTC: randomF(68500), // USD
-        ETH: randomF(3500)   // USD
+        ...EMPTY_MARKET_RATES,
+        USD: getRateValue(latestByCode.get(RATE_CODES.USD)),
+        EUR: getRateValue(latestByCode.get(RATE_CODES.EUR)),
+        GBP: getRateValue(latestByCode.get(RATE_CODES.GBP)),
+        GA: getRateValue(latestByCode.get(RATE_CODES.GA)),
+        source: latestMeta?.source ?? null,
+        updatedAt: latestMeta?.createdAt ?? null,
+        rateDate: latestMeta?.rateDate ?? null,
     }
+}
+
+export async function getMarketRates(userId?: string): Promise<MarketRates> {
+    if (!userId) return EMPTY_MARKET_RATES
+
+    await getMarketTicker(userId).catch(() => null)
+
+    let rates = await readStoredMarketRates(userId)
+    if (hasFiatRate(rates)) return rates
+
+    await refreshEvdsRates(userId).catch(() => null)
+    rates = await readStoredMarketRates(userId)
+
+    return rates
 }
 
 export function calculateAssetValue(amount: number, type: string, currency: string, rates: MarketRates): number {

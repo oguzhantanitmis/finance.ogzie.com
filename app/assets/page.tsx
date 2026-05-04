@@ -19,10 +19,12 @@ export default async function AssetsPage() {
         orderBy: { amount: 'desc' }
     })
 
-    const rates = await getMarketRates()
+    const rates = await getMarketRates(user.id)
 
     const assetsWithValuation = assets.map(asset => {
-        const valueInTL = calculateAssetValue(asset.amount, asset.type, asset.currency, rates)
+        const valueInTL = asset.lastValue && asset.lastValue > 0
+            ? asset.lastValue
+            : calculateAssetValue(asset.amount, asset.type, asset.currency, rates)
         return { ...asset, valueInTL }
     })
     const totalAssetsValue = assetsWithValuation.reduce((sum, asset) => sum + asset.valueInTL, 0)
@@ -42,6 +44,8 @@ export default async function AssetsPage() {
                 }))}
                 totalAssetsValue={totalAssetsValue}
                 usdRate={rates.USD}
+                usdRateSource={rates.source}
+                usdRateUpdatedAt={rates.updatedAt?.toISOString() ?? null}
             />
         </PageShell>
     )

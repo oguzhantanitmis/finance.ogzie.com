@@ -73,16 +73,36 @@ export const DEFAULT_EVDS_SERIES: EvdsSeriesConfig[] = [
         label: 'Gram Altın',
         enabled: false,
         buySeriesCode: '',
-        sellSeriesCode: '',
+        sellSeriesCode: 'TP.MK.KUL.YTL',
     },
     {
         code: 'XAU_REPUBLIC',
         label: 'Cumhuriyet Altını',
         enabled: false,
         buySeriesCode: '',
-        sellSeriesCode: '',
+        sellSeriesCode: 'TP.MK.CUM.YTL',
     },
 ]
+
+const DEFAULT_GOLD_SELL_SERIES: Partial<Record<EvdsTickerCode, string>> = {
+    XAU_GRAM: 'TP.MK.KUL.YTL',
+    XAU_REPUBLIC: 'TP.MK.CUM.YTL',
+}
+
+function normalizeGoldSeries(series: EvdsSeriesConfig): EvdsSeriesConfig {
+    const defaultSellCode = DEFAULT_GOLD_SELL_SERIES[series.code]
+    if (!defaultSellCode) return series
+
+    const hasNoCode = !series.buySeriesCode && !series.sellSeriesCode
+    const hasCurrencyCode = series.buySeriesCode.startsWith('TP.DK.') || series.sellSeriesCode.startsWith('TP.DK.')
+    if (!hasNoCode && !hasCurrencyCode) return series
+
+    return {
+        ...series,
+        buySeriesCode: '',
+        sellSeriesCode: defaultSellCode,
+    }
+}
 
 function parseSeriesConfig(raw: string | null): EvdsSeriesConfig[] {
     if (!raw) return DEFAULT_EVDS_SERIES
@@ -90,13 +110,13 @@ function parseSeriesConfig(raw: string | null): EvdsSeriesConfig[] {
         const parsed = JSON.parse(raw) as Partial<EvdsSeriesConfig>[]
         return DEFAULT_EVDS_SERIES.map((defaults) => {
             const item = parsed.find((entry) => entry.code === defaults.code)
-            return {
+            return normalizeGoldSeries({
                 ...defaults,
                 ...item,
                 enabled: Boolean(item?.enabled),
                 buySeriesCode: String(item?.buySeriesCode ?? defaults.buySeriesCode ?? '').trim(),
                 sellSeriesCode: String(item?.sellSeriesCode ?? defaults.sellSeriesCode ?? '').trim(),
-            }
+            })
         })
     } catch {
         return DEFAULT_EVDS_SERIES
@@ -379,7 +399,8 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
 
     const seriesCodes = Array.from(new Set(enabled.flatMap((item) => [item.buySeriesCode, item.sellSeriesCode]).filter(Boolean)))
     const end = new Date()
-    const start = subDays(end, 10)
+    const hasGoldSeries = enabled.some((series) => series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC')
+    const start = subDays(end, hasGoldSeries ? 370 : 10)
     const url = `https://evds2.tcmb.gov.tr/service/evds/series=${seriesCodes.join('-')}&startDate=${formatEvdsDate(start)}&endDate=${formatEvdsDate(end)}&type=json&decimalSeperator=.`
 
     try {

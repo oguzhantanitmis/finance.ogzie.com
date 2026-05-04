@@ -2,7 +2,7 @@
 
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { Calendar, Landmark, Pencil, Plus, Repeat, Sparkles, Trash2 } from 'lucide-react'
+import { Calendar, Landmark, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
 import { createSubscriptionDraft, deleteSubscription, updateSubscription, createRecurringExpense, deleteRecurringExpense, updateRecurringExpense } from '@/app/actions'
@@ -135,7 +135,19 @@ export default function ExpensesWorkspace({
                                     <Pie data={categoryData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value" stroke="none">
                                         {categoryData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                                     </Pie>
-                                    <Tooltip formatter={(value?: number) => formatCurrency(value ?? 0, 'TRY')} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: '0.75rem', fontSize: '0.75rem' }} />
+                                    <Tooltip
+                                        formatter={(value?: number) => formatCurrency(value ?? 0, 'TRY')}
+                                        contentStyle={{
+                                            background: 'var(--bg-elevated)',
+                                            border: '1px solid var(--border-default)',
+                                            borderRadius: '0.75rem',
+                                            color: 'var(--text-primary)',
+                                            fontSize: '0.75rem',
+                                            boxShadow: 'var(--shadow-elevated)',
+                                        }}
+                                        itemStyle={{ color: 'var(--text-primary)' }}
+                                        labelStyle={{ color: 'var(--text-muted)' }}
+                                    />
                                 </PieChart>
                             </ResponsiveContainer>
                             <div className="space-y-2 mt-4">

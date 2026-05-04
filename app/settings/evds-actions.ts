@@ -15,8 +15,29 @@ import { requireCurrentUser } from '@/lib/server-auth'
 
 type EvdsField = 'apiKey' | 'cacheMinutes' | 'series'
 
+const GOLD_SELL_SERIES: Partial<Record<EvdsSeriesConfig['code'], string>> = {
+    XAU_GRAM: 'TP.MK.KUL.YTL',
+    XAU_REPUBLIC: 'TP.MK.CUM.YTL',
+}
+
+function normalizeSeriesInput(series: EvdsSeriesConfig): EvdsSeriesConfig {
+    const goldSellCode = GOLD_SELL_SERIES[series.code]
+    if (!goldSellCode || !series.enabled) return series
+
+    const hasNoCode = !series.buySeriesCode && !series.sellSeriesCode
+    const hasCurrencyCode = series.buySeriesCode.startsWith('TP.DK.') || series.sellSeriesCode.startsWith('TP.DK.')
+
+    if (!hasNoCode && !hasCurrencyCode) return series
+
+    return {
+        ...series,
+        buySeriesCode: '',
+        sellSeriesCode: goldSellCode,
+    }
+}
+
 function revalidateEvdsPaths() {
-    ;['/', '/settings', '/reports'].forEach((path) => revalidatePath(path))
+    ;['/', '/assets', '/settings', '/reports'].forEach((path) => revalidatePath(path))
 }
 
 export async function saveEvdsSettingsAction(
@@ -33,13 +54,13 @@ export async function saveEvdsSettingsAction(
 
         const series: EvdsSeriesConfig[] = DEFAULT_EVDS_SERIES.map((defaults) => {
             const code = defaults.code
-            return {
+            return normalizeSeriesInput({
                 code,
                 label: String(data.get(`${code}_label`) ?? defaults.label).trim() || defaults.label,
                 enabled: data.get(`${code}_enabled`) === 'on',
-                buySeriesCode: String(data.get(`${code}_buy`) ?? '').trim(),
-                sellSeriesCode: String(data.get(`${code}_sell`) ?? '').trim(),
-            }
+                buySeriesCode: String(data.get(`${code}_buy`) ?? defaults.buySeriesCode ?? '').trim(),
+                sellSeriesCode: String(data.get(`${code}_sell`) ?? defaults.sellSeriesCode ?? '').trim(),
+            })
         })
 
         const hasEnabledSeriesWithoutCode = series.some((item) => item.enabled && !item.buySeriesCode && !item.sellSeriesCode)

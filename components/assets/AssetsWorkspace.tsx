@@ -25,10 +25,14 @@ export default function AssetsWorkspace({
     assets,
     totalAssetsValue,
     usdRate,
+    usdRateSource,
+    usdRateUpdatedAt,
 }: {
     assets: AssetItem[]
     totalAssetsValue: number
     usdRate: number
+    usdRateSource: string | null
+    usdRateUpdatedAt: string | null
 }) {
     const [showAdd, setShowAdd] = useState(false)
     const [editingAsset, setEditingAsset] = useState<AssetItem | null>(null)
@@ -36,6 +40,21 @@ export default function AssetsWorkspace({
     const [, startDeleteTransition] = useTransition()
     const [createState, createAction] = useActionState(addAsset, EMPTY_ACTION_RESULT)
     const [updateState, updateAction] = useActionState(updateAsset, EMPTY_ACTION_RESULT)
+    const hasUsdRate = Number.isFinite(usdRate) && usdRate > 0
+    const usdSourceLabel = usdRateSource === 'TCMB_DAILY_XML'
+        ? 'TCMB günlük kur'
+        : usdRateSource === 'TCMB_EVDS'
+            ? 'TCMB EVDS'
+            : 'TCMB'
+    const usdUpdatedLabel = usdRateUpdatedAt
+        ? new Date(usdRateUpdatedAt).toLocaleString('tr-TR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
+        : null
 
     useEffect(() => {
         if (!createState.success || !showAdd) return
@@ -85,15 +104,22 @@ export default function AssetsWorkspace({
             <FormMessage success={feedback?.success} message={feedback?.message} />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div className="fintech-card p-6 bg-gradient-to-br from-green-900/20 to-black border-green-900/30">
-                    <h3 className="text-zinc-400 font-medium mb-2">Toplam Varlıklar</h3>
-                    <p className="text-3xl font-bold text-white privacy-blur">{formatCurrency(totalAssetsValue, 'TRY')}</p>
-                    <p className="text-green-400 text-sm mt-2">Kaydedilmiş veriler üzerinden hesaplandı.</p>
+                <div className="fintech-card p-6" style={{ background: 'linear-gradient(135deg, var(--accent-success-bg), var(--bg-card))', borderColor: 'var(--accent-success-border)' }}>
+                    <h3 className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Toplam Varlıklar</h3>
+                    <p className="text-3xl font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalAssetsValue, 'TRY')}</p>
+                    <p className="text-sm mt-2" style={{ color: 'var(--accent-success)' }}>Kaydedilmiş veriler üzerinden hesaplandı.</p>
                 </div>
 
                 <div className="fintech-card p-6">
-                    <h3 className="text-zinc-400 font-medium mb-2">Dolar Kuru</h3>
-                    <p className="text-3xl font-bold text-white">{formatCurrency(usdRate, 'TRY')}</p>
+                    <h3 className="font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>USD/TRY</h3>
+                    <p className="text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
+                        {hasUsdRate ? formatCurrency(usdRate, 'TRY') : 'Kur yok'}
+                    </p>
+                    <p className="text-sm mt-2" style={{ color: hasUsdRate ? 'var(--text-muted)' : 'var(--accent-warning)' }}>
+                        {hasUsdRate
+                            ? `${usdSourceLabel}${usdUpdatedLabel ? ` • ${usdUpdatedLabel}` : ''}`
+                            : 'TCMB / EVDS verisi bulunamadı.'}
+                    </p>
                 </div>
             </div>
 

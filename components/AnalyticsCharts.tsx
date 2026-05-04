@@ -1,6 +1,5 @@
 'use client'
 
-import React from 'react'
 import {
     PieChart,
     Pie,
@@ -12,7 +11,6 @@ import {
     XAxis,
     YAxis,
     CartesianGrid,
-    Legend
 } from 'recharts'
 import { useFinance } from './FinanceContext'
 import { cn } from '@/lib/utils'
@@ -20,26 +18,77 @@ import { cn } from '@/lib/utils'
 const COLORS = ['#ffffff', '#2a2a2a', '#3f3f3f', '#525252', '#737373', '#9ca3af', '#d4d4d8']
 const DEBT_COLORS = ['#ef4444', '#b91c1c', '#7f1d1d', '#f87171', '#fca5a5']
 
-export default function AnalyticsCharts({ assetDistribution, debtDistribution, conversionRates }: {
-    assetDistribution: any[],
-    debtDistribution: any[],
-    conversionRates: any
+type DistributionItem = {
+    name: string
+    value: number
+}
+
+type TooltipPayload = {
+    name?: string
+    value?: number
+    payload?: DistributionItem
+}
+
+type ChartTooltipProps = {
+    active?: boolean
+    payload?: TooltipPayload[]
+    hideAmounts: boolean
+}
+
+function ChartTooltip({ active, payload, hideAmounts }: ChartTooltipProps) {
+    if (!active || !payload?.length) return null
+
+    const item = payload[0]
+    const name = item.name ?? item.payload?.name ?? ''
+    const value = item.value ?? item.payload?.value ?? 0
+
+    return (
+        <div
+            className="p-3 rounded-xl shadow-2xl"
+            style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+            }}
+        >
+            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{name}</p>
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                {hideAmounts ? '***' : new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
+            </p>
+        </div>
+    )
+}
+
+function AmountTooltip({ active, payload, hideAmounts }: ChartTooltipProps) {
+    if (!active || !payload?.length) return null
+
+    const value = payload[0].value ?? 0
+
+    return (
+        <div
+            className="p-3 rounded-xl shadow-xl"
+            style={{
+                background: 'var(--bg-elevated)',
+                border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)',
+            }}
+        >
+            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                {hideAmounts ? '***' : new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
+            </p>
+        </div>
+    )
+}
+
+export default function AnalyticsCharts({
+    assetDistribution,
+    debtDistribution,
+}: {
+    assetDistribution: DistributionItem[]
+    debtDistribution: DistributionItem[]
+    conversionRates?: unknown
 }) {
     const { hideAmounts } = useFinance()
-
-    const CustomTooltip = ({ active, payload }: any) => {
-        if (active && payload && payload.length) {
-            return (
-                <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-xl shadow-2xl">
-                    <p className="text-xs text-zinc-500 mb-1">{payload[0].name}</p>
-                    <p className="text-sm font-bold">
-                        {hideAmounts ? '***' : new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(payload[0].value)}
-                    </p>
-                </div>
-            )
-        }
-        return null
-    }
 
     const totalAssets = assetDistribution.reduce((acc, curr) => acc + curr.value, 0)
     const totalDebts = debtDistribution.reduce((acc, curr) => acc + curr.value, 0)
@@ -66,11 +115,11 @@ export default function AnalyticsCharts({ assetDistribution, debtDistribution, c
                                 paddingAngle={2}
                                 dataKey="value"
                             >
-                                {assetDistribution.map((entry, index) => (
+                                {assetDistribution.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip content={<ChartTooltip hideAmounts={hideAmounts} />} />
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
@@ -113,11 +162,11 @@ export default function AnalyticsCharts({ assetDistribution, debtDistribution, c
                                 paddingAngle={2}
                                 dataKey="value"
                             >
-                                {debtDistribution.map((entry, index) => (
+                                {debtDistribution.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={DEBT_COLORS[index % DEBT_COLORS.length]} />
                                 ))}
                             </Pie>
-                            <Tooltip content={<CustomTooltip />} />
+                            <Tooltip content={<ChartTooltip hideAmounts={hideAmounts} />} />
                         </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
@@ -151,26 +200,15 @@ export default function AnalyticsCharts({ assetDistribution, debtDistribution, c
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={comparisonData} layout="vertical" barSize={40}>
-                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#1a1a1a" />
+                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--chart-grid)" />
                             <XAxis type="number" hide />
-                            <YAxis type="category" dataKey="name" stroke="#525252" tick={{ fill: '#a1a1aa' }} width={100} />
+                            <YAxis type="category" dataKey="name" stroke="var(--text-muted)" tick={{ fill: 'var(--text-secondary)' }} width={100} />
                             <Tooltip
                                 cursor={{ fill: 'transparent' }}
-                                content={({ active, payload }) => {
-                                    if (active && payload && payload.length) {
-                                        return (
-                                            <div className="bg-[#0a0a0a] border border-[#1a1a1a] p-3 rounded-xl shadow-xl">
-                                                <p className="text-sm font-bold text-white">
-                                                    {hideAmounts ? '***' : new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(payload[0].value as number)}
-                                                </p>
-                                            </div>
-                                        )
-                                    }
-                                    return null
-                                }}
+                                content={<AmountTooltip hideAmounts={hideAmounts} />}
                             />
                             <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
-                                {comparisonData.map((entry, index) => (
+                                {comparisonData.map((_, index) => (
                                     <Cell key={`cell-${index}`} fill={index === 0 ? '#ffffff' : '#ef4444'} />
                                 ))}
                             </Bar>
