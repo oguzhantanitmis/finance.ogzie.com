@@ -225,12 +225,12 @@ export default function PeopleWorkspace({ people, summary }: Props) {
             {showAdd ? (
                 <Modal title="Kişi Ekle" onClose={() => setShowAdd(false)}>
                     <form action={createAction} className="space-y-4">
-                        <input name="name" placeholder="Ad Soyad" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                        <input name="name" placeholder="Ad Soyad" className="form-input" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="phone" placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
-                            <input name="email" type="email" placeholder="Email (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                            <input name="phone" placeholder="Telefon (opsiyonel)" className="form-input" />
+                            <input name="email" type="email" placeholder="Email (opsiyonel)" className="form-input" />
                         </div>
-                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" placeholder="Not (opsiyonel)" className="form-input min-h-20" />
                         <FormMessage success={createState.success} message={createState.message} />
                         <SubmitButton label="Kişiyi Kaydet" pendingLabel="Kaydediliyor..." />
                     </form>
@@ -241,12 +241,12 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                 <Modal title="Kişiyi Düzenle" onClose={() => setEditingPerson(null)}>
                     <form action={updateAction} className="space-y-4">
                         <input type="hidden" name="personId" value={editingPerson.id} />
-                        <input name="name" defaultValue={editingPerson.name} placeholder="Ad Soyad" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                        <input name="name" defaultValue={editingPerson.name} placeholder="Ad Soyad" className="form-input" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="phone" defaultValue={editingPerson.phone ?? ''} placeholder="Telefon (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
-                            <input name="email" type="email" defaultValue={editingPerson.email ?? ''} placeholder="Email (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                            <input name="phone" defaultValue={editingPerson.phone ?? ''} placeholder="Telefon (opsiyonel)" className="form-input" />
+                            <input name="email" type="email" defaultValue={editingPerson.email ?? ''} placeholder="Email (opsiyonel)" className="form-input" />
                         </div>
-                        <textarea name="notes" defaultValue={editingPerson.notes ?? ''} placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <textarea name="notes" defaultValue={editingPerson.notes ?? ''} placeholder="Not (opsiyonel)" className="form-input min-h-20" />
                         <FormMessage success={updateState.success} message={updateState.message} />
                         <SubmitButton label="Kişiyi Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -265,8 +265,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                 <label className="form-label">Kişi</label>
                                 <select
                                     name="personId"
-                                    defaultValue={selectedPersonId ?? people[0]?.id}
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                                    className="form-input"
                                     required
                                 >
                                     {people.map((person) => (
@@ -277,24 +276,24 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Kayıt türü</label>
-                                    <select name="type" defaultValue="PAYABLE" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
+                                    <select name="type" defaultValue="PAYABLE" className="form-input">
                                         <option value="PAYABLE">Benim borcum</option>
                                         <option value="RECEIVABLE">Bana borçlu</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="form-label">Tutar</label>
-                                    <input name="amount" type="number" min="0.01" step="0.01" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                                    <input name="amount" type="number" min="0.01" step="0.01" className="form-input" required />
                                 </div>
                             </div>
                             <div>
                                 <label className="form-label">Açıklama</label>
-                                <input name="description" placeholder="Örn: Ahmet'e elden verilen borç" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                                <input name="description" placeholder="Örn: Ahmet'e elden verilen borç" className="form-input" required />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Para birimi</label>
-                                    <select name="currency" defaultValue="TRY" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
+                                    <select name="currency" defaultValue="TRY" className="form-input">
                                         <option value="TRY">TRY</option>
                                         <option value="USD">USD</option>
                                         <option value="EUR">EUR</option>
@@ -302,10 +301,10 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                 </div>
                                 <div>
                                     <label className="form-label">Vade</label>
-                                    <input name="dueDate" type="date" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                                    <input name="dueDate" type="date" className="form-input" />
                                 </div>
                             </div>
-                            <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                            <textarea name="notes" placeholder="Not (opsiyonel)" className="form-input min-h-20" />
                             <FormMessage success={createRecordState.success} message={createRecordState.message} />
                             <SubmitButton label="Kaydı Oluştur" pendingLabel="Kaydediliyor..." />
                         </form>

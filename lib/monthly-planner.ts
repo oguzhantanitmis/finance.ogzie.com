@@ -98,6 +98,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         incomeSources,
         budgetMonth,
         alerts,
+        rpInstallments,
     ] = await Promise.all([
         prisma.asset.findMany({ where: { userId } }),
         prisma.debt.findMany({
@@ -128,6 +129,14 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
             orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
             take: 8,
         }),
+        prisma.rPInstallment.findMany({
+            where: {
+                receivablePayable: { userId },
+                status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] },
+            },
+            include: { receivablePayable: { include: { person: { select: { name: true } } } } },
+            orderBy: { dueDate: 'asc' },
+        }).catch(() => []),
     ])
 
     const marketRates = await getMarketRates()
@@ -191,9 +200,21 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         : incomeViews.reduce((sum, income) => sum + normalizeMonthlyAmount(income.amount, income.billingCycle), 0)
 
     const debtObligations = debts.flatMap((debt) => buildDebtCommitment(debt, month, monthEnd))
+    const rpObligations: UpcomingObligation[] = rpInstallments
+        .filter((installment) => isWithinInterval(installment.dueDate, { start: month, end: monthEnd }) || installment.status === 'OVERDUE')
+        .map((installment) => ({
+            id: installment.id,
+            source: 'debt' as const,
+            name: `${installment.receivablePayable.person.name} - ${installment.receivablePayable.title ?? installment.receivablePayable.description}`,
+            amount: installment.remainingAmount,
+            currency: installment.receivablePayable.currency,
+            dueDate: installment.dueDate,
+            category: installment.receivablePayable.type === 'RECEIVABLE' ? 'Beklenen tahsilat' : 'Yapılacak ödeme',
+            note: `${installment.installmentNo}. taksit${installment.status === 'OVERDUE' ? ' - gecikti' : ''}`,
+        }))
     const debtCommitments = budgetMonth?.debtCommitments && budgetMonth.debtCommitments > 0
         ? budgetMonth.debtCommitments
-        : debtObligations.reduce((sum, debt) => sum + debt.amount, 0)
+        : debtObligations.reduce((sum, debt) => sum + debt.amount, 0) + rpObligations.filter((item) => item.category === 'Yapılacak ödeme').reduce((sum, item) => sum + item.amount, 0)
 
     const fixedCommitments = budgetMonth?.fixedCommitments && budgetMonth.fixedCommitments > 0
         ? budgetMonth.fixedCommitments
@@ -233,6 +254,9 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         ...debtObligations.filter((obligation) =>
             isWithinInterval(obligation.dueDate, { start: new Date(), end: upcomingEnd }),
         ),
+        ...rpObligations.filter((obligation) =>
+            obligation.dueDate < new Date() || isWithinInterval(obligation.dueDate, { start: new Date(), end: upcomingEnd }),
+        ),
     ].sort((left, right) => left.dueDate.getTime() - right.dueDate.getTime())
 
     const alertViews: FinanceAlertView[] = alerts.map((alert) => ({
@@ -246,9 +270,14 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
 
     return {
         month,
+        openingCash: budgetMonth?.openingCash ?? 0,
         plannedIncome,
         fixedCommitments,
         debtCommitments,
+        plannedReceivableCollection: budgetMonth?.plannedReceivableCollection ?? 0,
+        savingGoal: budgetMonth?.savingGoal ?? 0,
+        debtPaymentBudget: budgetMonth?.debtPaymentBudget ?? 0,
+        manualAdjustment: budgetMonth?.manualAdjustment ?? 0,
         freeCash,
         bufferTarget: budgetMonth?.bufferTarget ?? 0,
         notes: budgetMonth?.notes ?? null,

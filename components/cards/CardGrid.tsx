@@ -10,7 +10,10 @@ interface CardData {
     bankName: string
     last4Digits: string
     color: string
+    cardProgram?: string | null
     totalLimit: number
+    availableLimit?: number | null
+    currentDebt?: number | null
     status: string
     rewardsPoints: number
     cutOffDay: number
@@ -26,6 +29,7 @@ function formatCurrency(n: number): string {
 }
 
 function calculateDebt(card: CardData): number {
+    if (card.currentDebt && card.currentDebt > 0) return card.currentDebt
     const charges = card.transactions
         .filter(t => t.type !== 'REFUND')
         .reduce((s, t) => s + t.amount, 0)
@@ -85,6 +89,7 @@ export default function CardGrid({ cards }: { cards: CardData[] }) {
                                     <span className="font-bold text-white">{card.cardName}</span>
                                 </div>
                                 <span className="text-zinc-500 text-sm">{card.bankName}</span>
+                                {card.cardProgram ? <span className="ml-2 text-xs text-zinc-600">{card.cardProgram}</span> : null}
                             </div>
                             <div className="text-zinc-500 font-mono text-sm">
                                 •••• {card.last4Digits}
@@ -126,7 +131,7 @@ export default function CardGrid({ cards }: { cards: CardData[] }) {
                                 />
                             </div>
                             <p className="text-zinc-600 text-xs mt-1 font-mono privacy-blur">
-                                {formatCurrency(card.totalLimit - debt)} kullanılabilir
+                                {formatCurrency(card.availableLimit ?? (card.totalLimit - debt))} kullanılabilir
                             </p>
                         </div>
 

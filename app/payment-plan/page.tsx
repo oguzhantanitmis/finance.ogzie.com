@@ -7,21 +7,46 @@ import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
-const emptyPlan: PaymentPlan = { strategy: 'SAFE', items: [], totalMinPayment: 0, totalAvailable: 0, surplus: 0, riskLevel: 'LOW', warnings: [] }
+const emptyPlan: PaymentPlan = {
+    strategy: 'SAFE',
+    items: [],
+    totalMinPayment: 0,
+    totalAvailable: 0,
+    surplus: 0,
+    riskLevel: 'LOW',
+    warnings: [],
+    monthlyDebtBudget: 0,
+    estimatedFinishDate: null,
+    totalInterestEstimate: 0,
+    interestSavingEstimate: 0,
+    rationale: '',
+    pros: [],
+    cons: [],
+}
 
 export default async function PaymentPlanPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    let plans: Record<Strategy, PaymentPlan> = { SAFE: { ...emptyPlan, strategy: 'SAFE' }, AVALANCHE: { ...emptyPlan, strategy: 'AVALANCHE' }, SNOWBALL: { ...emptyPlan, strategy: 'SNOWBALL' } }
+    let plans: Record<Strategy, PaymentPlan> = {
+        SAFE: { ...emptyPlan, strategy: 'SAFE' },
+        AVALANCHE: { ...emptyPlan, strategy: 'AVALANCHE' },
+        SNOWBALL: { ...emptyPlan, strategy: 'SNOWBALL' },
+        CASHFLOW: { ...emptyPlan, strategy: 'CASHFLOW' },
+        RISK: { ...emptyPlan, strategy: 'RISK' },
+        GOAL: { ...emptyPlan, strategy: 'GOAL' },
+    }
 
     try {
-        const [safe, avalanche, snowball] = await Promise.all([
+        const [safe, avalanche, snowball, cashflow, risk, goal] = await Promise.all([
             generatePaymentPlan(user.id, 'SAFE'),
             generatePaymentPlan(user.id, 'AVALANCHE'),
             generatePaymentPlan(user.id, 'SNOWBALL'),
+            generatePaymentPlan(user.id, 'CASHFLOW'),
+            generatePaymentPlan(user.id, 'RISK'),
+            generatePaymentPlan(user.id, 'GOAL'),
         ])
-        plans = { SAFE: safe, AVALANCHE: avalanche, SNOWBALL: snowball }
+        plans = { SAFE: safe, AVALANCHE: avalanche, SNOWBALL: snowball, CASHFLOW: cashflow, RISK: risk, GOAL: goal }
     } catch (e) {
         console.error('PaymentPlanPage error:', e)
     }

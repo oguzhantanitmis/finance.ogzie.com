@@ -30,12 +30,17 @@ export interface EditableCard {
     id: string
     cardName: string
     bankName: string
+    cardProgram?: string | null
     last4Digits: string
     cardNetwork: string
     color: string
     status: string
     totalLimit: number
+    availableLimit?: number | null
+    currentDebt?: number | null
     cashAdvanceLimit: number
+    statementDate?: string | Date | null
+    dueDate?: string | Date | null
     cutOffDay: number
     paymentDueDay: number
     contractualRate: number
@@ -45,6 +50,7 @@ export interface EditableCard {
     bsmvRate?: number
     minPaymentRate: number
     rewardsPoints: number
+    description?: string | null
 }
 
 export default function CardFormModal({
@@ -78,20 +84,44 @@ export default function CardFormModal({
                         required
                         defaultValue={card?.cardName ?? ''}
                         placeholder="Akbank Axess Platinum"
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none transition-colors"
+                        className="form-input"
                     />
                 </div>
 
-                <div>
-                    <label className="form-label">Banka</label>
-                    <select
-                        name="bankName"
-                        required
-                        defaultValue={card?.bankName ?? BANKS[0]}
-                        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none"
-                    >
-                        {BANKS.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
-                    </select>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="form-label">Banka</label>
+                        <select
+                            name="bankName"
+                            required
+                            defaultValue={card?.bankName ?? BANKS[0]}
+                            className="form-input"
+                        >
+                            {BANKS.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="form-label">Kart programı</label>
+                        <select
+                            name="cardProgram"
+                            defaultValue={card?.cardProgram ?? ''}
+                            className="form-input"
+                        >
+                            <option value="">Seçiniz...</option>
+                            <option value="Axess">Axess</option>
+                            <option value="Bonus">Bonus</option>
+                            <option value="World">World</option>
+                            <option value="Maximum">Maximum</option>
+                            <option value="Paraf">Paraf</option>
+                            <option value="Wings">Wings</option>
+                            <option value="Bankkart">Bankkart</option>
+                            <option value="CardFinans">CardFinans</option>
+                            <option value="Advantage">Advantage</option>
+                            <option value="Miles&Smiles">Miles&Smiles</option>
+                            <option value="Shop&Miles">Shop&Miles</option>
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -102,7 +132,7 @@ export default function CardFormModal({
                             maxLength={4}
                             defaultValue={card?.last4Digits ?? ''}
                             placeholder="4532"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none font-mono"
+                            className="form-input font-mono"
                         />
                     </div>
                     <div>
@@ -110,11 +140,12 @@ export default function CardFormModal({
                         <select
                             name="cardNetwork"
                             defaultValue={card?.cardNetwork ?? 'VISA'}
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none"
+                            className="form-input"
                         >
                             <option value="VISA">VISA</option>
                             <option value="MASTERCARD">Mastercard</option>
                             <option value="TROY">Troy</option>
+                            <option value="AMERICAN_EXPRESS">American Express</option>
                         </select>
                     </div>
                 </div>
@@ -128,7 +159,32 @@ export default function CardFormModal({
                             required
                             defaultValue={card?.totalLimit ?? ''}
                             placeholder="50000"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none font-mono"
+                            className="form-input font-mono"
+                        />
+                    </div>
+                    <div>
+                        <label className="form-label">Güncel Borç (₺)</label>
+                        <input
+                            name="currentDebt"
+                            type="number"
+                            step="0.01"
+                            defaultValue={card?.currentDebt ?? 0}
+                            placeholder="0"
+                            className="form-input font-mono"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="form-label">Kullanılabilir Limit (₺)</label>
+                        <input
+                            name="availableLimit"
+                            type="number"
+                            step="0.01"
+                            defaultValue={card?.availableLimit ?? ''}
+                            placeholder="Boşsa limit - borç hesaplanır"
+                            className="form-input font-mono"
                         />
                     </div>
                     <div>
@@ -138,7 +194,7 @@ export default function CardFormModal({
                             type="number"
                             defaultValue={card?.cashAdvanceLimit ?? ''}
                             placeholder="25000"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none font-mono"
+                            className="form-input font-mono"
                         />
                     </div>
                 </div>
@@ -154,7 +210,7 @@ export default function CardFormModal({
                             defaultValue={card?.cutOffDay ?? ''}
                             placeholder="15"
                             required
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none font-mono"
+                            className="form-input font-mono"
                         />
                     </div>
                     <div>
@@ -167,7 +223,7 @@ export default function CardFormModal({
                             defaultValue={card?.paymentDueDay ?? ''}
                             placeholder="5"
                             required
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none font-mono"
+                            className="form-input font-mono"
                         />
                     </div>
                     <div>
@@ -177,51 +233,67 @@ export default function CardFormModal({
                             type="number"
                             defaultValue={card?.rewardsPoints ?? 0}
                             placeholder="0"
-                            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:border-white/30 outline-none font-mono"
+                            className="form-input font-mono"
                         />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="form-label">Hesap kesim tarihi</label>
+                        <input name="statementDate" type="date" defaultValue={card?.statementDate ? new Date(card.statementDate).toISOString().slice(0, 10) : ''} className="form-input" />
+                    </div>
+                    <div>
+                        <label className="form-label">Son ödeme tarihi</label>
+                        <input name="dueDate" type="date" defaultValue={card?.dueDate ? new Date(card.dueDate).toISOString().slice(0, 10) : ''} className="form-input" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                     <div>
                         <label className="form-label">Akdi Faiz (%)</label>
-                        <input name="contractualRate" type="number" step="0.01" defaultValue={card?.contractualRate ?? 4.42} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
+                        <input name="contractualRate" type="number" step="0.01" defaultValue={card?.contractualRate ?? 4.42} className="form-input font-mono text-sm" />
                     </div>
                     <div>
                         <label className="form-label">Gecikme (%)</label>
-                        <input name="defaultRate" type="number" step="0.01" defaultValue={card?.defaultRate ?? 5.42} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
+                        <input name="defaultRate" type="number" step="0.01" defaultValue={card?.defaultRate ?? 5.42} className="form-input font-mono text-sm" />
                     </div>
                     <div>
                         <label className="form-label">N. Avans (%)</label>
-                        <input name="cashAdvanceRate" type="number" step="0.01" defaultValue={card?.cashAdvanceRate ?? 5.92} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
+                        <input name="cashAdvanceRate" type="number" step="0.01" defaultValue={card?.cashAdvanceRate ?? 5.92} className="form-input font-mono text-sm" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-3">
                     <div>
                         <label className="form-label">Asgari Oran</label>
-                        <input name="minPaymentRate" type="number" step="0.01" defaultValue={card?.minPaymentRate ?? 0.2} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
+                        <input name="minPaymentRate" type="number" step="0.01" defaultValue={card?.minPaymentRate ?? 0.2} className="form-input font-mono text-sm" />
                     </div>
                     <div>
                         <label className="form-label">KKDF</label>
-                        <input name="kkdfRate" type="number" step="0.01" defaultValue={card?.kkdfRate ?? 0.15} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
+                        <input name="kkdfRate" type="number" step="0.01" defaultValue={card?.kkdfRate ?? 0.15} className="form-input font-mono text-sm" />
                     </div>
                     <div>
                         <label className="form-label">BSMV</label>
-                        <input name="bsmvRate" type="number" step="0.01" defaultValue={card?.bsmvRate ?? 0.15} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white font-mono text-sm" />
+                        <input name="bsmvRate" type="number" step="0.01" defaultValue={card?.bsmvRate ?? 0.15} className="form-input font-mono text-sm" />
                     </div>
                 </div>
 
                 {card ? (
                     <div>
                         <label className="form-label">Durum</label>
-                        <select name="status" defaultValue={card.status} className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-white">
+                        <select name="status" defaultValue={card.status} className="form-input">
                             <option value="ACTIVE">Aktif</option>
                             <option value="FROZEN">Donduruldu</option>
                             <option value="CLOSED">Kapandı</option>
                         </select>
                     </div>
                 ) : null}
+
+                <div>
+                    <label className="form-label">Açıklama</label>
+                    <textarea name="description" defaultValue={card?.description ?? ''} placeholder="Kart notları, özel limit/ödeme bilgileri" className="form-input min-h-20" />
+                </div>
 
                 <div>
                     <label className="form-label">Kart Rengi</label>
@@ -231,7 +303,7 @@ export default function CardFormModal({
                                 key={color}
                                 type="button"
                                 onClick={() => setSelectedColor(color)}
-                                className={`w-8 h-8 rounded-full transition-all ${selectedColor === color ? 'ring-2 ring-white ring-offset-2 ring-offset-black scale-110' : 'opacity-60 hover:opacity-100'}`}
+                                className={`w-8 h-8 rounded-full transition-all ${selectedColor === color ? 'ring-2 ring-offset-2 scale-110' : 'opacity-60 hover:opacity-100'}`}
                                 style={{ background: color }}
                             />
                         ))}

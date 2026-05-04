@@ -10,7 +10,22 @@ export default async function GoalsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    let serializedGoals: Array<{ id: string; title: string; description: string | null; targetAmount: number; currentAmount: number; targetDate: string; status: string; category: string | null; createdAt: string; updatedAt: string; progressPercent: number }> = []
+    let serializedGoals: Array<{
+        id: string
+        title: string
+        description: string | null
+        targetAmount: number
+        currentAmount: number
+        targetDate: string
+        status: string
+        category: string | null
+        goalType: string
+        priority: number
+        monthlyRequiredAmount: number | null
+        createdAt: string
+        updatedAt: string
+        progressPercent: number
+    }> = []
 
     try {
         const goals = await getGoals(user.id)

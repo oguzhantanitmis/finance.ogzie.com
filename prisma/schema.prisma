@@ -93,6 +93,52 @@ enum RPStatus {
   OVERDUE
 }
 
+enum RPPaymentPlanType {
+  ONE_TIME
+  INSTALLMENT
+  FLEXIBLE
+  CUSTOM_DATES
+}
+
+enum RPRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RPInstallmentStatus {
+  PENDING
+  PARTIAL_PAID
+  PAID
+  OVERDUE
+  POSTPONED
+  CANCELED
+  RESCHEDULED
+}
+
+enum RPEventType {
+  CREATED
+  PLAN_CREATED
+  PAYMENT_RECEIVED
+  PARTIAL_PAYMENT_RECEIVED
+  PAYMENT_MADE
+  PARTIAL_PAYMENT_MADE
+  INSTALLMENT_OVERDUE
+  NOTE_ADDED
+  RESCHEDULED
+  CLOSED
+  CANCELED
+  UPDATED
+}
+
+enum RPNoteType {
+  GENERAL
+  PAYMENT
+  DELAY
+  RESCHEDULE
+  PERSON_INTERNAL
+}
+
 enum AccountType {
   BANK_ACCOUNT
   CASH
@@ -276,17 +322,22 @@ model IncomeSource {
 }
 
 model BudgetMonth {
-  id               String   @id @default(cuid())
-  userId           String
-  month            DateTime
-  plannedIncome    Float    @default(0)
-  fixedCommitments Float    @default(0)
-  debtCommitments  Float    @default(0)
-  freeCash         Float    @default(0)
-  bufferTarget     Float    @default(0)
-  notes            String?  @db.Text
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                          String   @id @default(cuid())
+  userId                      String
+  month                       DateTime
+  openingCash                 Float    @default(0)
+  plannedIncome               Float    @default(0)
+  fixedCommitments            Float    @default(0)
+  debtCommitments             Float    @default(0)
+  plannedReceivableCollection Float    @default(0)
+  savingGoal                  Float    @default(0)
+  debtPaymentBudget           Float    @default(0)
+  manualAdjustment            Float    @default(0)
+  freeCash                    Float    @default(0)
+  bufferTarget                Float    @default(0)
+  notes                       String?  @db.Text
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -331,12 +382,27 @@ model FinanceJournal {
 }
 
 model Reminder {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  dueDate     DateTime
-  isCompleted Boolean  @default(false)
-  priority    String   @default("NORMAL")
+  id                String   @id @default(cuid())
+  userId            String?
+  financialRecordId String?
+  installmentId     String?
+  title             String
+  description       String?
+  dueDate           DateTime
+  isCompleted       Boolean  @default(false)
+  priority          String   @default("NORMAL")
+  reminderType      String?
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  financialRecord ReceivablePayable? @relation(fields: [financialRecordId], references: [id], onDelete: Cascade)
+  installment     RPInstallment?     @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([financialRecordId])
+  @@index([installmentId])
+  @@index([dueDate])
 }
 
 model Snapshot {
@@ -360,6 +426,7 @@ enum CardNetwork {
   VISA
   MASTERCARD
   TROY
+  AMERICAN_EXPRESS
 }
 
 enum CardStatus {
@@ -397,20 +464,28 @@ model CreditCard {
   userId String
 
   // Kart Kimliği
-  cardName    String // "Akbank Axess Platinum"
-  bankName    String // "Akbank"
-  last4Digits String // "4532"
-  cardNetwork CardNetwork @default(VISA)
-  status      CardStatus  @default(ACTIVE)
-  color       String      @default("#6366F1")
+  cardName      String // "Akbank Axess Platinum"
+  bankName      String // "Akbank"
+  cardProgram   String?
+  last4Digits   String // "4532"
+  cardNetwork   CardNetwork @default(VISA)
+  status        CardStatus  @default(ACTIVE)
+  color         String      @default("#6366F1")
+  logoPath      String?
+  cardImagePath String?
+  description   String?     @db.Text
 
   // Limitler
   totalLimit       Float // 50.000
-  cashAdvanceLimit Float @default(0)
+  cashAdvanceLimit Float  @default(0)
+  availableLimit   Float?
+  currentDebt      Float?
 
   // Faturalama Döngüsü
   cutOffDay     Int // Hesap kesim günü (1-31)
   paymentDueDay Int // Son ödeme günü (1-31)
+  statementDate DateTime?
+  dueDate       DateTime?
 
   // Faiz Oranları (Aylık %)
   contractualRate Float @default(4.42) // Akdi faiz
@@ -433,11 +508,12 @@ model CreditCard {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user             User              @relation(fields: [userId], references: [id])
+  user             User                       @relation(fields: [userId], references: [id])
   statements       CardStatement[]
   transactions     CardTransaction[]
   payments         CardPayment[]
   interestAccruals InterestAccrual[]
+  interestRecords  CreditCardInterestRecord[]
 }
 
 model CardStatement {
@@ -555,6 +631,22 @@ model InterestAccrual {
   statement  CardStatement? @relation(fields: [statementId], references: [id])
 }
 
+model CreditCardInterestRecord {
+  id           String   @id @default(cuid())
+  cardId       String
+  amount       Float
+  interestType String
+  period       String?
+  description  String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  card CreditCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+  @@index([interestType])
+  @@index([createdAt])
+}
+
 // ============================================================
 // 👤 KİŞİ YÖNETİMİ (Faz 1)
 // ============================================================
@@ -581,25 +673,45 @@ model Person {
 // ============================================================
 
 model ReceivablePayable {
-  id               String    @id @default(cuid())
-  userId           String
-  personId         String
-  type             RPType
-  description      String
-  originalAmount   Float
-  remainingAmount  Float
-  currency         String    @default("TRY")
-  dueDate          DateTime?
-  status           RPStatus  @default(OPEN)
-  notes            String?   @db.Text
-  isInstallment    Boolean   @default(false)
-  installmentCount Int?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                   String            @id @default(cuid())
+  userId               String
+  personId             String
+  type                 RPType
+  title                String?
+  category             String?
+  description          String
+  principalAmount      Float?
+  totalAmount          Float?
+  originalAmount       Float
+  paidAmount           Float             @default(0)
+  remainingAmount      Float
+  currency             String            @default("TRY")
+  startDate            DateTime?
+  dueDate              DateTime?
+  status               RPStatus          @default(OPEN)
+  notes                String?           @db.Text
+  internalNote         String?           @db.Text
+  isInstallment        Boolean           @default(false)
+  installmentCount     Int?
+  paymentPlanType      RPPaymentPlanType @default(ONE_TIME)
+  firstInstallmentDate DateTime?
+  installmentPeriod    String?
+  reminderEnabled      Boolean           @default(false)
+  reminderOptions      Json?
+  overdueAlertEnabled  Boolean           @default(true)
+  riskLevel            RPRiskLevel       @default(MEDIUM)
+  receiptFile          String?
+  closedAt             DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   person       Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
   transactions RPTransaction[]
+  installments RPInstallment[]
+  notesList    RPRecordNote[]
+  events       RPRecordEvent[]
+  reminders    Reminder[]
 
   @@index([userId])
   @@index([personId])
@@ -609,17 +721,79 @@ model ReceivablePayable {
 model RPTransaction {
   id                  String   @id @default(cuid())
   receivablePayableId String
+  installmentId       String?
   amount              Float
   transactionDate     DateTime @default(now())
   accountId           String?
+  cardId              String?
+  transactionType     String   @default("payment")
+  currency            String   @default("TRY")
+  paymentMethod       String?
+  isCash              Boolean  @default(false)
   description         String?
+  receiptFile         String?
   createdAt           DateTime @default(now())
 
   receivablePayable ReceivablePayable @relation(fields: [receivablePayableId], references: [id], onDelete: Cascade)
+  installment       RPInstallment?    @relation(fields: [installmentId], references: [id], onDelete: SetNull)
   account           Account?          @relation(fields: [accountId], references: [id])
   ledgerEntries     LedgerEntry[]
 
   @@index([receivablePayableId])
+  @@index([installmentId])
+}
+
+model RPInstallment {
+  id                  String              @id @default(cuid())
+  receivablePayableId String
+  installmentNo       Int
+  dueDate             DateTime
+  plannedAmount       Float
+  paidAmount          Float               @default(0)
+  remainingAmount     Float
+  status              RPInstallmentStatus @default(PENDING)
+  paidDate            DateTime?
+  delayDays           Int                 @default(0)
+  description         String?
+  note                String?             @db.Text
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  receivablePayable ReceivablePayable @relation(fields: [receivablePayableId], references: [id], onDelete: Cascade)
+  transactions      RPTransaction[]
+  reminders         Reminder[]
+
+  @@index([receivablePayableId])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model RPRecordNote {
+  id                  String     @id @default(cuid())
+  receivablePayableId String
+  personId            String?
+  note                String     @db.Text
+  noteType            RPNoteType @default(GENERAL)
+  createdAt           DateTime   @default(now())
+
+  receivablePayable ReceivablePayable @relation(fields: [receivablePayableId], references: [id], onDelete: Cascade)
+
+  @@index([receivablePayableId])
+  @@index([personId])
+}
+
+model RPRecordEvent {
+  id                  String      @id @default(cuid())
+  receivablePayableId String
+  eventType           RPEventType
+  eventText           String      @db.Text
+  createdAt           DateTime    @default(now())
+
+  receivablePayable ReceivablePayable @relation(fields: [receivablePayableId], references: [id], onDelete: Cascade)
+
+  @@index([receivablePayableId])
+  @@index([eventType])
+  @@index([createdAt])
 }
 
 // ============================================================
@@ -627,24 +801,24 @@ model RPTransaction {
 // ============================================================
 
 model Account {
-  id        String      @id @default(cuid())
-  userId    String
-  name      String
-  type      AccountType
-  balance   Float       @default(0)
-  currency  String      @default("TRY")
-  bankName  String?
-  iban      String?
-  hasKmh    Boolean     @default(false)
-  kmhLimit  Float?
-  kmhInterestRate Float?
-  kmhCutOffDay Int?
+  id               String      @id @default(cuid())
+  userId           String
+  name             String
+  type             AccountType
+  balance          Float       @default(0)
+  currency         String      @default("TRY")
+  bankName         String?
+  iban             String?
+  hasKmh           Boolean     @default(false)
+  kmhLimit         Float?
+  kmhInterestRate  Float?
+  kmhCutOffDay     Int?
   kmhPaymentDueDay Int?
-  isDefault Boolean     @default(false)
-  isActive  Boolean     @default(true)
-  notes     String?     @db.Text
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  isDefault        Boolean     @default(false)
+  isActive         Boolean     @default(true)
+  notes            String?     @db.Text
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   rpTransactions RPTransaction[]
@@ -731,24 +905,47 @@ model AppSettings {
 // ============================================================
 
 model FinancialGoal {
-  id            String     @id @default(cuid())
-  userId        String
-  title         String
-  description   String?    @db.Text
-  targetAmount  Float
-  currentAmount Float      @default(0)
-  targetDate    DateTime
-  status        GoalStatus @default(GOAL_ACTIVE)
-  category      String?
-  relatedDebtId String?
-  relatedCardId String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id                    String     @id @default(cuid())
+  userId                String
+  goalType              String     @default("SAVINGS")
+  title                 String
+  description           String?    @db.Text
+  targetAmount          Float
+  currentAmount         Float      @default(0)
+  targetDate            DateTime
+  priority              Int        @default(2)
+  monthlyRequiredAmount Float?
+  status                GoalStatus @default(GOAL_ACTIVE)
+  category              String?
+  relatedRecordId       String?
+  relatedDebtId         String?
+  relatedCardId         String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
+}
+
+model MarketRate {
+  id           String   @id @default(cuid())
+  userId       String?
+  source       String   @default("TCMB_EVDS")
+  currencyCode String
+  seriesCode   String
+  buyRate      Float?
+  sellRate     Float?
+  rateDate     DateTime
+  rawResponse  Json?
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, source, currencyCode, seriesCode, rateDate])
+  @@index([userId])
+  @@index([currencyCode])
+  @@index([seriesCode])
+  @@index([rateDate])
 }
 
 // ============================================================
@@ -785,15 +982,15 @@ model HealthSnapshot {
 model AIRecommendation {
   id                String    @id @default(cuid())
   userId            String
-  type              String    // STRATEGY, SAVING, WARNING, OPPORTUNITY, MILESTONE, ALERT
+  type              String // STRATEGY, SAVING, WARNING, OPPORTUNITY, MILESTONE, ALERT
   priority          Int       @default(50) // 1-100, higher = more urgent
   title             String
   content           String    @db.Text
   reasoning         String?   @db.Text
   risk              String?
   suggestedAction   String?   @db.Text
-  relatedEntityId   String?   // İlişkili hedef, borç, kart vb. ID'si
-  relatedEntityType String?   // "goal", "debt", "card", "subscription"
+  relatedEntityId   String? // İlişkili hedef, borç, kart vb. ID'si
+  relatedEntityType String? // "goal", "debt", "card", "subscription"
   isRead            Boolean   @default(false)
   isActedOn         Boolean   @default(false)
   expiresAt         DateTime? // Zaman hassas öneriler için son geçerlilik

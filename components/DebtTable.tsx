@@ -19,10 +19,54 @@ export default function DebtTable({
     onDelete: (debtId: string) => void
 }) {
     const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null)
+    const [search, setSearch] = useState('')
+    const [filter, setFilter] = useState<'ALL' | 'PERSONAL' | 'CARD' | 'KMH' | 'INSTALLMENT' | 'OVERDUE' | 'RISKY' | 'CLOSED'>('ALL')
+    const visibleDebts = debts.filter((debt) => {
+        const matchesSearch = !search || `${debt.name} ${debt.subtitle ?? ''}`.toLocaleLowerCase('tr-TR').includes(search.toLocaleLowerCase('tr-TR'))
+        if (!matchesSearch) return false
+        if (filter === 'PERSONAL') return debt.sourceKind === 'PERSONAL_RP'
+        if (filter === 'CARD') return debt.type === 'CREDIT_CARD'
+        if (filter === 'KMH') return debt.type === 'KMH'
+        if (filter === 'INSTALLMENT') return Boolean(debt.paymentPlan?.length)
+        if (filter === 'OVERDUE') return Boolean(debt.dueDate && new Date(debt.dueDate) < new Date())
+        if (filter === 'RISKY') return debt.interestRate >= 4 || (debt.limit ? (debt.remainingBalance / debt.limit) >= 0.8 : false)
+        if (filter === 'CLOSED') return debt.remainingBalance <= 0
+        return debt.remainingBalance > 0
+    })
 
     return (
         <div className="space-y-4">
-            {debts.map((debt) => {
+            <div className="fintech-card p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+                <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Borç, kişi, kurum ara..."
+                    className="form-input lg:max-w-xs"
+                />
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                    {([
+                        ['ALL', 'Tümü'],
+                        ['PERSONAL', 'Bana/Ben borçluyum'],
+                        ['CARD', 'Kredi kartı'],
+                        ['KMH', 'KMH'],
+                        ['INSTALLMENT', 'Taksitli'],
+                        ['OVERDUE', 'Geciken'],
+                        ['RISKY', 'Riskli'],
+                        ['CLOSED', 'Kapanmış'],
+                    ] as const).map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setFilter(key)}
+                            className={cn('filter-tab', filter === key && 'filter-tab-active')}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {visibleDebts.map((debt) => {
                 const isCard = debt.type === 'CREDIT_CARD'
                 const isLoan = debt.type === 'LOAN'
                 const isKMH = debt.type === 'KMH'
@@ -228,6 +272,9 @@ export default function DebtTable({
                     </div>
                 )
             })}
+            {visibleDebts.length === 0 ? (
+                <div className="fintech-card p-10 text-center" style={{ color: 'var(--text-muted)' }}>Bu filtreye uygun kayıt yok.</div>
+            ) : null}
         </div>
     )
 }

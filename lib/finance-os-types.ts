@@ -69,9 +69,14 @@ export interface FinanceAlertView {
 
 export interface MonthlyBudgetSummary {
     month: Date
+    openingCash: number
     plannedIncome: number
     fixedCommitments: number
     debtCommitments: number
+    plannedReceivableCollection: number
+    savingGoal: number
+    debtPaymentBudget: number
+    manualAdjustment: number
     freeCash: number
     bufferTarget: number
     notes: string | null

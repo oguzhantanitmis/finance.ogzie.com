@@ -1,5 +1,3 @@
-'use server'
-
 import { AccountType, type Account } from '@prisma/client'
 import { ActionError } from '@/lib/action-result'
 import { prisma } from '@/lib/prisma'
@@ -18,6 +16,27 @@ export async function getAccounts(userId: string): Promise<Account[]> {
 export async function getDefaultAccount(userId: string): Promise<Account | null> {
     return prisma.account.findFirst({
         where: { userId, isDefault: true, isActive: true },
+    })
+}
+
+export async function getOrCreateCashAccount(userId: string): Promise<Account> {
+    const existing = await prisma.account.findFirst({
+        where: { userId, isActive: true, type: 'CASH' },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    })
+    if (existing) return existing
+
+    return prisma.account.create({
+        data: {
+            userId,
+            name: 'Nakit',
+            type: 'CASH',
+            balance: 0,
+            currency: 'TRY',
+            isDefault: false,
+            isActive: true,
+            notes: 'Sistem tarafından nakit işlemler için oluşturuldu.',
+        },
     })
 }
 

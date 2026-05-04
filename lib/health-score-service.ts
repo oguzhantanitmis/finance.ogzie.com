@@ -1,5 +1,3 @@
-'use server'
-
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { endOfMonth, isWithinInterval, startOfMonth } from 'date-fns'
 

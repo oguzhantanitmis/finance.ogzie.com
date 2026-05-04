@@ -1,7 +1,6 @@
-'use server'
-
 import type { Person } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { refreshRPOverdueStatuses } from '@/lib/receivable-payable-service'
 
 export interface PersonWithSummary extends Person {
     totalReceivable: number
@@ -11,6 +10,8 @@ export interface PersonWithSummary extends Person {
 }
 
 export async function getPeople(userId: string): Promise<PersonWithSummary[]> {
+    await refreshRPOverdueStatuses(userId).catch(() => undefined)
+
     const people = await prisma.person.findMany({
         where: { userId, isActive: true },
         include: {
@@ -70,15 +71,31 @@ export async function deletePerson(personId: string, userId: string): Promise<vo
 }
 
 export async function getPersonDetail(personId: string) {
+    const owner = await prisma.person.findUniqueOrThrow({
+        where: { id: personId },
+        select: { userId: true },
+    })
+    await refreshRPOverdueStatuses(owner.userId).catch(() => undefined)
+
     return prisma.person.findUniqueOrThrow({
         where: { id: personId },
         include: {
             receivablesPayables: {
                 orderBy: { createdAt: 'desc' },
                 include: {
+                    installments: {
+                        orderBy: [{ installmentNo: 'asc' }, { dueDate: 'asc' }],
+                    },
                     transactions: {
                         orderBy: { transactionDate: 'desc' },
                         include: { account: { select: { name: true } } },
+                    },
+                    notesList: {
+                        orderBy: { createdAt: 'desc' },
+                    },
+                    events: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 30,
                     },
                 },
             },
@@ -87,6 +104,8 @@ export async function getPersonDetail(personId: string) {
 }
 
 export async function getRPSummary(userId: string) {
+    await refreshRPOverdueStatuses(userId).catch(() => undefined)
+
     const rps = await prisma.receivablePayable.findMany({
         where: { userId, status: { not: 'CLOSED' } },
         select: { type: true, remainingAmount: true, status: true, dueDate: true },

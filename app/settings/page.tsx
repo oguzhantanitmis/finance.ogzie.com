@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import PageShell from '@/components/PageShell'
 import SettingsWorkspace from '@/components/settings/SettingsWorkspace'
 import { getCardFinanceSettings } from '@/lib/card-finance-settings-service'
+import { DEFAULT_EVDS_SERIES, getEvdsSettings } from '@/lib/evds-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,11 @@ export default async function SettingsPage() {
         hasOrg: Boolean(process.env.OPENAI_ORG),
     }
     let cardSettingsData: CardSettingsData | null = null
+    const evdsSettings = await getEvdsSettings(user.id).catch(() => ({
+        hasApiKey: false,
+        cacheMinutes: 180,
+        series: DEFAULT_EVDS_SERIES,
+    }))
 
     try {
         const cardSettings = await getCardFinanceSettings(user.id)
@@ -87,6 +93,7 @@ export default async function SettingsPage() {
             </header>
             <SettingsWorkspace
                 cardSettings={cardSettingsData}
+                evdsSettings={evdsSettings}
                 aiSettings={aiSettings}
                 userProfile={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
             />

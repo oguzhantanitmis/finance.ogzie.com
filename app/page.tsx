@@ -8,6 +8,7 @@ import { Suspense } from 'react'
 import AIHeader from '@/components/AIHeader'
 import AIQuickAction from '@/components/AIQuickAction'
 import DashboardInsights from '@/components/DashboardInsights'
+import MarketTicker from '@/components/MarketTicker'
 import PageShell from '@/components/PageShell'
 import SummaryCards from '@/components/SummaryCards'
 import { getDashboardInsights } from '@/lib/dashboard-insights'
@@ -15,8 +16,9 @@ import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { getCurrentUser } from '@/lib/server-auth'
 import { formatAlertTypeLabel, formatCategoryLabel, formatObligationSourceLabel } from '@/lib/ui-text'
-import { formatCurrency, cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/utils'
 import { getDashboardData } from '@/lib/dashboard-service'
+import { getMarketTicker, type MarketTickerResult } from '@/lib/evds-service'
 import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score-service'
 import { getActiveGoalForDashboard } from '@/lib/goal-service'
 
@@ -57,16 +59,25 @@ async function DashboardContent({ userId }: { userId: string }) {
     let dashData = defaultDashData
     let healthScore: HealthScoreResult = defaultHealth
     let activeGoal: Awaited<ReturnType<typeof getActiveGoalForDashboard>> | null = null
+    let marketTicker: MarketTickerResult = {
+        status: 'missing_key',
+        message: 'EVDS API anahtarı girilmedi.',
+        lastUpdatedAt: null,
+        cacheMinutes: 180,
+        items: [],
+    }
 
     try {
-        const [d, h, g] = await Promise.all([
+        const [d, h, g, m] = await Promise.all([
             getDashboardData(userId).catch(() => defaultDashData),
             calculateHealthScore(userId).catch(() => defaultHealth),
             getActiveGoalForDashboard(userId).catch(() => null),
+            getMarketTicker(userId).catch(() => marketTicker),
         ])
         dashData = d
         healthScore = h
         activeGoal = g
+        marketTicker = m
     } catch { /* tablolar yoksa sessizce devam */ }
 
     const alerts = await syncBudgetAlerts(userId, summary).catch(() => [])
@@ -102,6 +113,8 @@ async function DashboardContent({ userId }: { userId: string }) {
             <AIHeader
                 summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
             />
+
+            <MarketTicker ticker={marketTicker} />
 
             <DashboardInsights insights={insights} />
 

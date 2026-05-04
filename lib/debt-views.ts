@@ -66,7 +66,7 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
     debts: DebtView[]
     people: DebtPersonOption[]
 }> {
-    const [manualDebts, creditCards, payables, kmhAccounts, people] = await Promise.all([
+    const [manualDebts, creditCards, payables, receivables, kmhAccounts, people] = await Promise.all([
         prisma.debt.findMany({
             where: { userId },
             include: {
@@ -101,6 +101,19 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
             where: {
                 userId,
                 type: 'PAYABLE',
+                status: { not: 'CLOSED' },
+            },
+            include: {
+                person: {
+                    select: { id: true, name: true },
+                },
+            },
+            orderBy: { remainingAmount: 'desc' },
+        }),
+        prisma.receivablePayable.findMany({
+            where: {
+                userId,
+                type: 'RECEIVABLE',
                 status: { not: 'CLOSED' },
             },
             include: {
@@ -211,6 +224,29 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
         personId: payable.person.id,
     }))
 
+    const personalReceivableViews: DebtView[] = receivables.map((receivable) => ({
+        id: `receivable-${receivable.id}`,
+        entityId: receivable.id,
+        sourceKind: 'PERSONAL_RP',
+        sourceLabel: 'Bana borcu var',
+        canEdit: false,
+        canDelete: false,
+        navigateHref: `/people/${receivable.person.id}`,
+        navigateLabel: 'Tahsilatı aç',
+        name: receivable.person.name,
+        subtitle: receivable.description,
+        type: 'PERSONAL',
+        totalBalance: receivable.originalAmount,
+        remainingBalance: receivable.remainingAmount,
+        interestRate: 0,
+        minPaymentRate: 0,
+        kkdfRate: 0,
+        bsmvRate: 0,
+        dueDate: receivable.dueDate?.toISOString() ?? null,
+        paymentPlan: [],
+        personId: receivable.person.id,
+    }))
+
     const kmhDebtViews: DebtView[] = kmhAccounts.flatMap((account) => {
             const usedAmount = Math.max(account.balance * -1, 0)
 
@@ -248,6 +284,7 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
     const debts = [
         ...creditCardDebtViews,
         ...kmhDebtViews,
+        ...personalReceivableViews,
         ...personalDebtViews,
         ...manualDebtViews,
     ].sort((left, right) => right.remainingBalance - left.remainingBalance)

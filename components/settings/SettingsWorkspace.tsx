@@ -1,13 +1,15 @@
 'use client'
 
-import { useActionState, useEffect, useState, useTransition } from 'react'
+import { useActionState, useState } from 'react'
 import { CreditCard, Settings2, Bell, Shield, CheckCircle, User2, Lock, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
+import { saveEvdsSettingsAction } from '@/app/settings/evds-actions'
 import { updateProfileAction, changePasswordAction } from '@/app/settings/profile-actions'
 import FormMessage from '@/components/ui/FormMessage'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT } from '@/lib/action-result'
+import type { EvdsSettings } from '@/lib/evds-service'
 
 interface CardSettingsData {
     contractualRate: number; defaultRate: number; cashAdvanceRate: number
@@ -17,6 +19,7 @@ interface CardSettingsData {
 
 interface Props {
     cardSettings: CardSettingsData | null
+    evdsSettings: EvdsSettings
     aiSettings: {
         connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
         model: string
@@ -39,7 +42,7 @@ const DEBT_STRATEGIES: { key: DebtStrategy; title: string; description: string; 
     { key: 'HYBRID', title: 'Hibrit Yöntem', description: 'Faiz ve bakiye dengesini gözetir.', icon: '⚡' },
 ]
 
-export default function SettingsWorkspace({ cardSettings, aiSettings, userProfile }: Props) {
+export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, userProfile }: Props) {
     const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE')
     const [privacyMode, setPrivacyMode] = useState(true)
     const [notifications, setNotifications] = useState({
@@ -49,6 +52,7 @@ export default function SettingsWorkspace({ cardSettings, aiSettings, userProfil
 
     const [profileState, profileAction] = useActionState(updateProfileAction, EMPTY_ACTION_RESULT)
     const [passwordState, passwordAction] = useActionState(changePasswordAction, EMPTY_ACTION_RESULT)
+    const [evdsState, evdsAction] = useActionState(saveEvdsSettingsAction, EMPTY_ACTION_RESULT)
 
     function handleSavePreferences() {
         if (typeof window !== 'undefined') {
@@ -184,9 +188,87 @@ export default function SettingsWorkspace({ cardSettings, aiSettings, userProfil
                         <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
                     </div>
                 </label>
-                <button onClick={handleSavePreferences} className="w-full mt-6 py-3.5 bg-white text-black font-bold rounded-2xl hover:bg-zinc-200 transition-all cursor-pointer">
+                <button onClick={handleSavePreferences} className="w-full mt-6 py-3.5 btn-primary rounded-2xl">
                     Tercihleri Kaydet
                 </button>
+            </div>
+
+            {/* ===== TCMB / EVDS Ayarları ===== */}
+            <div className="fintech-card p-6 md:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                    <Settings2 className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
+                    <div>
+                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>TCMB / EVDS Ayarları</h2>
+                        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                            API anahtarı şifreli saklanır. EVDS anahtarı boşsa dashboard piyasa kartları uyarı durumunda kalır.
+                        </p>
+                    </div>
+                </div>
+
+                <form action={evdsAction} className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-4">
+                        <div>
+                            <label className="form-label">EVDS API anahtarı</label>
+                            <input
+                                name="apiKey"
+                                type="password"
+                                autoComplete="off"
+                                placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girmezsen mevcut anahtar korunur' : 'TCMB EVDS API anahtarını gir'}
+                                className="form-input"
+                            />
+                            {evdsSettings.hasApiKey ? (
+                                <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                    <input name="keepExistingApiKey" type="checkbox" defaultChecked className="rounded border-[var(--border-default)] bg-[var(--bg-input)]" />
+                                    Mevcut API anahtarını koru
+                                </label>
+                            ) : null}
+                        </div>
+                        <div>
+                            <label className="form-label">Cache süresi (dk)</label>
+                            <input name="cacheMinutes" type="number" min="15" step="15" defaultValue={evdsSettings.cacheMinutes} className="form-input" />
+                            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>TCMB’ye gereksiz yük bindirmemek için en az 15 dk.</p>
+                        </div>
+                    </div>
+
+                    <div className="data-table-wrapper">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Göster</th>
+                                    <th>Kart adı</th>
+                                    <th>Alış seri kodu</th>
+                                    <th>Satış seri kodu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {evdsSettings.series.map((series) => (
+                                    <tr key={series.code}>
+                                        <td>
+                                            <input
+                                                name={`${series.code}_enabled`}
+                                                type="checkbox"
+                                                defaultChecked={series.enabled}
+                                                className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
+                                            />
+                                        </td>
+                                        <td>
+                                            <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
+                                        </td>
+                                        <td>
+                                            <input name={`${series.code}_buy`} defaultValue={series.buySeriesCode} placeholder="TP.DK.USD.A.YTL" className="form-input font-mono" />
+                                        </td>
+                                        <td>
+                                            <input name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} placeholder="TP.DK.USD.S.YTL" className="form-input font-mono" />
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <FormMessage success={evdsState.success} message={evdsState.message} />
+                    <SubmitButton label="EVDS Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
+                </form>
             </div>
 
             {/* ===== Kart Faiz Ayarları ===== */}
@@ -212,7 +294,7 @@ export default function SettingsWorkspace({ cardSettings, aiSettings, userProfil
                     {cardSettings?.lastUpdated && (
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Son güncelleme: {new Date(cardSettings.lastUpdated).toLocaleString('tr-TR')}</p>
                     )}
-                    <button type="submit" className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:bg-zinc-200 transition-all cursor-pointer">Kaydet</button>
+                    <button type="submit" className="w-full btn-primary py-4 rounded-2xl">Kaydet</button>
                 </form>
             </div>
 

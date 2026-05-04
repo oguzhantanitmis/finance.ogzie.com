@@ -1,5 +1,3 @@
-'use server'
-
 import type { CardFinanceSettings } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 

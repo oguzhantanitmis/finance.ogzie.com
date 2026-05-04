@@ -1,5 +1,6 @@
 'use server'
 
+import { RPNoteType, RPPaymentPlanType, RPRiskLevel } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import {
     type ActionResult,
@@ -12,14 +13,75 @@ import {
 } from '@/lib/action-result'
 import { requireCurrentUser } from '@/lib/server-auth'
 import { createPerson, updatePerson, deletePerson } from '@/lib/people-service'
-import { createRP, deleteRP, recordCollection, recordPaymentToPerson, updateRP } from '@/lib/receivable-payable-service'
+import {
+    addRPNote,
+    createRP,
+    deleteRP,
+    recordCollection,
+    recordPaymentToPerson,
+    rescheduleRemainingRP,
+    updateRP,
+} from '@/lib/receivable-payable-service'
 
 type PersonField = 'name' | 'phone' | 'email' | 'notes'
-type RPField = 'description' | 'amount' | 'originalAmount' | 'remainingAmount' | 'currency' | 'dueDate' | 'notes' | 'type'
-type RPTransactionField = 'amount' | 'accountId' | 'description'
+type RPField =
+    | 'description'
+    | 'title'
+    | 'category'
+    | 'amount'
+    | 'totalAmount'
+    | 'principalAmount'
+    | 'originalAmount'
+    | 'remainingAmount'
+    | 'currency'
+    | 'startDate'
+    | 'dueDate'
+    | 'notes'
+    | 'internalNote'
+    | 'type'
+    | 'paymentPlanType'
+    | 'installmentCount'
+    | 'firstInstallmentDate'
+    | 'installmentPeriod'
+    | 'riskLevel'
+type RPTransactionField = 'amount' | 'accountId' | 'description' | 'installmentId'
+type RPRescheduleField = 'installmentCount' | 'firstInstallmentDate' | 'installmentPeriod' | 'note'
+type RPNoteField = 'note' | 'noteType'
+type InstallmentPeriod = 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM'
 
 function revalidatePeoplePaths() {
-    ;['/', '/people', '/accounts', '/budget'].forEach((p) => revalidatePath(p))
+    ;['/', '/people', '/accounts', '/budget', '/debts', '/payment-plan', '/reports'].forEach((p) => revalidatePath(p))
+}
+
+function parseDateOrNull(value: FormDataEntryValue | null) {
+    const raw = String(value ?? '').trim()
+    return raw ? new Date(raw) : null
+}
+
+function parsePaymentPlanType(value: FormDataEntryValue | null) {
+    const raw = String(value ?? RPPaymentPlanType.ONE_TIME)
+    return Object.values(RPPaymentPlanType).includes(raw as RPPaymentPlanType)
+        ? (raw as RPPaymentPlanType)
+        : RPPaymentPlanType.ONE_TIME
+}
+
+function parseInstallmentPeriod(value: FormDataEntryValue | null): InstallmentPeriod {
+    const raw = String(value ?? 'MONTHLY')
+    return ['DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'CUSTOM'].includes(raw)
+        ? (raw as InstallmentPeriod)
+        : 'MONTHLY'
+}
+
+function parseRiskLevel(value: FormDataEntryValue | null): RPRiskLevel {
+    const raw = String(value ?? RPRiskLevel.MEDIUM)
+    return Object.values(RPRiskLevel).includes(raw as RPRiskLevel)
+        ? (raw as RPRiskLevel)
+        : RPRiskLevel.MEDIUM
+}
+
+function parseReminderOptions(data: FormData) {
+    return ['DUE_DAY', 'ONE_DAY_BEFORE', 'THREE_DAYS_BEFORE', 'ONE_WEEK_BEFORE']
+        .filter((key) => data.get(`reminder_${key}`) === 'on')
 }
 
 export async function createPersonAction(
@@ -85,15 +147,32 @@ export async function createRPAction(
 
     try {
         const user = await requireCurrentUser()
-        const dueDateStr = String(data.get('dueDate') ?? '')
+        const paymentPlanType = parsePaymentPlanType(data.get('paymentPlanType'))
+        const amount = toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 })
+        const totalAmount = Number(data.get('totalAmount') || amount)
         const rp = await createRP(user.id, {
             personId: String(data.get('personId')),
             type: data.get('type') === 'PAYABLE' ? 'PAYABLE' : 'RECEIVABLE',
+            title: toOptionalString(data.get('title')),
+            category: toOptionalString(data.get('category')),
             description: toRequiredString(data.get('description'), 'description', 'Aciklama'),
-            originalAmount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
+            originalAmount: amount,
+            principalAmount: Number(data.get('principalAmount') || amount),
+            totalAmount,
             currency: String(data.get('currency') ?? 'TRY'),
-            dueDate: dueDateStr ? new Date(dueDateStr) : null,
+            startDate: parseDateOrNull(data.get('startDate')),
+            dueDate: parseDateOrNull(data.get('dueDate')),
             notes: toOptionalString(data.get('notes')),
+            internalNote: toOptionalString(data.get('internalNote')),
+            isInstallment: paymentPlanType === 'INSTALLMENT',
+            installmentCount: Number(data.get('installmentCount') || 0) || undefined,
+            paymentPlanType,
+            firstInstallmentDate: parseDateOrNull(data.get('firstInstallmentDate')),
+            installmentPeriod: parseInstallmentPeriod(data.get('installmentPeriod')),
+            reminderEnabled: data.get('reminderEnabled') === 'on',
+            reminderOptions: parseReminderOptions(data),
+            overdueAlertEnabled: data.get('overdueAlertEnabled') !== 'off',
+            riskLevel: parseRiskLevel(data.get('riskLevel')),
         })
         revalidatePeoplePaths()
         revalidatePath(`/people/${String(data.get('personId'))}`)
@@ -113,7 +192,6 @@ export async function updateRPAction(
         const user = await requireCurrentUser()
         const rpId = String(data.get('rpId'))
         const personId = String(data.get('personId'))
-        const dueDateStr = String(data.get('dueDate') ?? '')
         const originalAmount = toRequiredNumber(data.get('originalAmount'), 'originalAmount', 'Toplam tutar', { min: 0.01 })
         const remainingAmount = toRequiredNumber(data.get('remainingAmount'), 'remainingAmount', 'Kalan tutar', { min: 0 })
 
@@ -127,12 +205,16 @@ export async function updateRPAction(
 
         const rp = await updateRP(user.id, rpId, {
             type: data.get('type') === 'PAYABLE' ? 'PAYABLE' : 'RECEIVABLE',
+            title: toOptionalString(data.get('title')),
+            category: toOptionalString(data.get('category')),
             description: toRequiredString(data.get('description'), 'description', 'Aciklama'),
             originalAmount,
             remainingAmount,
             currency: String(data.get('currency') ?? 'TRY'),
-            dueDate: dueDateStr ? new Date(dueDateStr) : null,
+            dueDate: parseDateOrNull(data.get('dueDate')),
             notes: toOptionalString(data.get('notes')),
+            internalNote: toOptionalString(data.get('internalNote')),
+            riskLevel: parseRiskLevel(data.get('riskLevel')),
         })
 
         revalidatePeoplePaths()
@@ -170,6 +252,11 @@ export async function recordCollectionAction(
             toRequiredNumber(data.get('amount'), 'amount', 'Tahsilat tutari', { min: 0.01 }),
             toRequiredString(data.get('accountId'), 'accountId', 'Hesap'),
             toOptionalString(data.get('description')),
+            {
+                installmentId: toOptionalString(data.get('installmentId')),
+                isCash: data.get('isCash') === 'on',
+                paymentMethod: toOptionalString(data.get('paymentMethod')) ?? undefined,
+            },
         )
         revalidatePeoplePaths()
         revalidatePath(`/people/${personId}`)
@@ -194,11 +281,73 @@ export async function recordPaymentToPersonAction(
             toRequiredNumber(data.get('amount'), 'amount', 'Odeme tutari', { min: 0.01 }),
             toRequiredString(data.get('accountId'), 'accountId', 'Hesap'),
             toOptionalString(data.get('description')),
+            {
+                installmentId: toOptionalString(data.get('installmentId')),
+                isCash: data.get('isCash') === 'on',
+                paymentMethod: toOptionalString(data.get('paymentMethod')) ?? undefined,
+            },
         )
         revalidatePeoplePaths()
         revalidatePath(`/people/${personId}`)
         return createSuccessResult('Odeme kaydedildi.')
     } catch (error) {
         return getActionErrorResult<RPTransactionField>(error, 'Odeme kaydedilemedi.')
+    }
+}
+
+export async function rescheduleRPAction(
+    previousState: ActionResult<RPRescheduleField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<RPRescheduleField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const personId = String(data.get('personId'))
+        const firstInstallmentDate = parseDateOrNull(data.get('firstInstallmentDate'))
+        if (!firstInstallmentDate) {
+            return { success: false, message: 'İlk taksit tarihi zorunludur.', fieldErrors: { firstInstallmentDate: 'Tarih zorunlu.' } }
+        }
+
+        await rescheduleRemainingRP(user.id, String(data.get('rpId')), {
+            installmentCount: toRequiredNumber(data.get('installmentCount'), 'installmentCount', 'Taksit sayısı', { min: 1 }),
+            firstInstallmentDate,
+            installmentPeriod: parseInstallmentPeriod(data.get('installmentPeriod')),
+            note: toOptionalString(data.get('note')),
+        })
+
+        revalidatePeoplePaths()
+        revalidatePath(`/people/${personId}`)
+        return createSuccessResult('Kalan tutar yeniden taksitlendirildi.')
+    } catch (error) {
+        return getActionErrorResult<RPRescheduleField>(error, 'Yeniden taksitlendirme yapılamadı.')
+    }
+}
+
+export async function addRPNoteAction(
+    previousState: ActionResult<RPNoteField> | FormData,
+    formData?: FormData,
+): Promise<ActionResult<RPNoteField>> {
+    const data = resolveFormData(previousState, formData)
+
+    try {
+        const user = await requireCurrentUser()
+        const personId = String(data.get('personId'))
+        const noteTypeRaw = String(data.get('noteType') ?? RPNoteType.GENERAL)
+        const noteType = Object.values(RPNoteType).includes(noteTypeRaw as RPNoteType)
+            ? (noteTypeRaw as RPNoteType)
+            : RPNoteType.GENERAL
+        await addRPNote(
+            user.id,
+            String(data.get('rpId')),
+            toRequiredString(data.get('note'), 'note', 'Not'),
+            noteType,
+        )
+
+        revalidatePeoplePaths()
+        revalidatePath(`/people/${personId}`)
+        return createSuccessResult('Not eklendi.')
+    } catch (error) {
+        return getActionErrorResult<RPNoteField>(error, 'Not eklenemedi.')
     }
 }

@@ -12,6 +12,7 @@ import {
     recordSubscriptionPayment,
     recordRecurringPayment,
 } from '@/lib/ledger-service'
+import { getOrCreateCashAccount } from '@/lib/account-service'
 import { requireCurrentUser } from '@/lib/server-auth'
 
 type TransactionField = 'amount' | 'accountId' | 'description' | 'category'
@@ -24,6 +25,7 @@ function revalidateFinancePaths() {
 export async function addIncomeAction(data: {
     amount: number
     accountId: string
+    isCash?: boolean
     description: string
     category?: string
     date?: string
@@ -34,7 +36,9 @@ export async function addIncomeAction(data: {
         if (!data.amount || data.amount <= 0) {
             return { success: false, message: 'Tutar sıfırdan büyük olmalıdır.', fieldErrors: { amount: 'Tutar geçersiz.' } }
         }
-        if (!data.accountId) {
+        const accountId = data.isCash ? (await getOrCreateCashAccount(user.id)).id : data.accountId
+
+        if (!accountId) {
             return { success: false, message: 'Hesap seçilmelidir.', fieldErrors: { accountId: 'Hesap zorunlu.' } }
         }
         if (!data.description?.trim()) {
@@ -43,7 +47,7 @@ export async function addIncomeAction(data: {
 
         await recordIncome(user.id, {
             amount: data.amount,
-            accountId: data.accountId,
+            accountId,
             description: data.description.trim(),
             category: data.category || undefined,
             date: data.date ? new Date(data.date) : undefined,
@@ -59,6 +63,7 @@ export async function addIncomeAction(data: {
 export async function addExpenseAction(data: {
     amount: number
     accountId: string
+    isCash?: boolean
     description: string
     category?: string
     date?: string
@@ -69,7 +74,9 @@ export async function addExpenseAction(data: {
         if (!data.amount || data.amount <= 0) {
             return { success: false, message: 'Tutar sıfırdan büyük olmalıdır.', fieldErrors: { amount: 'Tutar geçersiz.' } }
         }
-        if (!data.accountId) {
+        const accountId = data.isCash ? (await getOrCreateCashAccount(user.id)).id : data.accountId
+
+        if (!accountId) {
             return { success: false, message: 'Hesap seçilmelidir.', fieldErrors: { accountId: 'Hesap zorunlu.' } }
         }
         if (!data.description?.trim()) {
@@ -78,7 +85,7 @@ export async function addExpenseAction(data: {
 
         await recordExpense(user.id, {
             amount: data.amount,
-            accountId: data.accountId,
+            accountId,
             description: data.description.trim(),
             category: data.category || undefined,
             date: data.date ? new Date(data.date) : undefined,

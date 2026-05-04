@@ -61,7 +61,19 @@ type DebtField =
 type SubscriptionField = 'name' | 'amount' | 'currency' | 'billingCycle' | 'category' | 'nextPayment' | 'notes' | 'status'
 type RecurringExpenseField = SubscriptionField | 'autopay' | 'isEssential'
 type IncomeSourceField = 'name' | 'amount' | 'currency' | 'billingCycle' | 'payday' | 'isPrimary' | 'status'
-type BudgetField = 'month' | 'plannedIncome' | 'fixedCommitments' | 'debtCommitments' | 'freeCash' | 'bufferTarget' | 'notes'
+type BudgetField =
+    | 'month'
+    | 'openingCash'
+    | 'plannedIncome'
+    | 'fixedCommitments'
+    | 'debtCommitments'
+    | 'plannedReceivableCollection'
+    | 'savingGoal'
+    | 'debtPaymentBudget'
+    | 'manualAdjustment'
+    | 'freeCash'
+    | 'bufferTarget'
+    | 'notes'
 
 function revalidateFinancePaths(extraPaths: string[] = []) {
     new Set([...REVALIDATE_PATHS, ...extraPaths]).forEach((path) => revalidatePath(path))
@@ -660,17 +672,27 @@ export async function updateBudgetMonth(
             create: {
                 userId: user.id,
                 month,
+                openingCash: Number(data.get('openingCash') ?? 0),
                 plannedIncome: Number(data.get('plannedIncome') ?? 0),
                 fixedCommitments: Number(data.get('fixedCommitments') ?? 0),
                 debtCommitments: Number(data.get('debtCommitments') ?? 0),
+                plannedReceivableCollection: Number(data.get('plannedReceivableCollection') ?? 0),
+                savingGoal: Number(data.get('savingGoal') ?? 0),
+                debtPaymentBudget: Number(data.get('debtPaymentBudget') ?? 0),
+                manualAdjustment: Number(data.get('manualAdjustment') ?? 0),
                 freeCash: Number(data.get('freeCash') ?? 0),
                 bufferTarget: Number(data.get('bufferTarget') ?? 0),
                 notes: toOptionalString(data.get('notes')) ?? null,
             },
             update: {
+                openingCash: Number(data.get('openingCash') ?? 0),
                 plannedIncome: Number(data.get('plannedIncome') ?? 0),
                 fixedCommitments: Number(data.get('fixedCommitments') ?? 0),
                 debtCommitments: Number(data.get('debtCommitments') ?? 0),
+                plannedReceivableCollection: Number(data.get('plannedReceivableCollection') ?? 0),
+                savingGoal: Number(data.get('savingGoal') ?? 0),
+                debtPaymentBudget: Number(data.get('debtPaymentBudget') ?? 0),
+                manualAdjustment: Number(data.get('manualAdjustment') ?? 0),
                 freeCash: Number(data.get('freeCash') ?? 0),
                 bufferTarget: Number(data.get('bufferTarget') ?? 0),
                 notes: toOptionalString(data.get('notes')) ?? null,

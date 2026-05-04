@@ -1,6 +1,5 @@
-'use server'
-
 import { prisma } from '@/lib/prisma'
+import { endOfMonth, startOfMonth } from 'date-fns'
 
 export interface MonthlyReport {
     month: string
@@ -79,4 +78,145 @@ export async function getExpenseBreakdown(userId: string) {
     return Array.from(byType.entries())
         .map(([type, amount]) => ({ type, amount: +amount.toFixed(2) }))
         .sort((a, b) => b.amount - a.amount)
+}
+
+export async function getProfessionalReportDashboard(userId: string, date = new Date()) {
+    const monthStart = startOfMonth(date)
+    const monthEnd = endOfMonth(date)
+
+    const [
+        ledger,
+        receivables,
+        payables,
+        cardPayments,
+        interestAccruals,
+        manualInterest,
+        cards,
+        installments,
+        people,
+        marketRates,
+    ] = await Promise.all([
+        prisma.ledgerEntry.findMany({
+            where: { userId, date: { gte: monthStart, lte: monthEnd } },
+            select: { type: true, amount: true, category: true, date: true, accountId: true, creditCardId: true },
+        }),
+        prisma.receivablePayable.findMany({
+            where: { userId, type: 'RECEIVABLE', status: { not: 'CLOSED' } },
+            include: { person: { select: { name: true } }, installments: true },
+        }),
+        prisma.receivablePayable.findMany({
+            where: { userId, type: 'PAYABLE', status: { not: 'CLOSED' } },
+            include: { person: { select: { name: true } }, installments: true },
+        }),
+        prisma.cardPayment.findMany({
+            where: { creditCard: { userId }, paymentDate: { gte: monthStart, lte: monthEnd } },
+            select: { amount: true },
+        }),
+        prisma.interestAccrual.findMany({
+            where: { creditCard: { userId }, calculatedAt: { gte: monthStart, lte: monthEnd } },
+            select: { totalCost: true, type: true, calculatedAt: true },
+        }),
+        prisma.creditCardInterestRecord.findMany({
+            where: { card: { userId }, createdAt: { gte: monthStart, lte: monthEnd } },
+            select: { amount: true, interestType: true, createdAt: true },
+        }),
+        prisma.creditCard.findMany({
+            where: { userId, status: { not: 'CLOSED' } },
+            include: {
+                transactions: { select: { type: true, amount: true } },
+                payments: { select: { amount: true } },
+                statements: { orderBy: { statementDate: 'desc' }, take: 1 },
+            },
+        }),
+        prisma.rPInstallment.findMany({
+            where: { receivablePayable: { userId }, status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] } },
+            include: { receivablePayable: { include: { person: { select: { name: true } } } } },
+            orderBy: { dueDate: 'asc' },
+        }),
+        prisma.person.findMany({
+            where: { userId, isActive: true },
+            include: { receivablesPayables: { where: { status: { not: 'CLOSED' } } } },
+            orderBy: { name: 'asc' },
+        }),
+        prisma.marketRate.findMany({
+            where: { userId },
+            orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
+            take: 20,
+        }),
+    ])
+
+    const income = ledger.filter((entry) => entry.amount > 0 && entry.type === 'INCOME').reduce((sum, entry) => sum + entry.amount, 0)
+    const expense = ledger.filter((entry) => entry.amount < 0 && entry.type === 'EXPENSE').reduce((sum, entry) => sum + Math.abs(entry.amount), 0)
+    const collections = ledger.filter((entry) => entry.type === 'COLLECTION').reduce((sum, entry) => sum + Math.max(entry.amount, 0), 0)
+    const debtPayments = ledger
+        .filter((entry) => ['PAYMENT_TO_PERSON', 'DEBT_PAYMENT'].includes(entry.type))
+        .reduce((sum, entry) => sum + Math.abs(entry.amount), 0)
+    const cardPaymentTotal = cardPayments.reduce((sum, payment) => sum + payment.amount, 0)
+    const interestTotal = interestAccruals.reduce((sum, item) => sum + item.totalCost, 0) + manualInterest.reduce((sum, item) => sum + item.amount, 0)
+    const upcoming = installments.filter((item) => item.dueDate >= monthStart && item.dueDate <= monthEnd)
+    const overdue = installments.filter((item) => item.status === 'OVERDUE' || item.dueDate < new Date())
+
+    return {
+        month: monthStart.toISOString(),
+        kpis: {
+            income: +income.toFixed(2),
+            expense: +expense.toFixed(2),
+            collections: +collections.toFixed(2),
+            debtPayments: +debtPayments.toFixed(2),
+            cardPayments: +cardPaymentTotal.toFixed(2),
+            interestPaid: +interestTotal.toFixed(2),
+            kmhCost: 0,
+            netCashFlow: +(income + collections - expense - debtPayments - cardPaymentTotal - interestTotal).toFixed(2),
+            overdueCount: overdue.length,
+            upcomingCount: upcoming.length,
+        },
+        receivables: receivables.map((item) => ({
+            id: item.id,
+            person: item.person.name,
+            title: item.title ?? item.description,
+            remaining: item.remainingAmount,
+            overdueInstallments: item.installments.filter((installment) => installment.status === 'OVERDUE').length,
+        })),
+        payables: payables.map((item) => ({
+            id: item.id,
+            person: item.person.name,
+            title: item.title ?? item.description,
+            remaining: item.remainingAmount,
+            overdueInstallments: item.installments.filter((installment) => installment.status === 'OVERDUE').length,
+        })),
+        cards: cards.map((card) => {
+            const charges = card.transactions.filter((tx) => tx.type !== 'REFUND').reduce((sum, tx) => sum + tx.amount, 0)
+            const refunds = card.transactions.filter((tx) => tx.type === 'REFUND').reduce((sum, tx) => sum + tx.amount, 0)
+            const payments = card.payments.reduce((sum, payment) => sum + payment.amount, 0)
+            const currentDebt = card.currentDebt && card.currentDebt > 0 ? card.currentDebt : Math.max(charges - refunds - payments, 0)
+            return {
+                id: card.id,
+                name: card.cardName,
+                bankName: card.bankName,
+                currentDebt,
+                utilization: card.totalLimit > 0 ? +(currentDebt / card.totalLimit * 100).toFixed(1) : 0,
+                minimumPayment: card.statements[0]?.minimumPayment ?? Math.max(currentDebt * card.minPaymentRate, 0),
+                dueDate: card.dueDate?.toISOString() ?? card.statements[0]?.dueDate.toISOString() ?? null,
+            }
+        }),
+        people: people.map((person) => {
+            const receivable = person.receivablesPayables.filter((item) => item.type === 'RECEIVABLE').reduce((sum, item) => sum + item.remainingAmount, 0)
+            const payable = person.receivablesPayables.filter((item) => item.type === 'PAYABLE').reduce((sum, item) => sum + item.remainingAmount, 0)
+            return {
+                id: person.id,
+                name: person.name,
+                receivable,
+                payable,
+                net: receivable - payable,
+            }
+        }).sort((a, b) => Math.abs(b.net) - Math.abs(a.net)),
+        marketRates: marketRates.map((rate) => ({
+            id: rate.id,
+            code: rate.currencyCode,
+            buyRate: rate.buyRate,
+            sellRate: rate.sellRate,
+            rateDate: rate.rateDate.toISOString(),
+            createdAt: rate.createdAt.toISOString(),
+        })),
+    }
 }

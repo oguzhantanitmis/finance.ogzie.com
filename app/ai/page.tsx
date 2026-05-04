@@ -12,11 +12,13 @@ interface Message {
 }
 
 const QUICK_PROMPTS = [
-    { label: 'Aylık özet', prompt: 'Bu ayki finansal durumumu özetle' },
-    { label: 'Borç stratejisi', prompt: 'Borçlarımı nasıl önceliklendirmem lazım?' },
-    { label: 'Tasarruf önerisi', prompt: 'Aboneliklerimde tasarruf fırsatları var mı?' },
-    { label: 'Sağlık puanı', prompt: 'Finansal sağlık puanımı açıkla ve iyileştirme önerileri ver' },
-    { label: 'Nakit durum', prompt: 'Kullanılabilir nakitim ne kadar ve bu yeterli mi?' },
+    { label: 'Kart faizi', prompt: 'Bu zamana kadar kredi kartlarıma ne kadar faiz ödedim?' },
+    { label: 'Borç bitişi', prompt: 'Borçlarım ne zaman bitiyor?' },
+    { label: 'Bu ay ödeme', prompt: 'Bu ay ne kadar ödeme yapmam gerekiyor?' },
+    { label: 'Kim borçlu', prompt: 'Kim bana ne kadar borçlu?' },
+    { label: 'Ben kime borçluyum', prompt: 'Ben kime ne kadar borçluyum?' },
+    { label: 'Riskli borçlar', prompt: 'En riskli borçlarım hangileri?' },
+    { label: 'Nakit akışı', prompt: 'Bu ay nakit akışım nasıl?' },
     { label: 'Hedef takibi', prompt: 'Aktif hedeflerim ne durumda?' },
 ]
 
@@ -110,8 +112,8 @@ export default function AIPage() {
         <PageShell width="dar" className="font-sans">
             <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-5xl flex-col">
                 <header className="mb-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                        <Bot className="text-black w-6 h-6" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--text-primary)' }}>
+                        <Bot className="w-6 h-6" style={{ color: 'var(--text-inverse)' }} />
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold">Finans Asistanı</h1>
@@ -154,17 +156,17 @@ export default function AIPage() {
                         >
                             <div className={cn(
                                 "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                                msg.role === 'user' ? "bg-zinc-800" : "bg-white"
-                            )}>
-                                {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4 text-black" />}
+                                msg.role === 'user' ? "bg-[var(--bg-elevated)]" : ""
+                            )} style={msg.role !== 'user' ? { background: 'var(--text-primary)' } : undefined}>
+                                {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" style={{ color: 'var(--text-inverse)' }} />}
                             </div>
                             <div className={cn(
                                 "p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap",
                                 msg.role === 'user'
                                     ? "rounded-tr-sm border"
-                                    : "bg-white text-black rounded-tl-sm shadow-xl"
+                                    : "rounded-tl-sm shadow-xl"
                             )}
-                            style={msg.role === 'user' ? { background: 'var(--bg-elevated)', color: 'var(--text-primary)', borderColor: 'var(--border-default)' } : undefined}
+                            style={msg.role === 'user' ? { background: 'var(--bg-elevated)', color: 'var(--text-primary)', borderColor: 'var(--border-default)' } : { background: 'var(--text-primary)', color: 'var(--text-inverse)' }}
                             >
                                 {msg.content || (loading && idx === messages.length - 1 ? (
                                     <span className="flex gap-1">
@@ -190,9 +192,9 @@ export default function AIPage() {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-white rounded-xl hover:bg-zinc-200 transition-colors disabled:opacity-50 cursor-pointer"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-colors disabled:opacity-50 cursor-pointer" style={{ background: 'var(--text-primary)' }}
                     >
-                        <Send className="w-4 h-4 text-black" />
+                        <Send className="w-4 h-4" style={{ color: 'var(--text-inverse)' }} />
                     </button>
                 </form>
             </div>

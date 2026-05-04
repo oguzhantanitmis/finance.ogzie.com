@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard, ReceiptText, Settings, Search, Plus, X, Loader2 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
@@ -63,6 +63,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
     // Form state
     const [amount, setAmount] = useState('')
     const [accountId, setAccountId] = useState(accounts[0]?.id ?? '')
+    const [isCash, setIsCash] = useState(false)
     const [description, setDescription] = useState('')
     const [category, setCategory] = useState('')
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -73,13 +74,24 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
         return true
     })
 
-    function resetForm() {
+    const today = new Date().toISOString().split('T')[0]
+
+    const resetForm = useCallback(() => {
         setAmount('')
         setDescription('')
         setCategory('')
         setDate(new Date().toISOString().split('T')[0])
         setAccountId(accounts[0]?.id ?? '')
-    }
+        setIsCash(false)
+    }, [accounts])
+
+    const hasDirtyForm = Boolean(amount || description || category || date !== today || isCash)
+
+    const requestCloseModal = useCallback(() => {
+        if (hasDirtyForm && !confirm('Formda girilmiş bilgi var. Kapatmak istiyor musunuz?')) return
+        setModal(null)
+        resetForm()
+    }, [hasDirtyForm, resetForm])
 
     function handleSubmit() {
         const action = modal === 'income' ? addIncomeAction : addExpenseAction
@@ -87,6 +99,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
             const result = await action({
                 amount: parseFloat(amount),
                 accountId,
+                isCash,
                 description,
                 category: category || undefined,
                 date,
@@ -103,6 +116,18 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
     }
 
     const categories = modal === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
+
+    // ESC ile açık gelir/gider penceresini kapat.
+    useEffect(() => {
+        if (!modal) return
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape') {
+                requestCloseModal()
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [modal, requestCloseModal])
 
     return (
         <div>
@@ -139,7 +164,6 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                 <button
                     onClick={() => { resetForm(); setModal('income') }}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-[color:var(--accent-success)] text-sm font-medium hover:bg-emerald-500/20 transition-all"
-                    disabled={accounts.length === 0}
                 >
                     <ArrowDownLeft className="w-4 h-4" />
                     Gelir Ekle
@@ -147,7 +171,6 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                 <button
                     onClick={() => { resetForm(); setModal('expense') }}
                     className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-red-500/10 border border-red-500/20 text-[color:var(--accent-danger)] text-sm font-medium hover:bg-red-500/20 transition-all"
-                    disabled={accounts.length === 0}
                 >
                     <ArrowUpRight className="w-4 h-4" />
                     Gider Ekle
@@ -155,7 +178,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                 {accounts.length === 0 && (
                     <Link href="/accounts" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-[var(--bg-hover)] border border-[var(--border-default)] text-zinc-400 text-sm font-medium hover:bg-[var(--bg-elevated)] transition-all">
                         <Plus className="w-4 h-4" />
-                        Önce hesap oluştur
+                        Banka hesabı için hesap oluştur
                     </Link>
                 )}
             </div>
@@ -163,18 +186,18 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
             {/* Filtreler */}
             <div className="flex flex-wrap items-center gap-3 mb-6">
                 <div className="relative flex-1 min-w-[200px] max-w-sm">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                     <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="İşlem ara..."
-                        className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 pl-11 pr-4 text-white text-sm"
+                        className="w-full border rounded-2xl py-3 pl-11 pr-4 text-sm" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
                     />
                 </div>
                 <select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
-                    className="bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
+                    className="border rounded-2xl py-3 px-4 text-sm" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
                 >
                     <option value="all">Tüm Tipler</option>
                     {Object.entries(TYPE_META).map(([key, meta]) => (
@@ -185,7 +208,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
 
             {/* İşlem Listesi */}
             {filtered.length === 0 ? (
-                <div className="fintech-card p-16 text-center text-zinc-400">
+                <div className="fintech-card p-16 text-center" style={{ color: 'var(--text-secondary)' }}>
                     {entries.length === 0 ? 'Henüz işlem kaydı yok. Gelir veya gider ekleyerek başlayabilirsiniz.' : 'Bu filtreye uygun işlem bulunamadı.'}
                 </div>
             ) : (
@@ -201,8 +224,8 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         <Icon className="w-4 h-4" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-white">{entry.description || meta.label}</p>
-                                        <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{entry.description || meta.label}</p>
+                                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             <span>{meta.label}</span>
                                             {entry.category && <span>• {entry.category}</span>}
                                             {entry.account && <span>• {entry.account.name}</span>}
@@ -211,7 +234,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         {entry.sourceHref && entry.sourceLabel ? (
                                             <Link
                                                 href={entry.sourceHref}
-                                                className="inline-flex items-center gap-2 text-xs text-zinc-400 hover:text-white mt-2"
+                                                className="inline-flex items-center gap-2 text-xs mt-2 transition-colors" style={{ color: 'var(--text-secondary)' }}
                                             >
                                                 {entry.sourceLabel} →
                                             </Link>
@@ -230,9 +253,9 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
             {/* Modal */}
             {modal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setModal(null)} />
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={requestCloseModal} />
                     <div className="relative w-full max-w-lg fintech-card p-6 md:p-8 animate-in fade-in zoom-in-95 duration-200">
-                        <button onClick={() => setModal(null)} className="absolute top-4 right-4 text-zinc-500 hover:text-white">
+                        <button onClick={requestCloseModal} className="absolute top-4 right-4 transition-colors" style={{ color: 'var(--text-muted)' }}>
                             <X className="w-5 h-5" />
                         </button>
 
@@ -243,14 +266,14 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                             )}>
                                 {modal === 'income' ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                             </div>
-                            <h2 className="text-xl font-bold">
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
                                 {modal === 'income' ? 'Gelir Kaydet' : 'Gider Kaydet'}
                             </h2>
                         </div>
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs uppercase tracking-[0.2em] text-zinc-500 mb-2">Tutar (TL)</label>
+                                <label className="block text-xs uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--text-muted)' }}>Tutar (TL)</label>
                                 <input
                                     type="number"
                                     step="0.01"
@@ -258,41 +281,72 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                     value={amount}
                                     onChange={(e) => setAmount(e.target.value)}
                                     placeholder="0.00"
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-lg font-bold tabular-nums"
+                                    className="w-full border rounded-2xl py-3 px-4 text-lg font-bold tabular-nums" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
                                     autoFocus
                                 />
                             </div>
 
+                            <label
+                                className="flex items-center justify-between gap-4 rounded-2xl p-4 cursor-pointer"
+                                style={{ border: '1px solid var(--border-default)', background: isCash ? 'var(--accent-success-bg)' : 'var(--bg-hover)' }}
+                            >
+                                <div>
+                                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Nakit işlem</p>
+                                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                                        Seçilirse işlem doğrudan Nakit hesabına işlenir.
+                                    </p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={isCash}
+                                    onChange={(event) => {
+                                        const checked = event.target.checked
+                                        setIsCash(checked)
+                                        setAccountId(checked ? '' : accounts[0]?.id ?? '')
+                                    }}
+                                    className="h-5 w-5 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
+                                />
+                            </label>
+
                             <div>
-                                <label className="block text-xs uppercase tracking-[0.2em] text-zinc-500 mb-2">Hesap</label>
+                                <label className="block text-xs uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--text-muted)' }}>Hesap</label>
                                 <select
                                     value={accountId}
                                     onChange={(e) => setAccountId(e.target.value)}
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
+                                    disabled={isCash}
+                                    className={cn(
+                                        'w-full border border-[var(--border-default)] rounded-2xl py-3 px-4 text-sm',
+                                        isCash ? 'opacity-60 cursor-not-allowed' : '',
+                                    )}
+                                    style={{ background: isCash ? 'var(--bg-hover)' : 'var(--bg-input)', color: 'var(--text-primary)' }}
                                 >
+                                    {isCash ? <option value="">Nakit hesap kullanılacak</option> : null}
                                     {accounts.map((acc) => (
                                         <option key={acc.id} value={acc.id}>{acc.name}</option>
                                     ))}
                                 </select>
+                                {isCash ? (
+                                    <p className="text-xs mt-2" style={{ color: 'var(--accent-success)' }}>Nakit hesap kullanılacak. Hesap seçimi devre dışı.</p>
+                                ) : null}
                             </div>
 
                             <div>
-                                <label className="block text-xs uppercase tracking-[0.2em] text-zinc-500 mb-2">Açıklama</label>
+                                <label className="block text-xs uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--text-muted)' }}>Açıklama</label>
                                 <input
                                     type="text"
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     placeholder={modal === 'income' ? 'Ör: Maaş, freelance ödeme...' : 'Ör: Market alışverişi, yakıt...'}
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full border rounded-2xl py-3 px-4 text-sm" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
                                 />
                             </div>
 
                             <div>
-                                <label className="block text-xs uppercase tracking-[0.2em] text-zinc-500 mb-2">Kategori</label>
+                                <label className="block text-xs uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--text-muted)' }}>Kategori</label>
                                 <select
                                     value={category}
                                     onChange={(e) => setCategory(e.target.value)}
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full border rounded-2xl py-3 px-4 text-sm" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
                                 >
                                     <option value="">Seçiniz...</option>
                                     {categories.map((cat) => (
@@ -302,19 +356,19 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                             </div>
 
                             <div>
-                                <label className="block text-xs uppercase tracking-[0.2em] text-zinc-500 mb-2">Tarih</label>
+                                <label className="block text-xs uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--text-muted)' }}>Tarih</label>
                                 <input
                                     type="date"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white text-sm"
+                                    className="w-full border rounded-2xl py-3 px-4 text-sm" style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
                                 />
                             </div>
                         </div>
 
                         <button
                             onClick={handleSubmit}
-                            disabled={isPending || !amount || !description.trim() || !accountId}
+                            disabled={isPending || !amount || !description.trim() || (!isCash && !accountId)}
                             className={cn(
                                 'w-full mt-6 py-3.5 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2',
                                 modal === 'income'

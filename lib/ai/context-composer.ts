@@ -1,5 +1,3 @@
-'use server'
-
 import { prisma } from '@/lib/prisma'
 import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
 import { getRPSummary } from '@/lib/people-service'

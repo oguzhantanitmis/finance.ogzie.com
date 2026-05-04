@@ -56,7 +56,9 @@ export default async function CardDetailPage({ params }: { params: Promise<{ id:
         .filter(t => t.type === 'REFUND')
         .reduce((sum, t) => sum + t.amount, 0)
     const totalPayments = card.payments.reduce((sum, p) => sum + p.amount, 0)
-    const currentDebt = Math.max(totalCharges - totalRefunds - totalPayments, 0)
+    const currentDebt = card.currentDebt && card.currentDebt > 0
+        ? card.currentDebt
+        : Math.max(totalCharges - totalRefunds - totalPayments, 0)
 
     // Son ekstre
     const latestStatement = card.statements[0] || null

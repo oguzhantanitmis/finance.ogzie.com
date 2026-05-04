@@ -1,5 +1,3 @@
-'use server'
-
 import { GoalStatus, type FinancialGoal } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
@@ -21,7 +19,19 @@ export async function getGoals(userId: string): Promise<GoalWithProgress[]> {
 
 export async function createGoal(
     userId: string,
-    data: { title: string; description?: string; targetAmount: number; targetDate: Date; category?: string; relatedDebtId?: string; relatedCardId?: string }
+    data: {
+        title: string
+        description?: string
+        targetAmount: number
+        targetDate: Date
+        category?: string
+        goalType?: string
+        priority?: number
+        monthlyRequiredAmount?: number | null
+        relatedRecordId?: string
+        relatedDebtId?: string
+        relatedCardId?: string
+    }
 ): Promise<FinancialGoal> {
     return prisma.financialGoal.create({
         data: { userId, ...data, status: 'GOAL_ACTIVE' },
@@ -47,6 +57,9 @@ export async function updateGoal(
         currentAmount: number
         targetDate: Date
         category?: string | null
+        goalType?: string
+        priority?: number
+        monthlyRequiredAmount?: number | null
     },
 ) {
     const goal = await prisma.financialGoal.findFirstOrThrow({
@@ -68,6 +81,9 @@ export async function updateGoal(
             currentAmount: data.currentAmount,
             targetDate: data.targetDate,
             category: data.category ?? null,
+            goalType: data.goalType ?? goal.goalType,
+            priority: data.priority ?? goal.priority,
+            monthlyRequiredAmount: data.monthlyRequiredAmount ?? null,
             status: status as GoalStatus,
         },
     })

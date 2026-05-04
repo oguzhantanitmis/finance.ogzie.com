@@ -1,5 +1,3 @@
-'use server'
-
 import type { LedgerEntry, LedgerEntryType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 

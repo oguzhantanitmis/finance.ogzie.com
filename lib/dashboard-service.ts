@@ -1,5 +1,3 @@
-'use server'
-
 import { getCardFinancialSnapshot } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 import { getTotalBalance, getAvailableCash } from '@/lib/account-service'

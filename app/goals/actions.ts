@@ -31,6 +31,9 @@ export async function createGoalAction(
             targetAmount: toRequiredNumber(data.get('targetAmount'), 'targetAmount', 'Hedef tutar', { min: 0.01 }),
             targetDate,
             category: toOptionalString(data.get('category')),
+            goalType: toOptionalString(data.get('goalType')) ?? 'SAVINGS',
+            priority: Number(data.get('priority') ?? 2),
+            monthlyRequiredAmount: Number(data.get('monthlyRequiredAmount') || 0) || null,
             relatedDebtId: toOptionalString(data.get('relatedDebtId')),
             relatedCardId: toOptionalString(data.get('relatedCardId')),
         })
@@ -57,6 +60,9 @@ export async function updateGoalAction(
             currentAmount: toRequiredNumber(data.get('currentAmount'), 'currentAmount', 'Birikmis tutar', { min: 0 }),
             targetDate: new Date(String(data.get('targetDate') ?? new Date().toISOString())),
             category: toOptionalString(data.get('category')) ?? null,
+            goalType: toOptionalString(data.get('goalType')) ?? 'SAVINGS',
+            priority: Number(data.get('priority') ?? 2),
+            monthlyRequiredAmount: Number(data.get('monthlyRequiredAmount') || 0) || null,
         })
         ;['/', '/goals'].forEach((p) => revalidatePath(p))
         return createSuccessResult('Hedef guncellendi.', goal.id)

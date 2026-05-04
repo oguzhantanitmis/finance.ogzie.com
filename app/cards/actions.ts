@@ -16,19 +16,25 @@ import {
 import { calculateMinimumPayment } from '@/lib/card-engine/payment-engine'
 import { getDueDate } from '@/lib/card-engine/statement-engine'
 import { recordCardPayment } from '@/lib/card-finance-settings-service'
+import { resolveCardVisual } from '@/lib/card-visuals'
 import { prisma } from '@/lib/prisma'
 import { requireCurrentUser } from '@/lib/server-auth'
 
 type CardField =
     | 'cardName'
     | 'bankName'
+    | 'cardProgram'
     | 'last4Digits'
     | 'cardNetwork'
     | 'status'
     | 'totalLimit'
+    | 'availableLimit'
+    | 'currentDebt'
     | 'cashAdvanceLimit'
     | 'cutOffDay'
     | 'paymentDueDay'
+    | 'statementDate'
+    | 'dueDate'
     | 'contractualRate'
     | 'defaultRate'
     | 'cashAdvanceRate'
@@ -37,6 +43,7 @@ type CardField =
     | 'minPaymentRate'
     | 'rewardsPoints'
     | 'color'
+    | 'description'
 
 type CardTransactionField = 'type' | 'description' | 'merchant' | 'amount'
 type CardPaymentField = 'amount' | 'description' | 'statementId'
@@ -111,19 +118,29 @@ export async function addCreditCard(
         const user = await requireCurrentUser()
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
         const minPaymentRate = toOptionalNumber(data.get('minPaymentRate')) ?? (totalLimit > 50000 ? 0.4 : 0.2)
+        const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
+        const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
+        const cardProgram = toOptionalString(data.get('cardProgram')) ?? resolveCardVisual(bankName, cardName).cardProgram
+        const visual = resolveCardVisual(bankName, cardName, cardProgram)
+        const currentDebt = toOptionalNumber(data.get('currentDebt')) ?? 0
 
         const card = await prisma.creditCard.create({
             data: {
                 userId: user.id,
-                cardName: toRequiredString(data.get('cardName'), 'cardName', 'Kart adi'),
-                bankName: toRequiredString(data.get('bankName'), 'bankName', 'Banka adi'),
+                cardName,
+                bankName,
+                cardProgram,
                 last4Digits: String(data.get('last4Digits') ?? '0000').trim() || '0000',
                 cardNetwork: parseCardNetwork(data.get('cardNetwork')),
                 status: parseCardStatus(data.get('status')),
                 totalLimit,
+                availableLimit: toOptionalNumber(data.get('availableLimit')) ?? Math.max(totalLimit - currentDebt, 0),
+                currentDebt,
                 cashAdvanceLimit: toOptionalNumber(data.get('cashAdvanceLimit')) ?? totalLimit * 0.5,
                 cutOffDay: toRequiredNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', { min: 1 }),
                 paymentDueDay: toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', { min: 1 }),
+                statementDate: data.get('statementDate') ? new Date(String(data.get('statementDate'))) : null,
+                dueDate: data.get('dueDate') ? new Date(String(data.get('dueDate'))) : null,
                 contractualRate: toOptionalNumber(data.get('contractualRate')) ?? 4.42,
                 defaultRate: toOptionalNumber(data.get('defaultRate')) ?? 5.42,
                 cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate')) ?? 5.92,
@@ -131,7 +148,10 @@ export async function addCreditCard(
                 kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
                 bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
                 rewardsPoints: toOptionalNumber(data.get('rewardsPoints')) ?? 0,
-                color: toOptionalString(data.get('color')) ?? '#6366F1',
+                color: toOptionalString(data.get('color')) ?? visual.themeColor,
+                logoPath: visual.logoPath,
+                cardImagePath: visual.cardImagePath,
+                description: toOptionalString(data.get('description')) ?? null,
                 useGlobalRates: data.get('useGlobalRates') === 'on',
             },
         })
@@ -155,19 +175,29 @@ export async function updateCreditCard(
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
         const minPaymentRate = toOptionalNumber(data.get('minPaymentRate')) ?? existing.minPaymentRate
         const paymentDueDay = toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', { min: 1 })
+        const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
+        const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
+        const cardProgram = toOptionalString(data.get('cardProgram')) ?? existing.cardProgram
+        const visual = resolveCardVisual(bankName, cardName, cardProgram)
+        const currentDebt = toOptionalNumber(data.get('currentDebt')) ?? existing.currentDebt ?? 0
 
         const card = await prisma.creditCard.update({
             where: { id: existing.id },
             data: {
-                cardName: toRequiredString(data.get('cardName'), 'cardName', 'Kart adi'),
-                bankName: toRequiredString(data.get('bankName'), 'bankName', 'Banka adi'),
+                cardName,
+                bankName,
+                cardProgram,
                 last4Digits: String(data.get('last4Digits') ?? existing.last4Digits).trim() || existing.last4Digits,
                 cardNetwork: parseCardNetwork(data.get('cardNetwork')),
                 status: parseCardStatus(data.get('status')),
                 totalLimit,
+                availableLimit: toOptionalNumber(data.get('availableLimit')) ?? Math.max(totalLimit - currentDebt, 0),
+                currentDebt,
                 cashAdvanceLimit: toOptionalNumber(data.get('cashAdvanceLimit')) ?? totalLimit * 0.5,
                 cutOffDay: toRequiredNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', { min: 1 }),
                 paymentDueDay,
+                statementDate: data.get('statementDate') ? new Date(String(data.get('statementDate'))) : existing.statementDate,
+                dueDate: data.get('dueDate') ? new Date(String(data.get('dueDate'))) : existing.dueDate,
                 contractualRate: toOptionalNumber(data.get('contractualRate')) ?? existing.contractualRate,
                 defaultRate: toOptionalNumber(data.get('defaultRate')) ?? existing.defaultRate,
                 cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate')) ?? existing.cashAdvanceRate,
@@ -175,7 +205,10 @@ export async function updateCreditCard(
                 bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? existing.bsmvRate,
                 minPaymentRate,
                 rewardsPoints: toOptionalNumber(data.get('rewardsPoints')) ?? existing.rewardsPoints,
-                color: toOptionalString(data.get('color')) ?? existing.color,
+                color: toOptionalString(data.get('color')) ?? existing.color ?? visual.themeColor,
+                logoPath: visual.logoPath,
+                cardImagePath: visual.cardImagePath,
+                description: toOptionalString(data.get('description')) ?? existing.description,
                 useGlobalRates: data.get('useGlobalRates') === 'on',
             },
         })

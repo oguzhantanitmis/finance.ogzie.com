@@ -19,6 +19,9 @@ interface GoalData {
     targetDate: string
     status: string
     category: string | null
+    goalType?: string
+    priority?: number
+    monthlyRequiredAmount?: number | null
     progressPercent: number
 }
 
@@ -99,19 +102,19 @@ export default function GoalsWorkspace({ goals }: Props) {
             {goals.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div className="fintech-card p-5">
-                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Aktif Hedef</p>
-                        <p className="text-2xl font-bold text-white">{active.length}</p>
+                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Aktif Hedef</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{active.length}</p>
                     </div>
                     <div className="fintech-card p-5">
-                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Ortalama İlerleme</p>
+                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Ortalama İlerleme</p>
                         <p className="text-2xl font-bold text-[color:var(--accent-info)]">%{avgProgress}</p>
                     </div>
                     <div className="fintech-card p-5">
-                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Biriken / Hedef</p>
-                        <p className="text-sm font-bold text-white privacy-blur">{formatCurrency(totalCurrent, 'TRY')} / {formatCurrency(totalTarget, 'TRY')}</p>
+                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Biriken / Hedef</p>
+                        <p className="text-sm font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalCurrent, 'TRY')} / {formatCurrency(totalTarget, 'TRY')}</p>
                     </div>
                     <div className="fintech-card p-5">
-                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Tamamlanan</p>
+                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Tamamlanan</p>
                         <p className="text-2xl font-bold text-[color:var(--accent-success)]">{completed.length}</p>
                     </div>
                 </div>
@@ -124,10 +127,10 @@ export default function GoalsWorkspace({ goals }: Props) {
             </div>
 
             {active.length === 0 && completed.length === 0 ? (
-                <div className="fintech-card p-16 text-center">
-                    <Target className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-                    <p className="text-zinc-400 mb-2">Henüz hedef eklenmedi.</p>
-                    <p className="text-zinc-600 text-sm">Ev, araba, tatil, acil fon... bir hedef koyarak tasarrufunuzu hızlandırın.</p>
+                    <div className="fintech-card p-16 text-center">
+                    <Target className="w-12 h-12 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+                    <p className="mb-2" style={{ color: 'var(--text-secondary)' }}>Henüz hedef eklenmedi.</p>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Ev, araba, tatil, acil fon... bir hedef koyarak tasarrufunuzu hızlandırın.</p>
                 </div>
             ) : (
                 <div className="space-y-8">
@@ -140,7 +143,7 @@ export default function GoalsWorkspace({ goals }: Props) {
 
                     {active.length > 0 && (
                         <div>
-                            <h2 className="text-sm uppercase tracking-[0.25em] text-zinc-500 mb-4">Aktif Hedefler</h2>
+                            <h2 className="text-sm uppercase tracking-[0.25em] mb-4" style={{ color: 'var(--text-muted)' }}>Aktif Hedefler</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {active.map((goal) => (
                                     <GoalCard key={goal.id} goal={goal} onEdit={() => setEditingGoal(goal)} onDelete={() => handleDelete(goal.id)} onCelebrate={() => setCelebratingGoal(goal.id)} />
@@ -150,7 +153,7 @@ export default function GoalsWorkspace({ goals }: Props) {
                     )}
                     {completed.length > 0 && (
                         <div>
-                            <h2 className="text-sm uppercase tracking-[0.25em] text-zinc-500 mb-4">Tamamlanan 🎉</h2>
+                            <h2 className="text-sm uppercase tracking-[0.25em] mb-4" style={{ color: 'var(--text-muted)' }}>Tamamlanan 🎉</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {completed.map((goal) => (
                                     <GoalCard key={goal.id} goal={goal} onEdit={() => setEditingGoal(goal)} onDelete={() => handleDelete(goal.id)} />
@@ -171,8 +174,8 @@ export default function GoalsWorkspace({ goals }: Props) {
                             <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
                                 <Sparkles className="w-8 h-8 text-[color:var(--accent-success)]" />
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-2">Tebrikler! 🎉</h3>
-                            <p className="text-zinc-400 mb-4">&quot;{goal.title}&quot; hedefine ulaştınız!</p>
+                            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Tebrikler! 🎉</h3>
+                            <p className="mb-4" style={{ color: 'var(--text-secondary)' }}>&quot;{goal.title}&quot; hedefine ulaştınız!</p>
                             <p className="text-[color:var(--accent-success)] font-bold text-2xl privacy-blur mb-4">{formatCurrency(goal.targetAmount, 'TRY')}</p>
                             <button
                                 onClick={() => setCelebratingGoal(null)}
@@ -212,26 +215,42 @@ function GoalForm({
     return (
         <form action={action} className="space-y-4">
             {goal ? <input type="hidden" name="goalId" value={goal.id} /> : null}
-            <input name="title" defaultValue={goal?.title ?? ''} placeholder="Hedef başlığı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-            <textarea name="description" defaultValue={goal?.description ?? ''} placeholder="Açıklama (opsiyonel)" className="w-full min-h-16 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+            <input name="title" defaultValue={goal?.title ?? ''} placeholder="Hedef başlığı" className="form-input" required />
+            <textarea name="description" defaultValue={goal?.description ?? ''} placeholder="Açıklama (opsiyonel)" className="form-input min-h-16" />
             <div className="grid grid-cols-2 gap-4">
-                <input name="targetAmount" type="number" step="0.01" min="0.01" defaultValue={goal?.targetAmount ?? ''} placeholder="Hedef tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                <input name="targetDate" type="date" defaultValue={goal?.targetDate.slice(0, 10) ?? ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                <input name="targetAmount" type="number" step="0.01" min="0.01" defaultValue={goal?.targetAmount ?? ''} placeholder="Hedef tutar" className="form-input" required />
+                <input name="targetDate" type="date" defaultValue={goal?.targetDate.slice(0, 10) ?? ''} className="form-input" required />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <input name="currentAmount" type="number" step="0.01" min="0" defaultValue={goal?.currentAmount ?? 0} placeholder="Birikmiş tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
-                <select name="category" defaultValue={goal?.category ?? ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
-                    <option value="">Kategori seçin...</option>
-                    <option value="Ev">🏠 Ev</option>
-                    <option value="Araba">🚗 Araba</option>
-                    <option value="Tatil">✈️ Tatil</option>
-                    <option value="Eğitim">📚 Eğitim</option>
-                    <option value="Acil Fon">🛡️ Acil Fon</option>
-                    <option value="Yatırım">📈 Yatırım</option>
-                    <option value="Teknoloji">💻 Teknoloji</option>
-                    <option value="Diğer">📌 Diğer</option>
+                <input name="currentAmount" type="number" step="0.01" min="0" defaultValue={goal?.currentAmount ?? 0} placeholder="Birikmiş tutar" className="form-input" />
+                <select name="goalType" defaultValue={goal?.goalType ?? 'SAVINGS'} className="form-input">
+                    <option value="DEBT_FREE">Borçları tamamen kapat</option>
+                    <option value="SPECIFIC_DEBT">Belirli bir borcu kapat</option>
+                    <option value="CREDIT_CARD_FREE">Kredi kartı borcunu kapat</option>
+                    <option value="EMERGENCY_FUND">Acil durum fonu oluştur</option>
+                    <option value="SAVINGS">Birikim hedefi</option>
+                    <option value="MONTHLY_SAVING">Aylık tasarruf hedefi</option>
+                    <option value="INTEREST_REDUCTION">Faiz maliyetini azalt</option>
+                    <option value="POSITIVE_CASHFLOW">Nakit akışını pozitife çevir</option>
                 </select>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+                <input name="monthlyRequiredAmount" type="number" step="0.01" min="0" defaultValue={goal?.monthlyRequiredAmount ?? ''} placeholder="Aylık ayrılacak tutar" className="form-input" />
+                <select name="priority" defaultValue={goal?.priority ?? 2} className="form-input">
+                    <option value="1">Düşük öncelik</option>
+                    <option value="2">Orta öncelik</option>
+                    <option value="3">Yüksek öncelik</option>
+                </select>
+            </div>
+            <select name="category" defaultValue={goal?.category ?? ''} className="form-input">
+                <option value="">Kategori seçin...</option>
+                <option value="Borç">Borç kapatma</option>
+                <option value="Acil Fon">Acil fon</option>
+                <option value="Birikim">Birikim</option>
+                <option value="Nakit Akışı">Nakit akışı</option>
+                <option value="Faiz">Faiz azaltma</option>
+                <option value="Diğer">Diğer</option>
+            </select>
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label={goal ? 'Hedefi Güncelle' : 'Hedefi Kaydet'} pendingLabel={goal ? 'Güncelleniyor...' : 'Kaydediliyor...'} />
         </form>
@@ -268,19 +287,19 @@ function GoalCard({
                     ) : (
                         <span className="text-lg shrink-0">{goal.category ? CATEGORY_EMOJI[goal.category] || '🎯' : '🎯'}</span>
                     )}
-                    <h3 className="font-semibold text-white truncate">{goal.title}</h3>
+                    <h3 className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{goal.title}</h3>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button onClick={onEdit} className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-hover)]">
+                    <button onClick={onEdit} className="p-2 rounded-xl hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-muted)' }}>
                         <Pencil className="w-4 h-4" />
                     </button>
-                    <button onClick={onDelete} className="p-2 rounded-xl text-zinc-500 hover:text-[color:var(--accent-danger)] hover:bg-red-500/10">
+                    <button onClick={onDelete} className="p-2 rounded-xl hover:text-[color:var(--accent-danger)] hover:bg-red-500/10" style={{ color: 'var(--text-muted)' }}>
                         <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {goal.description && <p className="text-xs text-zinc-500 mb-3">{goal.description}</p>}
+            {goal.description && <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{goal.description}</p>}
 
             {/* Progress bar */}
             <div className="w-full h-2.5 bg-[var(--bg-hover)] rounded-full mb-3 overflow-hidden">
@@ -294,8 +313,8 @@ function GoalCard({
             </div>
 
             <div className="flex items-center justify-between text-sm mb-3">
-                <span className="text-zinc-400 privacy-blur">{formatCurrency(goal.currentAmount, 'TRY')} / {formatCurrency(goal.targetAmount, 'TRY')}</span>
-                <span className={cn('text-xs font-bold', goal.progressPercent >= 100 ? 'text-[color:var(--accent-success)]' : 'text-zinc-500')}>%{Math.min(100, Math.round(goal.progressPercent))}</span>
+                <span className="privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(goal.currentAmount, 'TRY')} / {formatCurrency(goal.targetAmount, 'TRY')}</span>
+                <span className={cn('text-xs font-bold', goal.progressPercent >= 100 ? 'text-[color:var(--accent-success)]' : '')} style={goal.progressPercent < 100 ? { color: 'var(--text-muted)' } : undefined}>%{Math.min(100, Math.round(goal.progressPercent))}</span>
             </div>
 
             {/* Hız/Durum Analizi */}
@@ -306,7 +325,7 @@ function GoalCard({
                         <span className="font-medium">{speed.isOnTrack ? 'Hedefe uygun gidiyorsunuz' : 'Hedefe yetişmek için hızlanın'}</span>
                     </div>
                     {speed.daysLeft > 0 && speed.monthlyNeeded > 0 && (
-                        <p className="text-zinc-500 privacy-blur">Aylık {formatCurrency(speed.monthlyNeeded, 'TRY')} ayırmanız gerekiyor • {speed.daysLeft} gün kaldı</p>
+                        <p style={{ color: 'var(--text-muted)' }} className="privacy-blur">Aylık {formatCurrency(speed.monthlyNeeded, 'TRY')} ayırmanız gerekiyor • {speed.daysLeft} gün kaldı</p>
                     )}
                     {speed.daysLeft === 0 && (
                         <p className="text-[color:var(--accent-danger)]">Hedef tarihi geçti!</p>
@@ -325,7 +344,7 @@ function GoalCard({
             )}
 
             {/* Tarih */}
-            <div className="flex items-center gap-1 mt-3 text-xs text-zinc-500">
+            <div className="flex items-center gap-1 mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
                 <Clock className="w-3 h-3 inline" />
                 <span className={cn(isOverdue && 'text-[color:var(--accent-danger)]')}>
                     {new Date(goal.targetDate).toLocaleDateString('tr-TR')}

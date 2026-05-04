@@ -26,9 +26,9 @@ export default async function PeoplePage() {
     return (
         <PageShell width="genis">
             <header className="mb-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Kişiler & Alacak / Verecek</h1>
-                <p className="text-zinc-400 max-w-3xl">
+                <p className="text-xs uppercase tracking-[0.3em] mb-3" style={{ color: 'var(--text-muted)' }}>Finans paneli</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3" style={{ color: 'var(--text-primary)' }}>Kişiler & Alacak / Verecek</h1>
+                <p className="max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
                     Kişi bazlı borç ve alacak takibi yap. Tahsilat girdiğinde hesap bakiyen otomatik güncellenir.
                 </p>
             </header>

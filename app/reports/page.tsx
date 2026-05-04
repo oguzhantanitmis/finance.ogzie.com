@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageShell from '@/components/PageShell'
 import ReportsWorkspace from '@/components/reports/ReportsWorkspace'
-import { getMonthlyReports, getExpenseBreakdown, getNetWorthHistory } from '@/lib/report-service'
+import { getMonthlyReports, getExpenseBreakdown, getNetWorthHistory, getProfessionalReportDashboard } from '@/lib/report-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -13,12 +13,14 @@ export default async function ReportsPage() {
     let monthly: Awaited<ReturnType<typeof getMonthlyReports>> = []
     let expenses: Awaited<ReturnType<typeof getExpenseBreakdown>> = []
     let netWorthHistory: Awaited<ReturnType<typeof getNetWorthHistory>> = []
+    let dashboard: Awaited<ReturnType<typeof getProfessionalReportDashboard>> | null = null
 
     try {
-        ;[monthly, expenses, netWorthHistory] = await Promise.all([
+        ;[monthly, expenses, netWorthHistory, dashboard] = await Promise.all([
             getMonthlyReports(user.id, 6),
             getExpenseBreakdown(user.id),
             getNetWorthHistory(user.id),
+            getProfessionalReportDashboard(user.id),
         ])
     } catch (e) {
         console.error('ReportsPage error:', e)
@@ -33,7 +35,7 @@ export default async function ReportsPage() {
                     Aylık gelir-gider akışı, harcama kırılımı ve net varlık trendi.
                 </p>
             </header>
-            <ReportsWorkspace monthly={monthly} expenses={expenses} netWorthHistory={netWorthHistory} />
+            <ReportsWorkspace monthly={monthly} expenses={expenses} netWorthHistory={netWorthHistory} dashboard={dashboard} />
         </PageShell>
     )
 }

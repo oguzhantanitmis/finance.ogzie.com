@@ -1,5 +1,3 @@
-'use server'
-
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { getSetting } from '@/lib/settings-service'

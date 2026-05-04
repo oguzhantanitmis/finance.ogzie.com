@@ -55,9 +55,14 @@ export default async function BudgetPage() {
             <BudgetWorkspace
                 summary={{
                     month,
+                    openingCash: summary.openingCash,
                     plannedIncome: summary.plannedIncome,
                     fixedCommitments: summary.fixedCommitments,
                     debtCommitments: summary.debtCommitments,
+                    plannedReceivableCollection: summary.plannedReceivableCollection,
+                    savingGoal: summary.savingGoal,
+                    debtPaymentBudget: summary.debtPaymentBudget,
+                    manualAdjustment: summary.manualAdjustment,
                     freeCash: summary.freeCash,
                     bufferTarget: summary.bufferTarget,
                     notes: summary.notes,

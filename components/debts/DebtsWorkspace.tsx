@@ -329,8 +329,8 @@ function PersonalDebtEditForm({
             <input type="hidden" name="type" value="PAYABLE" />
 
             <div className="rounded-2xl border border-[var(--border-default)] bg-[var(--bg-hover)] p-4">
-                <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Bağlı kişi</p>
-                <p className="font-semibold text-white">{personName}</p>
+                <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Bağlı kişi</p>
+                <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{personName}</p>
             </div>
 
             <div>

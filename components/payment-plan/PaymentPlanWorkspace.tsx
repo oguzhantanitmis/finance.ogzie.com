@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Shield, TrendingDown, Snowflake, AlertTriangle, ChevronRight } from 'lucide-react'
+import { Shield, TrendingDown, Snowflake, AlertTriangle, ChevronRight, CalendarClock, Flame, Target } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import type { PaymentPlan, Strategy } from '@/lib/debt-priority-engine'
 
@@ -9,6 +9,9 @@ const STRATEGY_META: Record<Strategy, { label: string; desc: string; icon: typeo
     SAFE: { label: 'Güvenli Mod', desc: 'Asgari ödemeler + yaklaşan vadeler önce', icon: Shield, color: 'text-[color:var(--accent-info)]' },
     AVALANCHE: { label: 'Çığ Modu', desc: 'En yüksek faizli borç önce — toplam faiz minimize', icon: TrendingDown, color: 'text-[color:var(--accent-warning)]' },
     SNOWBALL: { label: 'Kartopu Modu', desc: 'En küçük borç önce — motivasyon etkisi', icon: Snowflake, color: 'text-[color:var(--accent-purple)]' },
+    CASHFLOW: { label: 'Nakit Akışı', desc: 'Vadesi yakın ve ay içi baskısı yüksek borçlar önce', icon: CalendarClock, color: 'text-[color:var(--accent-info)]' },
+    RISK: { label: 'Risk Öncelikli', desc: 'Gecikmiş, yüksek faizli, kart/KMH borçları önce', icon: Flame, color: 'text-[color:var(--accent-danger)]' },
+    GOAL: { label: 'Hedef Odaklı', desc: 'Aktif hedeflere göre borç ödeme kapasitesini dengeler', icon: Target, color: 'text-[color:var(--accent-success)]' },
 }
 
 const RISK_META: Record<string, { label: string; color: string }> = {
@@ -30,24 +33,46 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
     return (
         <div>
             {/* Özet */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
                 <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Asgari</p>
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Toplam Asgari</p>
                     <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Kullanılabilir</p>
-                    <p className="text-2xl font-bold text-white privacy-blur">{formatCurrency(plan.totalAvailable, 'TRY')}</p>
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Kullanılabilir</p>
+                    <p className="text-2xl font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(plan.totalAvailable, 'TRY')}</p>
                 </div>
                 <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Fazla / Açık</p>
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Fazla / Açık</p>
                     <p className={cn('text-2xl font-bold privacy-blur', plan.surplus >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                         {formatCurrency(plan.surplus, 'TRY')}
                     </p>
                 </div>
                 <div className="fintech-card p-5 flex flex-col justify-between">
-                    <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Risk</p>
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Risk</p>
                     <span className={cn('text-lg font-bold px-3 py-1 rounded-xl w-fit', risk.color)}>{risk.label}</span>
+                </div>
+                <div className="fintech-card p-5">
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Tahmini bitiş</p>
+                    <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{plan.estimatedFinishDate ? new Date(plan.estimatedFinishDate).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '-'}</p>
+                </div>
+                <div className="fintech-card p-5">
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Faiz tasarrufu</p>
+                    <p className="text-lg font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(plan.interestSavingEstimate, 'TRY')}</p>
+                </div>
+            </div>
+
+            <div className="fintech-card p-5 mb-6">
+                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Strateji analizi</p>
+                        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Bana en mantıklı plan: {STRATEGY_META[activeStrategy].label}</h2>
+                        <p className="text-sm leading-6" style={{ color: 'var(--text-secondary)' }}>{plan.rationale}</p>
+                    </div>
+                    <div className="text-sm min-w-[240px]">
+                        <p style={{ color: 'var(--text-muted)' }}>Son 3 ay gelir ortalaması ve düzenli giderlerden sonra hesaplanan borç ödeme kapasitesi:</p>
+                        <p className="text-2xl font-bold text-[color:var(--accent-success)] privacy-blur mt-1">{formatCurrency(plan.monthlyDebtBudget, 'TRY')}</p>
+                    </div>
                 </div>
             </div>
 
@@ -63,8 +88,8 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
             )}
 
             {/* Strateji Seçimi */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                {(['SAFE', 'AVALANCHE', 'SNOWBALL'] as Strategy[]).map((s) => {
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+                {(['SAFE', 'AVALANCHE', 'SNOWBALL', 'CASHFLOW', 'RISK', 'GOAL'] as Strategy[]).map((s) => {
                     const meta = STRATEGY_META[s]
                     const Icon = meta.icon
                     const isActive = activeStrategy === s
@@ -79,7 +104,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                         >
                             <div className="flex items-center gap-3 mb-2">
                                 <Icon className={cn('w-5 h-5', meta.color)} />
-                                <h3 className="font-semibold text-white">{meta.label}</h3>
+                                <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{meta.label}</h3>
                             </div>
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.desc}</p>
                         </button>
@@ -89,7 +114,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
 
             {/* Ödeme Planı Listesi */}
             {plan.items.length === 0 ? (
-                <div className="fintech-card p-16 text-center text-zinc-400">
+                <div className="fintech-card p-16 text-center" style={{ color: 'var(--text-secondary)' }}>
                     Aktif borcunuz bulunmuyor. 🎉
                 </div>
             ) : (
@@ -97,12 +122,12 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                     {plan.items.map((item) => (
                         <div key={item.id} className="fintech-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div className="flex items-center gap-4">
-                                <div className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center text-white font-bold text-sm">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center font-bold text-sm" style={{ color: 'var(--text-primary)' }}>
                                     {item.priority}
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-white">{item.name}</h4>
-                                    <div className="flex items-center gap-3 text-xs text-zinc-500">
+                                    <h4 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name}</h4>
+                                    <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--text-muted)' }}>
                                         <span>{item.type === 'credit_card' ? 'Kredi Kartı' : item.type === 'debt' ? 'Borç' : 'Verecek'}</span>
                                         {item.interestRate > 0 && <span>%{item.interestRate} faiz</span>}
                                         {item.dueDate && <span className="privacy-blur">Vade: {new Date(item.dueDate).toLocaleDateString('tr-TR')}</span>}
@@ -112,13 +137,13 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                             <div className="flex items-center gap-6">
                                 <div className="text-right">
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Borç</p>
-                                    <p className="font-bold text-white privacy-blur">{formatCurrency(item.balance, 'TRY')}</p>
+                                    <p className="font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(item.balance, 'TRY')}</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Asgari</p>
-                                    <p className="font-semibold text-zinc-400 privacy-blur">{formatCurrency(item.minPayment, 'TRY')}</p>
+                                    <p className="font-semibold privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.minPayment, 'TRY')}</p>
                                 </div>
-                                <ChevronRight className="w-4 h-4 text-zinc-600" />
+                                <ChevronRight className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
                                 <div className="text-right">
                                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Önerilen</p>
                                     <p className="font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(item.suggestedPayment, 'TRY')}</p>

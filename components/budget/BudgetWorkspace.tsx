@@ -35,13 +35,39 @@ type AlertItem = {
     content: string
 }
 
+function moneyValue(value: number) {
+    return (Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100).toFixed(2)
+}
+
+function BudgetMoneyField({ name, label, value, help }: { name: string; label: string; value: number; help: string }) {
+    return (
+        <div>
+            <label className="form-label">{label}</label>
+            <input
+                name={name}
+                type="number"
+                step="0.01"
+                defaultValue={moneyValue(value)}
+                placeholder="0,00"
+                className="form-input font-mono"
+            />
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{help}</p>
+        </div>
+    )
+}
+
 export default function BudgetWorkspace({
     summary,
 }: {
     summary: {
+        openingCash: number
         plannedIncome: number
         fixedCommitments: number
         debtCommitments: number
+        plannedReceivableCollection: number
+        savingGoal: number
+        debtPaymentBudget: number
+        manualAdjustment: number
         freeCash: number
         month: string
         bufferTarget: number
@@ -111,12 +137,12 @@ export default function BudgetWorkspace({
                 <div className="fintech-card p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Gelir kaynakları</p>
-                            <h2 className="text-2xl font-bold">Düzenli gelir ekle</h2>
+                            <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Gelir kaynakları</p>
+                            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Düzenli gelir ekle</h2>
                         </div>
-                        <PiggyBank className="w-5 h-5 text-zinc-500" />
+                        <PiggyBank className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
                     </div>
-                    <button onClick={() => setShowIncomeModal(true)} className="w-full bg-white text-black font-bold py-4 rounded-2xl">
+                    <button onClick={() => setShowIncomeModal(true)} className="w-full btn-primary py-4 rounded-2xl">
                         Yeni Gelir Kaynağı Ekle
                     </button>
                 </div>
@@ -124,19 +150,41 @@ export default function BudgetWorkspace({
                 <div className="fintech-card p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div>
-                            <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Ay ayarları</p>
-                            <h2 className="text-2xl font-bold">Ay Ayarı</h2>
+                            <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Ay ayarları</p>
+                            <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Ay Ayarı</h2>
                         </div>
-                        <WalletCards className="w-5 h-5 text-zinc-500" />
+                        <WalletCards className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
                     </div>
                     <form action={monthAction} className="space-y-4">
-                        <input type="hidden" name="month" value={summary.month} />
-                        <input name="plannedIncome" type="number" step="0.01" defaultValue={summary.plannedIncome} placeholder="Planlanan gelir" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
-                        <input name="fixedCommitments" type="number" step="0.01" defaultValue={summary.fixedCommitments} placeholder="Sabit giderler" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
-                        <input name="debtCommitments" type="number" step="0.01" defaultValue={summary.debtCommitments} placeholder="Borç ödemeleri" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
-                        <input name="freeCash" type="number" step="0.01" defaultValue={summary.freeCash} placeholder="Serbest nakit" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
-                        <input name="bufferTarget" type="number" step="0.01" defaultValue={summary.bufferTarget} placeholder="Hedef tampon" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
-                        <textarea name="notes" defaultValue={summary.notes ?? ''} placeholder="Ay notları ve manuel ayarlar" className="w-full min-h-24 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                        <div>
+                            <label className="form-label">Ay / Yıl</label>
+                            <input type="month" name="month" defaultValue={summary.month.slice(0, 7)} className="form-input" />
+                            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Bu ay için manuel bütçe varsayımlarını düzenler.</p>
+                        </div>
+
+                        <BudgetMoneyField name="openingCash" label="Aylık başlangıç nakdi" value={summary.openingCash} help="Ay başında nakit ve banka hesaplarında varsaydığın başlangıç." />
+                        <BudgetMoneyField name="plannedIncome" label="Beklenen gelir" value={summary.plannedIncome} help="Düzenli gelirlerden otomatik gelir; gerekirse manuel düzelt." />
+                        <BudgetMoneyField name="fixedCommitments" label="Beklenen gider" value={summary.fixedCommitments} help="Abonelik ve sabit giderlerin toplam aylık etkisi." />
+                        <BudgetMoneyField name="debtCommitments" label="Planlanan borç ödemesi" value={summary.debtCommitments} help="Bu ay beklenen kredi, kart, KMH ve verecek ödemeleri." />
+                        <BudgetMoneyField name="plannedReceivableCollection" label="Planlanan alacak tahsilatı" value={summary.plannedReceivableCollection} help="Bu ay tahsil etmeyi beklediğin kişi bazlı alacaklar." />
+                        <BudgetMoneyField name="savingGoal" label="Aylık tasarruf hedefi" value={summary.savingGoal} help="Hedeflere ayırmak istediğin net tutar." />
+                        <BudgetMoneyField name="debtPaymentBudget" label="Borç kapatma bütçesi" value={summary.debtPaymentBudget} help="Serbest nakitten borç kapatmaya ayıracağın maksimum tutar." />
+                        <BudgetMoneyField name="manualAdjustment" label="Manuel düzeltme" value={summary.manualAdjustment} help="Beklenmeyen nakit giriş/çıkış düzeltmesi. Negatif değer çıkış anlamına gelir." />
+
+                        <input type="hidden" name="freeCash" value={moneyValue(summary.freeCash)} />
+                        <div className="rounded-2xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-hover)' }}>
+                            <p className="form-label mb-1">Net nakit akışı (otomatik)</p>
+                            <p className={summary.freeCash < 0 ? 'text-[color:var(--accent-danger)] font-bold privacy-blur' : 'text-[color:var(--accent-success)] font-bold privacy-blur'}>
+                                {formatCurrency(summary.freeCash, 'TRY')}
+                            </p>
+                            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Bu alan hesap sonucudur; editlenebilir gibi gösterilmez.</p>
+                        </div>
+
+                        <BudgetMoneyField name="bufferTarget" label="Aylık tampon hedefi" value={summary.bufferTarget} help="Ay sonunda bırakmak istediğin güvenlik payı." />
+                        <div>
+                            <label className="form-label">Notlar</label>
+                            <textarea name="notes" defaultValue={summary.notes ?? ''} placeholder="Bu ayki özel durumlar, maaş farkı, tek seferlik ödeme notları" className="form-input min-h-24" />
+                        </div>
                         <FormMessage success={monthState.success} message={monthState.message} />
                         <SubmitButton label="Bütçeyi Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -147,19 +195,19 @@ export default function BudgetWorkspace({
                 <FormMessage success={feedback?.success} message={feedback?.message} />
 
                 <div className="fintech-card p-6 md:p-7">
-                    <h2 className="text-2xl font-bold mb-5">Uyarılar</h2>
+                    <h2 className="text-2xl font-bold mb-5" style={{ color: 'var(--text-primary)' }}>Uyarılar</h2>
                     {summary.alerts.length === 0 ? (
-                        <p className="text-zinc-400">Açık uyarın yok. Plan temiz.</p>
+                        <p style={{ color: 'var(--text-secondary)' }}>Açık uyarın yok. Plan temiz.</p>
                     ) : (
                         <div className="space-y-3">
                             {summary.alerts.map((alert) => (
-                                <div key={alert.id} className="rounded-3xl border border-white/8 bg-[var(--bg-hover)] p-4 flex items-start justify-between gap-4">
+                                <div key={alert.id} className="rounded-3xl bg-[var(--bg-hover)] p-4 flex items-start justify-between gap-4" style={{ border: '1px solid var(--border-default)' }}>
                                     <div>
-                                        <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">{formatAlertTypeLabel(alert.type)}</p>
-                                        <h3 className="font-semibold mb-1">{alert.title}</h3>
+                                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>{formatAlertTypeLabel(alert.type)}</p>
+                                        <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{alert.title}</h3>
                                         <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{alert.content}</p>
                                     </div>
-                                    <button onClick={() => handleDismissAlert(alert.id)} className="text-xs text-zinc-500 hover:text-white">
+                                    <button onClick={() => handleDismissAlert(alert.id)} className="text-xs transition-colors" style={{ color: 'var(--text-muted)' }}>
                                         Kapat
                                     </button>
                                 </div>
@@ -169,16 +217,16 @@ export default function BudgetWorkspace({
                 </div>
 
                 <div className="fintech-card p-6 md:p-7">
-                    <h2 className="text-2xl font-bold mb-5">Gelir kaynakları</h2>
+                    <h2 className="text-2xl font-bold mb-5" style={{ color: 'var(--text-primary)' }}>Gelir kaynakları</h2>
                     {summary.incomeSources.length === 0 ? (
-                        <p className="text-zinc-400">Gelir kaydı yok. Gelir girmezsen serbest nakit hesapları eksik kalır.</p>
+                        <p style={{ color: 'var(--text-secondary)' }}>Gelir kaydı yok. Gelir girmezsen serbest nakit hesapları eksik kalır.</p>
                     ) : (
                         <div className="space-y-3">
                             {summary.incomeSources.map((income) => (
-                                <div key={income.id} className="rounded-3xl border border-white/8 bg-[var(--bg-hover)] p-4 flex items-center justify-between gap-4">
+                                <div key={income.id} className="rounded-3xl bg-[var(--bg-hover)] p-4 flex items-center justify-between gap-4" style={{ border: '1px solid var(--border-default)' }}>
                                     <div>
-                                        <p className="font-semibold">{income.name}</p>
-                                        <p className="text-sm text-zinc-500">
+                                        <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{income.name}</p>
+                                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                                             {formatBillingCycleLabel(income.billingCycle)}
                                             {income.payday ? ` • Gün ${income.payday}` : ''}
                                             {income.isPrimary ? ' • Ana gelir' : ''}
@@ -186,11 +234,11 @@ export default function BudgetWorkspace({
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <p className="font-bold privacy-blur">{formatCurrency(income.amount, income.currency)}</p>
-                                        <button onClick={() => setEditingIncome(income)} className="p-2 text-zinc-600 hover:text-white">
+                                        <p className="font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(income.amount, income.currency)}</p>
+                                        <button onClick={() => setEditingIncome(income)} className="p-2 transition-colors" style={{ color: 'var(--text-muted)' }}>
                                             <Pencil className="w-4 h-4" />
                                         </button>
-                                        <button onClick={() => handleDeleteIncome(income.id)} className="p-2 text-zinc-600 hover:text-red-500">
+                                        <button onClick={() => handleDeleteIncome(income.id)} className="p-2 transition-colors" style={{ color: 'var(--text-muted)' }}>
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -228,29 +276,29 @@ function IncomeSourceForm({
     return (
         <form action={action} className="space-y-4">
             {income ? <input type="hidden" name="incomeId" value={income.id} /> : null}
-            <input name="name" defaultValue={income?.name ?? ''} placeholder="Maaş, freelance, kira geliri" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
+            <input name="name" defaultValue={income?.name ?? ''} placeholder="Maaş, freelance, kira geliri" className="form-input" required />
             <div className="grid grid-cols-2 gap-4">
-                <input name="amount" type="number" step="0.01" defaultValue={income?.amount ?? ''} placeholder="0.00" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
-                <select name="currency" defaultValue={income?.currency ?? 'TRY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
+                <input name="amount" type="number" step="0.01" defaultValue={income?.amount ?? ''} placeholder="0.00" className="form-input" required />
+                <select name="currency" defaultValue={income?.currency ?? 'TRY'} className="form-input">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                 </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <select name="billingCycle" defaultValue={income?.billingCycle ?? 'MONTHLY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
+                <select name="billingCycle" defaultValue={income?.billingCycle ?? 'MONTHLY'} className="form-input">
                     <option value="MONTHLY">Aylık</option>
                     <option value="YEARLY">Yıllık</option>
                 </select>
-                <input name="payday" type="number" min="1" max="31" defaultValue={income?.payday ?? ''} placeholder="Ödeme günü" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" />
+                <input name="payday" type="number" min="1" max="31" defaultValue={income?.payday ?? ''} placeholder="Ödeme günü" className="form-input" />
             </div>
-            <select name="status" defaultValue={income?.status ?? 'ACTIVE'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
+            <select name="status" defaultValue={income?.status ?? 'ACTIVE'} className="form-input">
                 <option value="ACTIVE">Aktif</option>
                 <option value="PAUSED">Duraklatıldı</option>
                 <option value="CANCELED">İptal Edildi</option>
             </select>
-            <label className="flex items-center gap-2 text-sm text-zinc-400">
-                <input name="isPrimary" type="checkbox" defaultChecked={income?.isPrimary ?? false} className="rounded border-white/20 bg-black" />
+            <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                <input name="isPrimary" type="checkbox" defaultChecked={income?.isPrimary ?? false} className="rounded" style={{ borderColor: 'var(--border-default)', background: 'var(--bg-input)' }} />
                 Ana gelir kaynağı
             </label>
             <FormMessage success={state.success} message={state.message} />

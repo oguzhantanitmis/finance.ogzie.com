@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
+import { answerFinanceAssistant } from '@/lib/finance-assistant'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -149,6 +150,11 @@ export async function POST(req: Request) {
             }
         }
 
+        const deterministicAnswer = await answerFinanceAssistant(user.id, prompt).catch(() => null)
+        if (deterministicAnswer) {
+            return NextResponse.json({ text: deterministicAnswer })
+        }
+
         // AI Chat — streaming response with slim context
         const context = await composeFinancialContext(user.id, 'slim')
         const apiKey = process.env.OPENAI_API_KEY
@@ -245,4 +251,3 @@ function generateFormattedFallback(context: string): string {
 
     return sections.join('\n')
 }
-
