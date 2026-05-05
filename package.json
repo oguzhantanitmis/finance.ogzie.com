@@ -9,7 +9,7 @@
     "db:update": "prisma migrate deploy && prisma generate",
     "db:push": "prisma db push && prisma generate",
     "build": "prisma generate && next build",
-    "build:vercel": "prisma migrate deploy && prisma generate && next build",
+    "build:vercel": "prisma generate && next build",
     "build:production": "prisma migrate deploy && prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
