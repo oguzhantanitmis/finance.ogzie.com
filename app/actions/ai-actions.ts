@@ -11,8 +11,9 @@ export async function triggerAiAnalysisAction() {
         }
         await runProactiveAiAnalysis(user.id)
         return { success: true }
-    } catch (error: any) {
+    } catch (error) {
         console.error('AI Analysis Action Error:', error)
-        return { success: false, error: error.message || 'Analiz sırasında bilinmeyen bir hata oluştu.' }
+        const message = error instanceof Error ? error.message : 'Analiz sırasında bilinmeyen bir hata oluştu.'
+        return { success: false, error: message }
     }
 }

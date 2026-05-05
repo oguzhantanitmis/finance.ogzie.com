@@ -47,7 +47,11 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
 
     const toggleSub = (id: string) => {
         const copy = new Set(selectedSubs)
-        copy.has(id) ? copy.delete(id) : copy.add(id)
+        if (copy.has(id)) {
+            copy.delete(id)
+        } else {
+            copy.add(id)
+        }
         setSelectedSubs(copy)
     }
 

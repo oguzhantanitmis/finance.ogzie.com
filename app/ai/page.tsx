@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Bot, User, Zap, Send } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import PageShell from '@/components/PageShell'
 import { cn } from '@/lib/utils'
 
@@ -69,7 +69,6 @@ export default function AIPage() {
         setLoading(true)
 
         // Add empty assistant message that will be streamed into
-        const assistantIndex = messages.length + 1 // after user message
         setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
         try {
@@ -101,7 +100,7 @@ export default function AIPage() {
         } finally {
             setLoading(false)
         }
-    }, [loading, messages.length])
+    }, [loading])
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()

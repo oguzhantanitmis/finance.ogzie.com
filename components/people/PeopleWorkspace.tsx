@@ -266,6 +266,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                 <select
                                     name="personId"
                                     className="form-input"
+                                    defaultValue={selectedPersonId ?? people[0]?.id ?? ''}
                                     required
                                 >
                                     {people.map((person) => (

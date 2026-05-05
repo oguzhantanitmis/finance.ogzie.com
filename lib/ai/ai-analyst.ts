@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
-import { getSetting } from '@/lib/settings-service'
 
 type RecommendationType = 'STRATEGY' | 'SAVING' | 'WARNING' | 'OPPORTUNITY' | 'MILESTONE' | 'ALERT'
 
@@ -14,6 +13,17 @@ interface ParsedRecommendation {
     suggestedAction?: string
     relatedEntityType?: string
     relatedEntityId?: string
+}
+
+type OpenAiChatResponse = {
+    choices?: Array<{
+        message?: {
+            content?: string | null
+        }
+    }>
+    error?: {
+        message?: string
+    }
 }
 
 /**
@@ -31,6 +41,10 @@ function cleanJsonResponse(content: string): string {
         cleaned = cleaned.slice(0, -3)
     }
     return cleaned.trim()
+}
+
+async function parseOpenAiResponse(response: Response): Promise<OpenAiChatResponse> {
+    return await response.json() as OpenAiChatResponse
 }
 
 /**
@@ -135,7 +149,7 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
     }
 
     let aiResponse: Response | null = null
-    let aiData: any = null
+    let aiData: OpenAiChatResponse | null = null
     let lastError: string = ''
 
     for (const model of modelsToTry) {
@@ -157,7 +171,7 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
             }),
         })
 
-        aiData = await aiResponse.json()
+        aiData = await parseOpenAiResponse(aiResponse)
 
         // json_schema desteklenmiyorsa json_object ile dene
         if (!aiResponse.ok && aiData?.error?.message?.includes('response_format')) {
@@ -175,7 +189,7 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
                     max_completion_tokens: 3000
                 }),
             })
-            aiData = await aiResponse.json()
+            aiData = await parseOpenAiResponse(aiResponse)
         }
 
         if (aiResponse.ok) {
@@ -198,7 +212,10 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
     }
 
     try {
-        const rawContent = aiData.choices[0].message.content
+        const rawContent = aiData?.choices?.[0]?.message?.content
+        if (!rawContent) {
+            throw new Error('AI yanıt içeriği boş.')
+        }
         console.log('AI Raw Response:', rawContent?.substring(0, 500))
 
         const cleanedContent = cleanJsonResponse(rawContent)

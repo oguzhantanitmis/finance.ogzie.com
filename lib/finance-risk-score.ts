@@ -1,6 +1,10 @@
 import type { Asset, Debt, CreditCard } from "@prisma/client"
 import { calculateAssetValue, MarketRates } from "./market-data"
 
+type CardTransaction = { type: string; amount: number }
+type CardPayment = { amount: number }
+type CardWithActivity = CreditCard & { transactions: CardTransaction[]; payments: CardPayment[] }
+
 interface RiskAnalysis {
     score: number // 0-100
     level: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'GOOD' | 'EXCELLENT'
@@ -17,7 +21,7 @@ export function calculateRiskScore(
     assets: Asset[],
     debts: Debt[],
     marketRates: MarketRates,
-    creditCards: (CreditCard & { transactions: { type: string, amount: number }[], payments: { amount: number }[] })[] = []
+    creditCards: CardWithActivity[] = []
 ): RiskAnalysis {
     let totalAssetsTL = 0
     let liquidAssetsTL = 0
@@ -47,15 +51,15 @@ export function calculateRiskScore(
     let highUtilizationDetected = false
     creditCards.forEach(card => {
         const charges = card.transactions
-            .filter((t: any) => t.type !== 'REFUND')
-            .reduce((s: number, t: any) => s + t.amount, 0)
+            .filter((transaction) => transaction.type !== 'REFUND')
+            .reduce((sum, transaction) => sum + transaction.amount, 0)
 
         const refunds = card.transactions
-            .filter((t: any) => t.type === 'REFUND')
-            .reduce((s: number, t: any) => s + t.amount, 0)
+            .filter((transaction) => transaction.type === 'REFUND')
+            .reduce((sum, transaction) => sum + transaction.amount, 0)
 
         const payments = card.payments
-            .reduce((s: number, p: any) => s + p.amount, 0)
+            .reduce((sum, payment) => sum + payment.amount, 0)
 
         const debt = Math.max(charges - refunds - payments, 0)
 

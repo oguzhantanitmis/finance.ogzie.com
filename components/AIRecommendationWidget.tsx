@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BrainCircuit, LineChart, ShieldAlert, Sparkles, RefreshCw, HandCoins, AlertTriangle, TrendingUp, Trophy, Bell } from 'lucide-react'
 import { triggerAiAnalysisAction } from '@/app/actions/ai-actions'
@@ -32,8 +32,8 @@ export default function AIRecommendationWidget({ recommendations }: { recommenda
                 return
             }
             router.refresh()
-        } catch (err: any) {
-            setError(err.message || 'Analiz sırasında hata oluştu.')
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Analiz sırasında hata oluştu.')
         } finally {
             setIsAnalyzing(false)
         }

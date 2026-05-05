@@ -1,6 +1,5 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
 import {
     AreaChart,
     Area,
@@ -17,27 +16,26 @@ import { useFinance } from './FinanceContext'
 import { cn } from '@/lib/utils'
 import { TrendingUp, PieChart as PieChartIcon } from 'lucide-react'
 
-const CHART_COLORS = [
-    'var(--chart-1)',
-    'var(--chart-2)',
-    'var(--chart-3)',
-    'var(--chart-4)',
-    'var(--chart-5)',
-    'var(--chart-6)',
-]
-
-/* Resolved CSS variable colors for Recharts (needs actual hex at render) */
-function useCSSVar(varName: string, fallback: string) {
-    const [value, setValue] = useState(fallback)
-    useEffect(() => {
-        const computed = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
-        if (computed) setValue(computed)
-    }, [varName])
-    return value
+type ChartPoint = {
+    name: string
+    value: number
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type TooltipPayload = {
+    name?: string
+    value?: number
+    payload?: ChartPoint
+}
+
+type TooltipProps = {
+    active?: boolean
+    payload?: TooltipPayload[]
+    label?: string
+}
+
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
     if (active && payload && payload.length) {
+        const value = payload[0].value ?? payload[0].payload?.value ?? 0
         return (
             <div
                 className="px-4 py-3 rounded-xl shadow-2xl border text-sm"
@@ -48,7 +46,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             >
                 <p className="text-xs mb-1.5 font-medium" style={{ color: 'var(--text-muted)' }}>{label}</p>
                 <p className="font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(payload[0].value)}
+                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
                 </p>
             </div>
         )
@@ -56,8 +54,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null
 }
 
-const PieTooltip = ({ active, payload }: any) => {
+const PieTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
+        const name = payload[0].name ?? payload[0].payload?.name ?? ''
+        const value = payload[0].value ?? payload[0].payload?.value ?? 0
         return (
             <div
                 className="px-4 py-3 rounded-xl shadow-2xl border text-sm"
@@ -66,9 +66,9 @@ const PieTooltip = ({ active, payload }: any) => {
                     borderColor: 'var(--border-default)',
                 }}
             >
-                <p className="text-xs mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>{payload[0].name}</p>
+                <p className="text-xs mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>{name}</p>
                 <p className="font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(payload[0].value)}
+                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
                 </p>
             </div>
         )
@@ -76,30 +76,12 @@ const PieTooltip = ({ active, payload }: any) => {
     return null
 }
 
-export default function DashboardCharts({ history, distribution }: { history: any[], distribution: any[] }) {
-    const [mounted, setMounted] = useState(false)
+export default function DashboardCharts({ history, distribution }: { history: ChartPoint[], distribution: ChartPoint[] }) {
     const { hideAmounts } = useFinance()
 
-    const primaryColor = useCSSVar('--chart-1', '#3b82f6')
-    const gridColor = useCSSVar('--chart-grid', 'rgba(255,255,255,0.05)')
-    const textMuted = useCSSVar('--text-muted', '#52525b')
-
-    useEffect(() => {
-        setMounted(true)
-    }, [])
-
-    if (!mounted) {
-        return (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-                <div className="lg:col-span-2 fintech-card p-6">
-                    <div className="h-[300px] w-full rounded-xl animate-pulse" style={{ background: 'var(--bg-elevated)' }} />
-                </div>
-                <div className="fintech-card p-6">
-                    <div className="h-[300px] w-full rounded-xl animate-pulse" style={{ background: 'var(--bg-elevated)' }} />
-                </div>
-            </div>
-        )
-    }
+    const primaryColor = 'var(--chart-1)'
+    const gridColor = 'var(--chart-grid)'
+    const textMuted = 'var(--text-muted)'
 
     const totalDistribution = distribution.reduce((a, b) => a + b.value, 0)
 

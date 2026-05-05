@@ -50,7 +50,7 @@ export function calculateRiskScore(assets: number, debts: number, monthlyIncome:
     const debtToAssetRatio = debts / assets;
     const debtToIncomeRatio = debts / (monthlyIncome || 1);
 
-    let score = (debtToAssetRatio * 50) + (debtToIncomeRatio * 20);
+    const score = (debtToAssetRatio * 50) + (debtToIncomeRatio * 20);
 
     return Math.min(Math.max(Math.round(score), 0), 100);
 }

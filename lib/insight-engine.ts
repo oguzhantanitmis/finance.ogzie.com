@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
+import { getAvailableCash } from '@/lib/account-service'
 
 type InsightType = 'ALERT' | 'INFO' | 'SUCCESS' | 'WARNING'
 

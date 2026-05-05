@@ -2,8 +2,22 @@ import { prisma } from '@/lib/prisma'
 import { getTotalBalance, getAvailableCash } from '@/lib/account-service'
 import { getRPSummary } from '@/lib/people-service'
 import { calculateHealthScore } from '@/lib/health-score-service'
-import { getMonthlyReports, getNetWorthHistory } from '@/lib/report-service'
+import { getMonthlyReports } from '@/lib/report-service'
 import { formatCurrency } from '@/lib/utils'
+
+type RecentLedgerEntry = {
+    type: string
+    amount: number
+    description: string | null
+    date: Date
+}
+
+type MonthlyReportForContext = Awaited<ReturnType<typeof getMonthlyReports>>[number]
+
+type HealthSnapshotForContext = {
+    score: number
+    calculatedAt: Date
+}
 
 /**
  * Kullanıcının tüm finansal verisini AI'a context olarak hazırlar.
@@ -29,19 +43,6 @@ export async function composeFinancialContext(userId: string, mode: 'full' | 'sl
         prisma.financialGoal.findMany({ where: { userId, status: 'GOAL_ACTIVE' }, select: { id: true, title: true, targetAmount: true, currentAmount: true, targetDate: true, createdAt: true } }),
     ] as const
 
-    // Heavy queries — only in full mode
-    const heavyPromises = mode === 'full' ? [
-        prisma.ledgerEntry.findMany({ where: { userId }, orderBy: { date: 'desc' }, take: 10, select: { type: true, amount: true, description: true, date: true } }),
-        getMonthlyReports(userId, 3),
-        getNetWorthHistory(userId),
-        prisma.healthSnapshot.findMany({ where: { userId }, orderBy: { calculatedAt: 'desc' }, take: 3, select: { score: true, calculatedAt: true } }),
-    ] as const : [
-        Promise.resolve([]),
-        Promise.resolve([]),
-        Promise.resolve([]),
-        Promise.resolve([]),
-    ] as const
-
     const [
         totalBalance,
         availableCash,
@@ -56,12 +57,31 @@ export async function composeFinancialContext(userId: string, mode: 'full' | 'sl
         goals,
     ] = await Promise.all(corePromises)
 
-    const [
-        recentLedger,
-        monthlyReports,
-        netWorthHistory,
-        healthSnapshots,
-    ] = await Promise.all(heavyPromises) as [any[], any[], any[], any[]]
+    let recentLedger: RecentLedgerEntry[] = []
+    let monthlyReports: MonthlyReportForContext[] = []
+    let healthSnapshots: HealthSnapshotForContext[] = []
+
+    if (mode === 'full') {
+        const [ledgerEntries, reports, snapshots] = await Promise.all([
+            prisma.ledgerEntry.findMany({
+                where: { userId },
+                orderBy: { date: 'desc' },
+                take: 10,
+                select: { type: true, amount: true, description: true, date: true },
+            }),
+            getMonthlyReports(userId, 3),
+            prisma.healthSnapshot.findMany({
+                where: { userId },
+                orderBy: { calculatedAt: 'desc' },
+                take: 3,
+                select: { score: true, calculatedAt: true },
+            }),
+        ])
+
+        recentLedger = ledgerEntries
+        monthlyReports = reports
+        healthSnapshots = snapshots
+    }
 
     const lines: string[] = []
 
@@ -175,7 +195,7 @@ export async function composeFinancialContext(userId: string, mode: 'full' | 'sl
             projectedCompletion.setMonth(projectedCompletion.getMonth() + Math.ceil(monthsNeeded))
 
             lines.push(`  "${g.title}": %${pct} tamamlandı`)
-            lines.push(`    Kalan: ${formatCurrency(remaining, 'TRY')} | Hedef: ${g.targetDate.toLocaleDateString('tr-TR')}`)
+            lines.push(`    Kalan: ${formatCurrency(remaining, 'TRY')} | Hedef: ${g.targetDate.toLocaleDateString('tr-TR')} | Gün: ${daysUntilTarget}`)
 
             if (monthlyRate > 0) {
                 lines.push(`    Aylık birikim hızı: ${formatCurrency(monthlyRate, 'TRY')}`)

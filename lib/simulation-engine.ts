@@ -57,8 +57,6 @@ export async function simulateCancelSubscriptions(
 
     const monthlySavings = subs.reduce((s, sub) => s + (sub.monthlyNormalizedAmount ?? sub.amount), 0)
     const cash = await getAvailableCash(userId)
-    const incomes = await prisma.incomeSource.findMany({ where: { userId }, select: { amount: true, billingCycle: true } })
-    const monthlyIncome = incomes.reduce((s, i) => s + (i.billingCycle === 'YEARLY' ? i.amount / 12 : i.amount), 0)
 
     // 3 aylık projeksiyon
     const projections: MonthlyProjection[] = []
@@ -235,14 +233,12 @@ export async function simulateMinimumPaymentTrap(
     let totalInterest3Months = 0
 
     const projections: MonthlyProjection[] = []
-    let runningDebt = 0
 
     for (const card of cards) {
         const debt = card.statements[0]?.statementBalance ?? 0
         const minPay = card.statements[0]?.minimumPayment ?? 0
         totalDebt += debt
         totalMinPayment += minPay
-        runningDebt += debt
     }
 
     // 3 aylık projeksiyon — sadece asgari ödenirse
