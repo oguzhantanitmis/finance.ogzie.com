@@ -5,7 +5,7 @@ import { Sparkles, ArrowRight, MessageSquare } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 
-export default function AIHeader({ summary }: { summary: string }) {
+export default function AIHeader({ summary, canUseAi = false }: { summary: string; canUseAi?: boolean }) {
     return (
         <div className="mb-8">
             <div className="flex items-center gap-2 mb-4">
@@ -35,10 +35,12 @@ export default function AIHeader({ summary }: { summary: string }) {
                         Detaylı analizi aç
                         <ArrowRight className="w-4 h-4" />
                     </Link>
-                    <Link href="/ai" className="flex items-center gap-2 text-sm font-semibold transition-colors" style={{ color: 'var(--text-muted)' }}>
-                        <MessageSquare className="w-4 h-4" />
-                        AI ile konuş
-                    </Link>
+                    {canUseAi ? (
+                        <Link href="/ai" className="flex items-center gap-2 text-sm font-semibold transition-colors" style={{ color: 'var(--text-muted)' }}>
+                            <MessageSquare className="w-4 h-4" />
+                            AI ile konuş
+                        </Link>
+                    ) : null}
                 </div>
             </motion.div>
         </div>

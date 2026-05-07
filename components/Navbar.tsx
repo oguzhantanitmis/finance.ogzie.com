@@ -70,7 +70,7 @@ export default function Navbar() {
         {
             title: 'Sistem',
             items: [
-                { name: 'Finans Asistanı', icon: MessageSquare, path: '/ai' },
+                ...(isSuperuser ? [{ name: 'Finans Asistanı', icon: MessageSquare, path: '/ai' }] : []),
                 { name: 'Ayarlar', icon: Settings, path: '/settings' },
                 ...(isSuperuser ? [{ name: 'Admin', icon: ShieldCheck, path: '/admin' }] : []),
             ]

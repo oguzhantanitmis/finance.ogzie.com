@@ -1,14 +1,11 @@
 'use server'
 
-import { getCurrentUser } from '@/lib/server-auth'
+import { requireSuperuser } from '@/lib/server-auth'
 import { runProactiveAiAnalysis } from '@/lib/ai/ai-analyst'
 
 export async function triggerAiAnalysisAction() {
     try {
-        const user = await getCurrentUser()
-        if (!user) {
-            return { success: false, error: 'Oturum açmanız gerekiyor.' }
-        }
+        const user = await requireSuperuser()
         await runProactiveAiAnalysis(user.id)
         return { success: true }
     } catch (error) {

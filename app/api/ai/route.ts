@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
 import { answerFinanceAssistant } from '@/lib/finance-assistant'
-import { getCurrentUser } from '@/lib/server-auth'
+import { requireSuperuser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -105,8 +105,17 @@ function createTextStream(openaiStream: ReadableStream<Uint8Array>): ReadableStr
 
 export async function POST(req: Request) {
     try {
-        const user = await getCurrentUser()
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        const user = await requireSuperuser().catch((error) => {
+            const message = error instanceof Error ? error.message : ''
+            return message === 'Unauthorized' ? null : 'FORBIDDEN'
+        })
+
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        if (user === 'FORBIDDEN') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
 
         const { prompt } = (await req.json()) as { prompt: string }
         const commandType = parseCommand(prompt)

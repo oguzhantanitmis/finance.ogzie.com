@@ -27,6 +27,7 @@ interface Props {
         hasProject: boolean
         hasOrg: boolean
     }
+    canUseAi: boolean
     userProfile: {
         name: string
         email: string
@@ -42,7 +43,7 @@ const DEBT_STRATEGIES: { key: DebtStrategy; title: string; description: string; 
     { key: 'HYBRID', title: 'Hibrit Yöntem', description: 'Faiz ve bakiye dengesini gözetir.', icon: '⚡' },
 ]
 
-export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, userProfile }: Props) {
+export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
     const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE')
     const [privacyMode, setPrivacyMode] = useState(true)
     const [notifications, setNotifications] = useState({
@@ -313,32 +314,34 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
             </div>
 
             {/* ===== AI Durumu ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                        <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" /></svg>
-                    </div>
-                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AI Çalışma Durumu</h2>
-                </div>
-                <div className="space-y-3">
-                    {[
-                        { label: 'Efektif sağlayıcı', value: 'OPENAI', always: true },
-                        { label: 'OPENAI_API_KEY', value: aiSettings.connectionStatus === 'HAZIR' ? 'HAZIR' : 'HATA', always: true, isError: aiSettings.connectionStatus !== 'HAZIR' },
-                        { label: 'Aktif Model', value: aiSettings.model, always: true },
-                        { label: 'Proxy/Gateway', value: 'VAR', always: aiSettings.baseUrl !== 'https://api.openai.com/v1' },
-                        { label: 'OPENAI_PROJECT', value: aiSettings.hasProject ? 'VAR' : 'YOK', always: true },
-                        { label: 'OPENAI_ORG', value: aiSettings.hasOrg ? 'VAR' : 'YOK', always: true },
-                    ].filter((r) => r.always).map((row) => (
-                        <div key={row.label} className="rounded-3xl p-4 md:p-5 flex items-center justify-between transition-all" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-subtle)' }}>
-                            <span className="font-medium" style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-                            <span className={cn(
-                                "px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase",
-                                row.isError ? "bg-red-500/20 text-[color:var(--accent-danger)]" : "bg-zinc-800 text-zinc-100"
-                            )}>{row.value}</span>
+            {canUseAi ? (
+                <div className="fintech-card p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+                            <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" /></svg>
                         </div>
-                    ))}
+                        <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AI Çalışma Durumu</h2>
+                    </div>
+                    <div className="space-y-3">
+                        {[
+                            { label: 'Efektif sağlayıcı', value: 'OPENAI', always: true },
+                            { label: 'OPENAI_API_KEY', value: aiSettings.connectionStatus === 'HAZIR' ? 'HAZIR' : 'HATA', always: true, isError: aiSettings.connectionStatus !== 'HAZIR' },
+                            { label: 'Aktif Model', value: aiSettings.model, always: true },
+                            { label: 'Proxy/Gateway', value: 'VAR', always: aiSettings.baseUrl !== 'https://api.openai.com/v1' },
+                            { label: 'OPENAI_PROJECT', value: aiSettings.hasProject ? 'VAR' : 'YOK', always: true },
+                            { label: 'OPENAI_ORG', value: aiSettings.hasOrg ? 'VAR' : 'YOK', always: true },
+                        ].filter((r) => r.always).map((row) => (
+                            <div key={row.label} className="rounded-3xl p-4 md:p-5 flex items-center justify-between transition-all" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-subtle)' }}>
+                                <span className="font-medium" style={{ color: 'var(--text-muted)' }}>{row.label}</span>
+                                <span className={cn(
+                                    "px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase",
+                                    row.isError ? "bg-red-500/20 text-[color:var(--accent-danger)]" : "bg-zinc-800 text-zinc-100"
+                                )}>{row.value}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            ) : null}
 
             {/* ===== Uygulama Bilgileri ===== */}
             <div className="fintech-card p-6">

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import AdminUsersWorkspace from '@/components/admin/AdminUsersWorkspace'
 import PageShell from '@/components/PageShell'
 import { getManagedUsers } from '@/lib/admin-users'
+import { getSmtpStatus } from '@/lib/email/smtp'
 import { requireSuperuser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,7 @@ export default async function AdminPage() {
     }
 
     const users = await getManagedUsers()
+    const smtpStatus = getSmtpStatus()
     const serializedUsers = users.map((user) => ({
         id: user.id,
         email: user.email,
@@ -37,7 +39,7 @@ export default async function AdminPage() {
                 </p>
             </header>
 
-            <AdminUsersWorkspace users={serializedUsers} currentUserId={currentUser.id} />
+            <AdminUsersWorkspace users={serializedUsers} currentUserId={currentUser.id} currentUserEmail={currentUser.email} smtpStatus={smtpStatus} />
         </PageShell>
     )
 }

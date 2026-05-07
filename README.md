@@ -18,6 +18,8 @@ Uygulama mevcut Next.js + Prisma mimarisi korunarak genişletildi. Amaç sadece 
 - Hedef türleri ve hedefe göre ödeme kapasitesi analizi
 - Profesyonel rapor özeti, detay kartları ve kişi/kart/borç bazlı analiz
 - Deterministik finans asistanı intent sistemi
+- Superuser kontrollü admin paneli ve kullanıcı bazlı veri izolasyonu
+- SMTP ile yeni kullanıcı giriş bilgisi ve admin test e-postası gönderimi
 - Açık/koyu tema değişkenleri ve legacy koyu input düzeltmeleri
 
 ## Kurulum
@@ -43,6 +45,20 @@ APP_SETTINGS_SECRET="evds-ve-diger-sifreli-ayarlar-icin-uzun-secret"
 ```
 
 `APP_SETTINGS_SECRET` tanımlanmazsa şifreli ayar kaydı için `NEXTAUTH_SECRET` veya `AUTH_SECRET` kullanılır. Production ortamında sabit ve güçlü bir `APP_SETTINGS_SECRET` kullanılması önerilir.
+
+Admin panelinden kullanıcı oluşturma ve e-posta gönderimi için opsiyonel SMTP değerleri:
+
+```bash
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="587"
+SMTP_SECURE="false"
+SMTP_USER="smtp-user"
+SMTP_PASSWORD="smtp-password"
+SMTP_FROM="Ogzie Finans <no-reply@finance.ogzie.com>"
+SMTP_REPLY_TO="destek@finance.ogzie.com"
+```
+
+SMTP eksikse kullanıcı oluşturma devam eder, sadece giriş bilgisi e-postası gönderilmez. Finans asistanı ve AI çalışma durumu sadece `SUPERUSER` rolündeki hesaplara açıktır.
 
 ## Veritabanı Migration
 
@@ -153,4 +169,3 @@ npm run build
 ```
 
 Son durumda TypeScript, Vitest ve production build başarılıdır. Repo genelindeki ESLint kontrolü, mevcut eski dosyalardaki `any`, `require`, kullanılmayan import ve React 19 lint kurallarına takılmaktadır; detaylar `TEST_REPORT.md` içindedir.
-

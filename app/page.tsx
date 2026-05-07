@@ -21,10 +21,11 @@ import { getDashboardData } from '@/lib/dashboard-service'
 import { getMarketTicker, type MarketTickerResult } from '@/lib/evds-service'
 import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score-service'
 import { getActiveGoalForDashboard } from '@/lib/goal-service'
+import { isSuperuser } from '@/lib/authz'
 
 export const dynamic = 'force-dynamic'
 
-async function DashboardContent({ userId }: { userId: string }) {
+async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi: boolean }) {
     const defaultSummary = {
         plannedIncome: 0, fixedCommitments: 0,
         debtCommitments: 0, subscriptionLoad: 0, recurringLoad: 0,
@@ -110,15 +111,18 @@ async function DashboardContent({ userId }: { userId: string }) {
                 </div>
             </header>
 
-            <AIHeader
-                summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
-            />
+            {canUseAi ? (
+                <AIHeader
+                    canUseAi
+                    summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
+                />
+            ) : null}
 
             <MarketTicker ticker={marketTicker} />
 
             <DashboardInsights insights={insights} />
 
-            <AIQuickAction />
+            {canUseAi ? <AIQuickAction /> : null}
 
             <SummaryCards
                 data={{
@@ -448,7 +452,7 @@ export default async function Home() {
     return (
         <PageShell width="genis">
             <Suspense fallback={<DashboardSkeleton />}>
-                <DashboardContent userId={user.id} />
+                <DashboardContent userId={user.id} canUseAi={isSuperuser(user)} />
             </Suspense>
         </PageShell>
     )

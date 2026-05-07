@@ -3,6 +3,7 @@ import PageShell from '@/components/PageShell'
 import SettingsWorkspace from '@/components/settings/SettingsWorkspace'
 import { getCardFinanceSettings } from '@/lib/card-finance-settings-service'
 import { DEFAULT_EVDS_SERIES, getEvdsSettings } from '@/lib/evds-service'
+import { isSuperuser } from '@/lib/authz'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ interface CardSettingsData {
 export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
+    const canUseAi = isSuperuser(user)
 
     const aiSettings: AISettingsData = {
         connectionStatus: 'BEKLENİYOR',
@@ -49,7 +51,7 @@ export default async function SettingsPage() {
         const cardSettings = await getCardFinanceSettings(user.id)
 
         const apiKey = process.env.OPENAI_API_KEY
-        if (apiKey) {
+        if (canUseAi && apiKey) {
             try {
                 const res = await fetch(`${aiSettings.baseUrl}/models`, {
                     headers: { 'Authorization': `Bearer ${apiKey}` },
@@ -95,6 +97,7 @@ export default async function SettingsPage() {
                 cardSettings={cardSettingsData}
                 evdsSettings={evdsSettings}
                 aiSettings={aiSettings}
+                canUseAi={canUseAi}
                 userProfile={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
             />
         </PageShell>
