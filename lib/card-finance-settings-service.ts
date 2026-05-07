@@ -44,7 +44,9 @@ export async function upsertCardFinanceSettings(
  * Kart useGlobalRates=true ise genel ayarları kullanır, değilse kendi oranlarını döner.
  */
 export async function getEffectiveRates(userId: string, cardId: string) {
-    const card = await prisma.creditCard.findUniqueOrThrow({ where: { id: cardId } })
+    const card = await prisma.creditCard.findFirstOrThrow({
+        where: { id: cardId, userId },
+    })
 
     if (card.useGlobalRates) {
         const global = await getCardFinanceSettings(userId)
@@ -86,11 +88,14 @@ export async function recordCardPayment(
 ): Promise<void> {
     if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
 
-    const card = await prisma.creditCard.findUniqueOrThrow({ where: { id: cardId } })
+    const [card, account] = await Promise.all([
+        prisma.creditCard.findFirstOrThrow({ where: { id: cardId, userId } }),
+        prisma.account.findFirstOrThrow({ where: { id: accountId, userId } }),
+    ])
 
     await prisma.$transaction([
         prisma.account.update({
-            where: { id: accountId },
+            where: { id: account.id },
             data: { balance: { decrement: amount } },
         }),
         prisma.ledgerEntry.create({
@@ -100,8 +105,8 @@ export async function recordCardPayment(
                 amount: -amount,
                 currency: 'TRY',
                 description: description || `Kart ödeme: ${card.cardName}`,
-                accountId,
-                creditCardId: cardId,
+                accountId: account.id,
+                creditCardId: card.id,
                 date: new Date(),
             },
         }),

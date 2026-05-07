@@ -276,24 +276,36 @@ export async function makeCardPayment(data: {
     try {
         const user = await requireCurrentUser()
         const card = await getUserCard(data.creditCardId, user.id)
+        const statementId = data.statementId
+            ? (await prisma.cardStatement.findFirstOrThrow({
+                where: { id: data.statementId, creditCardId: card.id },
+                select: { id: true },
+            })).id
+            : undefined
+        const accountId = data.accountId
+            ? (await prisma.account.findFirstOrThrow({
+                where: { id: data.accountId, userId: user.id },
+                select: { id: true },
+            })).id
+            : undefined
 
         await prisma.cardPayment.create({
             data: {
                 creditCardId: card.id,
                 amount: data.amount,
                 description: data.description || 'Manuel Odeme',
-                statementId: data.statementId,
+                statementId,
                 allocationDetail: {},
             },
         })
 
         // Hesap bakiyesinden düş ve LedgerEntry oluştur (atomik)
-        if (data.accountId) {
+        if (accountId) {
             await recordCardPayment(
                 user.id,
                 card.id,
                 data.amount,
-                data.accountId,
+                accountId,
                 data.description || `Kart ödeme: ${card.cardName}`
             )
         }
@@ -306,11 +318,13 @@ export async function makeCardPayment(data: {
 }
 
 export async function getCardCurrentDebt(creditCardId: string): Promise<number> {
+    const user = await requireCurrentUser()
+    const card = await getUserCard(creditCardId, user.id)
     const transactions = await prisma.cardTransaction.findMany({
-        where: { creditCardId },
+        where: { creditCardId: card.id },
     })
     const payments = await prisma.cardPayment.findMany({
-        where: { creditCardId },
+        where: { creditCardId: card.id },
     })
 
     const totalCharges = transactions

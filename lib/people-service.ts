@@ -70,17 +70,18 @@ export async function deletePerson(personId: string, userId: string): Promise<vo
     await prisma.person.delete({ where: { id: personId } })
 }
 
-export async function getPersonDetail(personId: string) {
-    const owner = await prisma.person.findUniqueOrThrow({
-        where: { id: personId },
+export async function getPersonDetail(personId: string, userId: string) {
+    await prisma.person.findFirstOrThrow({
+        where: { id: personId, userId },
         select: { userId: true },
     })
-    await refreshRPOverdueStatuses(owner.userId).catch(() => undefined)
+    await refreshRPOverdueStatuses(userId).catch(() => undefined)
 
-    return prisma.person.findUniqueOrThrow({
-        where: { id: personId },
+    return prisma.person.findFirstOrThrow({
+        where: { id: personId, userId },
         include: {
             receivablesPayables: {
+                where: { userId },
                 orderBy: { createdAt: 'desc' },
                 include: {
                     installments: {

@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { resolveUserRole } from "@/lib/authz";
 
 export const authOptions: NextAuthOptions = {
     session: {
@@ -32,6 +33,10 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
+                if (!user.isActive) {
+                    return null;
+                }
+
                 const isPasswordValid = await bcrypt.compare(
                     credentials.password,
                     user.password
@@ -41,10 +46,28 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
+                const role = resolveUserRole(user.email, user.role);
+
+                if (role !== user.role || !user.lastLoginAt) {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: {
+                            role,
+                            lastLoginAt: new Date(),
+                        },
+                    });
+                } else {
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: { lastLoginAt: new Date() },
+                    });
+                }
+
                 return {
                     id: user.id + "",
                     email: user.email,
                     name: user.name,
+                    role,
                 };
             },
         }),
@@ -56,6 +79,7 @@ export const authOptions: NextAuthOptions = {
                 user: {
                     ...session.user,
                     id: token.sub,
+                    role: token.role,
                 },
             };
         },
@@ -64,6 +88,7 @@ export const authOptions: NextAuthOptions = {
                 return {
                     ...token,
                     id: user.id,
+                    role: user.role,
                 };
             }
             return token;

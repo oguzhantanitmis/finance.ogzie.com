@@ -91,7 +91,7 @@ export async function simulateExtraPayment(
     debtId: string,
     extraAmount: number
 ): Promise<SimulationResult> {
-    const debt = await prisma.debt.findUniqueOrThrow({ where: { id: debtId } })
+    const debt = await prisma.debt.findFirstOrThrow({ where: { id: debtId, userId } })
     const cash = await getAvailableCash(userId)
     const incomes = await prisma.incomeSource.findMany({ where: { userId }, select: { amount: true, billingCycle: true } })
     const monthlyIncome = incomes.reduce((s, i) => s + (i.billingCycle === 'YEARLY' ? i.amount / 12 : i.amount), 0)
@@ -158,8 +158,8 @@ export async function simulateCardPaymentChange(
     cardId: string,
     paymentAmount: number
 ): Promise<SimulationResult> {
-    const card = await prisma.creditCard.findUniqueOrThrow({
-        where: { id: cardId },
+    const card = await prisma.creditCard.findFirstOrThrow({
+        where: { id: cardId, userId },
         include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1 } },
     })
 

@@ -5,21 +5,23 @@ import {
     Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff,
     Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen,
     Target, BarChart3, Activity, Wand2, Settings, Sun, Moon, Menu, X,
-    ChevronLeft, ChevronRight,
+    ChevronLeft, ChevronRight, ShieldCheck,
 } from 'lucide-react'
 import { useFinance } from './FinanceContext'
 import { useTheme } from './ThemeProvider'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { signOut } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 
 export default function Navbar() {
     const { hideAmounts, toggleHideAmounts } = useFinance()
     const { theme, toggleTheme } = useTheme()
+    const { data: session } = useSession()
     const pathname = usePathname()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const [collapsed, setCollapsed] = useState(false)
+    const isSuperuser = session?.user?.role === 'SUPERUSER'
 
     // Sync sidebar width CSS variable with collapsed state
     useEffect(() => {
@@ -70,6 +72,7 @@ export default function Navbar() {
             items: [
                 { name: 'Finans Asistanı', icon: MessageSquare, path: '/ai' },
                 { name: 'Ayarlar', icon: Settings, path: '/settings' },
+                ...(isSuperuser ? [{ name: 'Admin', icon: ShieldCheck, path: '/admin' }] : []),
             ]
         }
     ]

@@ -18,12 +18,10 @@ export default async function PersonDetailPage({ params }: { params: Promise<{ i
 
     let person
     try {
-        person = await getPersonDetail(id)
+        person = await getPersonDetail(id, user.id)
     } catch {
         notFound()
     }
-
-    if (person.userId !== user.id) notFound()
 
     const accounts = await getAccounts(user.id)
 

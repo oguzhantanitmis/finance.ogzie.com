@@ -38,8 +38,10 @@ export async function createGoal(
     })
 }
 
-export async function updateGoalProgress(goalId: string, currentAmount: number) {
-    const goal = await prisma.financialGoal.findUniqueOrThrow({ where: { id: goalId } })
+export async function updateGoalProgress(userId: string, goalId: string, currentAmount: number) {
+    const goal = await prisma.financialGoal.findFirstOrThrow({
+        where: { id: goalId, userId },
+    })
     const status = currentAmount >= goal.targetAmount ? 'COMPLETED' : 'GOAL_ACTIVE'
     return prisma.financialGoal.update({
         where: { id: goalId },

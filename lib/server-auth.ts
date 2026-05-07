@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 
 import { authOptions } from '@/lib/auth'
+import { isSuperuser, resolveUserRole } from '@/lib/authz'
 import { prisma } from '@/lib/prisma'
 
 export async function getCurrentUser() {
@@ -9,15 +10,38 @@ export async function getCurrentUser() {
         return null
     }
 
-    return prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
         where: { email: session.user.email },
     })
+
+    if (!user || !user.isActive) {
+        return null
+    }
+
+    const role = resolveUserRole(user.email, user.role)
+    if (role !== user.role) {
+        return prisma.user.update({
+            where: { id: user.id },
+            data: { role },
+        })
+    }
+
+    return user
 }
 
 export async function requireCurrentUser() {
     const user = await getCurrentUser()
     if (!user) {
         throw new Error('Unauthorized')
+    }
+
+    return user
+}
+
+export async function requireSuperuser() {
+    const user = await requireCurrentUser()
+    if (!isSuperuser(user)) {
+        throw new Error('Forbidden')
     }
 
     return user

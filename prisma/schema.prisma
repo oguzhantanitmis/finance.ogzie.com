@@ -7,15 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  SUPERUSER
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  riskScore Int      @default(100)
-  netWorth  Float    @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  email       String    @unique
+  password    String
+  name        String?
+  role        UserRole  @default(USER)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  riskScore   Int       @default(100)
+  netWorth    Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   assets            Asset[]
   debts             Debt[]
@@ -40,6 +48,9 @@ model User {
   healthSnapshots     HealthSnapshot[]
   aiRecommendations   AIRecommendation[]
   savedPaymentPlans   SavedPaymentPlan[]
+
+  @@index([role])
+  @@index([isActive])
 }
 
 enum BillingCycle {

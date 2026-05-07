@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
 import { answerFinanceAssistant } from '@/lib/finance-assistant'
+import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -106,12 +105,7 @@ function createTextStream(openaiStream: ReadableStream<Uint8Array>): ReadableStr
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
-        const user = await prisma.user.findUnique({ where: { email: session.user.email } })
+        const user = await getCurrentUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const { prompt } = (await req.json()) as { prompt: string }

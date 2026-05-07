@@ -17,7 +17,7 @@ export async function recordSubscriptionPaymentAction(formData: FormData) {
 }
 
 export async function toggleEssentialAction(subscriptionId: string, isEssential: boolean) {
-    await requireCurrentUser()
-    await toggleSubscriptionEssential(subscriptionId, isEssential)
+    const user = await requireCurrentUser()
+    await toggleSubscriptionEssential(user.id, subscriptionId, isEssential)
     ;['/', '/subscriptions'].forEach((p) => revalidatePath(p))
 }

@@ -4,11 +4,13 @@ import { useState, useTransition } from 'react'
 import { XCircle, DollarSign, TrendingUp, CreditCard, AlertTriangle, ArrowRight, Loader2, Shield, ShieldAlert, ShieldX } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import {
-    simulateCancelSubscriptions,
-    simulateExtraPayment,
-    simulateIncomeChange,
-    simulateCardPaymentChange,
-    simulateMinimumPaymentTrap,
+    simulateCancelSubscriptionsAction,
+    simulateExtraPaymentAction,
+    simulateIncomeChangeAction,
+    simulateCardPaymentChangeAction,
+    simulateMinimumPaymentTrapAction,
+} from '@/app/simulations/actions'
+import {
     type SimulationResult,
     type RiskLevel,
 } from '@/lib/simulation-engine'
@@ -61,19 +63,19 @@ export default function SimulationsWorkspace({ subscriptions, debts, cards, curr
                 let res: SimulationResult | null = null
                 switch (scenario) {
                     case 'cancel_subs':
-                        res = await simulateCancelSubscriptions('', Array.from(selectedSubs))
+                        res = await simulateCancelSubscriptionsAction(Array.from(selectedSubs))
                         break
                     case 'extra_payment':
-                        res = await simulateExtraPayment('', extraPaymentDebtId, extraPaymentAmount)
+                        res = await simulateExtraPaymentAction(extraPaymentDebtId, extraPaymentAmount)
                         break
                     case 'income_change':
-                        res = await simulateIncomeChange('', newIncome)
+                        res = await simulateIncomeChangeAction(newIncome)
                         break
                     case 'card_payment':
-                        res = await simulateCardPaymentChange('', selectedCardId, cardPaymentAmount)
+                        res = await simulateCardPaymentChangeAction(selectedCardId, cardPaymentAmount)
                         break
                     case 'min_payment_trap':
-                        res = await simulateMinimumPaymentTrap('')
+                        res = await simulateMinimumPaymentTrapAction()
                         break
                 }
                 setResult(res)
