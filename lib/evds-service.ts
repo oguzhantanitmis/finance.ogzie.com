@@ -348,8 +348,19 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
 
     for (const series of enabled) {
         const latest = await prisma.marketRate.findFirst({
-            where: { userId, currencyCode: series.code },
+            where: {
+                userId,
+                currencyCode: series.code,
+                OR: [
+                    { buyRate: { not: null } },
+                    { sellRate: { not: null } },
+                ],
+            },
             orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
+        })
+        const latestAttempt = latest ?? await prisma.marketRate.findFirst({
+            where: { userId, currencyCode: series.code },
+            orderBy: [{ createdAt: 'desc' }, { rateDate: 'desc' }],
         })
 
         const previous = latest
@@ -375,11 +386,15 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             buyRate: latest?.buyRate ?? null,
             sellRate: latest?.sellRate ?? null,
             rateDate: latest?.rateDate.toISOString() ?? null,
-            updatedAt: latest?.createdAt.toISOString() ?? null,
+            updatedAt: latestAttempt?.createdAt.toISOString() ?? null,
             previousSellRate: previousValue,
             changePercent,
             stale: false,
-            warning: latest ? undefined : 'Aktif kart, ancak EVDS henüz bu seri için veri döndürmedi.',
+            warning: latest
+                ? undefined
+                : latestAttempt
+                    ? 'EVDS denendi ancak bu seri için değer bulunamadı.'
+                    : 'Aktif kart, ancak EVDS henüz bu seri için veri döndürmedi.',
         })
     }
 
@@ -388,10 +403,47 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
 
 function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number, settingsUpdatedAt: Date | null = null) {
     if (items.length === 0) return true
+    if (items.some((item) => !hasRate(item) && !item.updatedAt)) return true
     const lastUpdated = getLastUpdatedAt(items)
     if (!lastUpdated) return true
     if (settingsUpdatedAt && settingsUpdatedAt.getTime() > lastUpdated) return true
     return Date.now() - lastUpdated > cacheMinutes * 60 * 1000
+}
+
+async function hasStoredRateForSeries(userId: string, currencyCode: EvdsTickerCode) {
+    const existing = await prisma.marketRate.findFirst({
+        where: {
+            userId,
+            currencyCode,
+            OR: [
+                { buyRate: { not: null } },
+                { sellRate: { not: null } },
+            ],
+        },
+        select: { id: true },
+    })
+
+    return Boolean(existing)
+}
+
+async function recordEmptyRateAttempt(userId: string, series: EvdsSeriesConfig) {
+    const hasStoredRate = await hasStoredRateForSeries(userId, series.code)
+    if (hasStoredRate) return
+
+    await prisma.marketRate.create({
+        data: {
+            userId,
+            source: 'TCMB_EVDS_EMPTY',
+            currencyCode: series.code,
+            seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|') || series.code,
+            buyRate: null,
+            sellRate: null,
+            rateDate: new Date(),
+            rawResponse: {
+                reason: 'EVDS returned no value for the selected series in the requested range.',
+            },
+        },
+    })
 }
 
 export async function refreshEvdsRates(userId: string): Promise<MarketTickerResult> {
@@ -465,7 +517,10 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
                 const sell = series.sellSeriesCode ? parseNumber(item[series.sellSeriesCode]) : null
                 return buy !== null || sell !== null
             })
-            if (!row) continue
+            if (!row) {
+                await recordEmptyRateAttempt(userId, series)
+                continue
+            }
 
             const rateDate = parseEvdsDate(row.Tarih ?? row.tarih ?? row.DATE) ?? new Date()
             const buyRate = series.buySeriesCode ? parseNumber(row[series.buySeriesCode]) : null
@@ -523,6 +578,7 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         }
     } catch (error) {
         await refreshTcmbDailyXmlRates(userId, settings).catch(() => false)
+        await Promise.all(enabled.map((series) => recordEmptyRateAttempt(userId, series).catch(() => null)))
         const items = await getLatestStoredRates(userId, settings)
         const hasStoredRate = hasAnyRate(items)
         return {
