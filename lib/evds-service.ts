@@ -1,3 +1,5 @@
+import type { Prisma } from '@prisma/client'
+
 import { prisma } from '@/lib/prisma'
 import { getSecureSetting, getSetting, setSetting } from '@/lib/settings-service'
 
@@ -139,6 +141,10 @@ function parseNumber(value: unknown) {
 
     const parsed = Number(normalized)
     return Number.isFinite(parsed) ? parsed : null
+}
+
+function toJsonValue(value: unknown): Prisma.InputJsonValue {
+    return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
 }
 
 function isLegacyEvdsCode(value: string) {
@@ -562,10 +568,10 @@ async function recordEmptyRateAttempt(userId: string, series: EvdsSeriesConfig, 
             buyRate: null,
             sellRate: null,
             rateDate,
-            rawResponse: { reason },
+            rawResponse: toJsonValue({ reason }),
         },
         update: {
-            rawResponse: { reason },
+            rawResponse: toJsonValue({ reason }),
         },
     })
 }
@@ -600,12 +606,12 @@ async function storeCollectApiRate(userId: string, series: EvdsSeriesConfig, row
             buyRate: parsed.buyRate,
             sellRate: parsed.sellRate,
             rateDate,
-            rawResponse: { endpoint, row },
+            rawResponse: toJsonValue({ endpoint, row }),
         },
         update: {
             buyRate: parsed.buyRate,
             sellRate: parsed.sellRate,
-            rawResponse: { endpoint, row },
+            rawResponse: toJsonValue({ endpoint, row }),
         },
     })
 
