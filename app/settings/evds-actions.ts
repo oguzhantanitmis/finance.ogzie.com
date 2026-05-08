@@ -79,7 +79,17 @@ export async function saveEvdsSettingsAction(
             series,
         })
 
+        const refreshResult = await refreshEvdsRates(user.id).catch(() => null)
+
         revalidateEvdsPaths()
+        if (refreshResult?.status === 'ok' || refreshResult?.status === 'stale') {
+            return createSuccessResult(`TCMB / EVDS ayarları kaydedildi. ${refreshResult.message}`)
+        }
+
+        if (refreshResult?.message) {
+            return createSuccessResult(`TCMB / EVDS ayarları kaydedildi. ${refreshResult.message}`)
+        }
+
         return createSuccessResult('TCMB / EVDS ayarları kaydedildi.')
     } catch (error) {
         return getActionErrorResult<EvdsField>(error, 'TCMB / EVDS ayarları kaydedilemedi.')

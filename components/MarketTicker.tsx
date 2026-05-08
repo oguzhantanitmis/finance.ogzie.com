@@ -23,7 +23,8 @@ function formatDate(value: string | null) {
 }
 
 export default function MarketTicker({ ticker }: { ticker: MarketTickerResult }) {
-    const showEmpty = ticker.items.length === 0
+    const hasVisibleRate = ticker.items.some((item) => item.buyRate !== null || item.sellRate !== null)
+    const showEmpty = ticker.items.length === 0 || ((ticker.status === 'missing_key' || ticker.status === 'invalid_key') && !hasVisibleRate)
 
     return (
         <section className="fintech-card p-5 md:p-6 mb-6">
@@ -62,6 +63,7 @@ export default function MarketTicker({ ticker }: { ticker: MarketTickerResult })
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     {ticker.items.map((item) => {
+                        const hasRate = item.sellRate !== null || item.buyRate !== null
                         const isPositive = (item.changePercent ?? 0) >= 0
                         const TrendIcon = isPositive ? TrendingUp : TrendingDown
 
@@ -85,9 +87,15 @@ export default function MarketTicker({ ticker }: { ticker: MarketTickerResult })
                                         </span>
                                     ) : null}
                                 </div>
-                                <p className="text-2xl font-bold tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>
-                                    {item.sellRate !== null ? `₺${formatRate(item.sellRate)}` : formatRate(item.buyRate)}
-                                </p>
+                                {hasRate ? (
+                                    <p className="text-2xl font-bold tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>
+                                        {item.sellRate !== null ? `₺${formatRate(item.sellRate)}` : formatRate(item.buyRate)}
+                                    </p>
+                                ) : (
+                                    <p className="text-base font-semibold" style={{ color: 'var(--accent-warning)' }}>
+                                        Veri bekleniyor
+                                    </p>
+                                )}
                                 <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
                                     <div>
                                         <p style={{ color: 'var(--text-muted)' }}>Alış</p>
@@ -101,6 +109,11 @@ export default function MarketTicker({ ticker }: { ticker: MarketTickerResult })
                                 <p className="text-[11px] mt-3" style={{ color: item.stale ? 'var(--accent-warning)' : 'var(--text-muted)' }}>
                                     {item.stale ? 'Son başarılı veri' : 'Son güncelleme'}: {formatDate(item.updatedAt)}
                                 </p>
+                                {item.warning ? (
+                                    <p className="text-[11px] mt-1" style={{ color: 'var(--accent-warning)' }}>
+                                        {item.warning}
+                                    </p>
+                                ) : null}
                             </div>
                         )
                     })}

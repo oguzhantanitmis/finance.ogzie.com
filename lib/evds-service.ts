@@ -182,6 +182,45 @@ function hasAnyRate(items: MarketTickerItem[]) {
     return items.some((item) => item.buyRate !== null || item.sellRate !== null)
 }
 
+function hasRate(item: MarketTickerItem) {
+    return item.buyRate !== null || item.sellRate !== null
+}
+
+function getLastUpdatedAt(items: MarketTickerItem[]) {
+    return items
+        .map((item) => item.updatedAt ? new Date(item.updatedAt).getTime() : 0)
+        .filter(Boolean)
+        .sort((a, b) => b - a)[0] ?? null
+}
+
+function getMissingRateCount(items: MarketTickerItem[]) {
+    return items.filter((item) => !hasRate(item)).length
+}
+
+function getResultLastUpdatedAt(items: MarketTickerItem[]) {
+    const lastUpdated = getLastUpdatedAt(items)
+    return lastUpdated ? new Date(lastUpdated).toISOString() : null
+}
+
+function markStoredRatesStale(items: MarketTickerItem[], warning: string) {
+    return items.map((item) => hasRate(item)
+        ? { ...item, stale: true, warning }
+        : item)
+}
+
+async function getEvdsSettingsUpdatedAt(userId: string) {
+    const latestSetting = await prisma.appSettings.findFirst({
+        where: {
+            userId,
+            key: { in: Object.values(SETTINGS_KEYS) },
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { updatedAt: true },
+    })
+
+    return latestSetting?.updatedAt ?? null
+}
+
 async function getEvdsApiKeyState(userId: string) {
     const raw = await getSetting(userId, SETTINGS_KEYS.apiKey)
     if (!raw) {
@@ -312,7 +351,6 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             where: { userId, currencyCode: series.code },
             orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
         })
-        if (!latest) continue
 
         const previous = latest
             ? await prisma.marketRate.findFirst({
@@ -327,7 +365,7 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
 
         const latestValue = latest?.sellRate ?? latest?.buyRate ?? null
         const previousValue = previous?.sellRate ?? previous?.buyRate ?? null
-        const changePercent = latestValue && previousValue
+        const changePercent = latestValue !== null && previousValue !== null && previousValue !== 0
             ? +(((latestValue - previousValue) / previousValue) * 100).toFixed(2)
             : null
 
@@ -341,19 +379,18 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             previousSellRate: previousValue,
             changePercent,
             stale: false,
+            warning: latest ? undefined : 'Aktif kart, ancak EVDS henüz bu seri için veri döndürmedi.',
         })
     }
 
     return items
 }
 
-function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number) {
+function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number, settingsUpdatedAt: Date | null = null) {
     if (items.length === 0) return true
-    const lastUpdated = items
-        .map((item) => item.updatedAt ? new Date(item.updatedAt).getTime() : 0)
-        .filter(Boolean)
-        .sort((a, b) => b - a)[0]
+    const lastUpdated = getLastUpdatedAt(items)
     if (!lastUpdated) return true
+    if (settingsUpdatedAt && settingsUpdatedAt.getTime() > lastUpdated) return true
     return Date.now() - lastUpdated > cacheMinutes * 60 * 1000
 }
 
@@ -369,9 +406,9 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             message: hasAnyRate(items)
                 ? 'EVDS API anahtarı çözülemedi. Resmi TCMB günlük kur yedeği gösteriliyor.'
                 : 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
-            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasAnyRate(items) ? items.map((item) => ({ ...item, stale: true, warning: 'TCMB günlük kur yedeği' })) : [],
+            items: hasAnyRate(items) ? markStoredRatesStale(items, 'TCMB günlük kur yedeği') : items,
         }
     }
 
@@ -380,7 +417,7 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         return {
             status: 'missing_key',
             message: 'EVDS API anahtarı girilmedi.',
-            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
         }
@@ -466,17 +503,21 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         if (!hasAnyRate(items)) {
             return {
                 status: 'empty',
-                message: 'EVDS bağlantısı başarılı ancak seçili seriler için son 10 günde veri bulunamadı. Seri kodlarını kontrol edin.',
+                message: 'EVDS bağlantısı başarılı ancak seçili seriler için veri bulunamadı. Seri kodlarını ve tarih aralığını kontrol edin.',
                 lastUpdatedAt: null,
                 cacheMinutes: settings.cacheMinutes,
-                items: [],
+                items,
             }
         }
 
+        const missingRateCount = getMissingRateCount(items)
+
         return {
             status: 'ok',
-            message: 'Piyasa verileri TCMB EVDS üzerinden güncellendi.',
-            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            message: missingRateCount > 0
+                ? `Piyasa verileri güncellendi; ${missingRateCount} aktif kart için EVDS verisi bulunamadı.`
+                : 'Piyasa verileri TCMB EVDS üzerinden güncellendi.',
+            lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
         }
@@ -487,9 +528,9 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         return {
             status: hasStoredRate ? 'stale' : 'error',
             message: hasStoredRate ? 'EVDS verisi alınamadı. Resmi TCMB günlük kur yedeği gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
-            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasStoredRate ? items.map((item) => ({ ...item, stale: true, warning: 'TCMB günlük kur yedeği' })) : [],
+            items: hasStoredRate ? markStoredRatesStale(items, 'TCMB günlük kur yedeği') : items,
         }
     }
 }
@@ -497,13 +538,16 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
 export async function getMarketTicker(userId: string): Promise<MarketTickerResult> {
     const settings = await getEvdsSettings(userId)
     const items = await getLatestStoredRates(userId, settings)
-    const apiKeyState = await getEvdsApiKeyState(userId)
+    const [apiKeyState, settingsUpdatedAt] = await Promise.all([
+        getEvdsApiKeyState(userId),
+        getEvdsSettingsUpdatedAt(userId),
+    ])
 
     if (apiKeyState.status === 'invalid') {
         return {
             status: 'invalid_key',
             message: 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
-            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
         }
@@ -513,20 +557,26 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
         return {
             status: 'missing_key',
             message: 'EVDS API anahtarı girilmedi.',
-            lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+            lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
         }
     }
 
-    if (shouldRefresh(items, settings.cacheMinutes)) {
+    if (shouldRefresh(items, settings.cacheMinutes, settingsUpdatedAt)) {
         return refreshEvdsRates(userId)
     }
 
+    const missingRateCount = getMissingRateCount(items)
+
     return {
-        status: items.length > 0 ? 'ok' : 'empty',
-        message: items.length > 0 ? 'Piyasa verileri cache üzerinden gösteriliyor.' : 'Henüz piyasa verisi yok.',
-        lastUpdatedAt: items.find((item) => item.updatedAt)?.updatedAt ?? null,
+        status: hasAnyRate(items) ? 'ok' : 'empty',
+        message: hasAnyRate(items)
+            ? missingRateCount > 0
+                ? `Piyasa verileri cache üzerinden gösteriliyor; ${missingRateCount} aktif kart için henüz veri yok.`
+                : 'Piyasa verileri cache üzerinden gösteriliyor.'
+            : 'Aktif piyasa kartları var ancak henüz veri yok.',
+        lastUpdatedAt: getResultLastUpdatedAt(items),
         cacheMinutes: settings.cacheMinutes,
         items,
     }
