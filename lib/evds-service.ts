@@ -125,9 +125,31 @@ function parseSeriesConfig(raw: string | null): EvdsSeriesConfig[] {
 
 function parseNumber(value: unknown) {
     if (value === null || value === undefined || value === '') return null
-    const normalized = String(value).replace(',', '.')
+    const raw = String(value).trim().replace(/\s/g, '')
+    if (!raw) return null
+
+    const lastComma = raw.lastIndexOf(',')
+    const lastDot = raw.lastIndexOf('.')
+    let normalized = raw
+
+    if (lastComma > -1 && lastDot > -1) {
+        normalized = lastComma > lastDot
+            ? raw.replaceAll('.', '').replace(',', '.')
+            : raw.replaceAll(',', '')
+    } else if (lastComma > -1) {
+        normalized = raw.replace(',', '.')
+    }
+
     const parsed = Number(normalized)
     return Number.isFinite(parsed) ? parsed : null
+}
+
+function evdsValueKey(seriesCode: string) {
+    return seriesCode.replaceAll('.', '_')
+}
+
+function readSeriesNumber(row: Record<string, unknown>, seriesCode: string) {
+    return parseNumber(row[seriesCode] ?? row[evdsValueKey(seriesCode)])
 }
 
 function formatEvdsDate(date: Date) {
@@ -141,6 +163,11 @@ function formatEvdsDate(date: Date) {
 
 function parseEvdsDate(value: unknown) {
     const raw = String(value ?? '').trim()
+    const monthlyMatch = raw.match(/^(\d{2})[-.](\d{4})$/)
+    if (monthlyMatch) {
+        return new Date(Number(monthlyMatch[2]), Number(monthlyMatch[1]) - 1, 1)
+    }
+
     const match = raw.match(/^(\d{2})[-.](\d{2})[-.](\d{4})$/)
     if (!match) return null
     return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]))
@@ -305,6 +332,111 @@ async function refreshTcmbDailyXmlRates(userId: string, settings: EvdsSettings) 
     return storedCount > 0
 }
 
+async function refreshEvds3GoldRates(userId: string, settings: EvdsSettings) {
+    const enabled = getEnabledSeries(settings).filter((series) => series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC')
+    if (enabled.length === 0) return false
+
+    const seriesCodes = Array.from(new Set(enabled.flatMap((item) => [item.buySeriesCode, item.sellSeriesCode]).filter(Boolean)))
+    if (seriesCodes.length === 0) return false
+
+    const end = new Date()
+    const start = subDays(end, 730)
+    const payload = {
+        type: 'json',
+        series: seriesCodes.join('-'),
+        aggregationTypes: seriesCodes.map(() => 'avg').join('-'),
+        formulas: seriesCodes.map(() => '0').join('-'),
+        startDate: formatEvdsDate(start),
+        endDate: formatEvdsDate(end),
+        frequency: '5',
+        decimalSeperator: '.',
+        decimal: '4',
+        dateFormat: '1',
+        lang: 'tr',
+        yon: '1',
+        sira: '1',
+        ozelFormuller: [],
+        groupSeperator: true,
+        isRaporSayfasi: false,
+    }
+
+    const response = await fetch('https://evds3.tcmb.gov.tr/igmevdsms-dis/fe', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'OgzieFinance/1.0',
+        },
+        body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+        throw new Error(`EVDS3 HTTP ${response.status}`)
+    }
+
+    const raw = await response.json()
+    const rows = Array.isArray(raw?.items) ? raw.items : []
+    let storedCount = 0
+
+    for (const series of enabled) {
+        const row = [...rows].reverse().find((item: Record<string, unknown>) => {
+            const buy = series.buySeriesCode ? readSeriesNumber(item, series.buySeriesCode) : null
+            const sell = series.sellSeriesCode ? readSeriesNumber(item, series.sellSeriesCode) : null
+            return buy !== null || sell !== null
+        })
+
+        if (!row) {
+            await recordEmptyRateAttempt(userId, series)
+            continue
+        }
+
+        const rateDate = parseEvdsDate(row.Tarih ?? row.tarih ?? row.DATE) ?? new Date()
+        const buyRate = series.buySeriesCode ? readSeriesNumber(row, series.buySeriesCode) : null
+        const sellRate = series.sellSeriesCode ? readSeriesNumber(row, series.sellSeriesCode) : buyRate
+
+        await prisma.marketRate.upsert({
+            where: {
+                userId_source_currencyCode_seriesCode_rateDate: {
+                    userId,
+                    source: 'TCMB_EVDS3',
+                    currencyCode: series.code,
+                    seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|'),
+                    rateDate,
+                },
+            },
+            create: {
+                userId,
+                source: 'TCMB_EVDS3',
+                currencyCode: series.code,
+                seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|'),
+                buyRate,
+                sellRate,
+                rateDate,
+                rawResponse: raw,
+            },
+            update: {
+                buyRate,
+                sellRate,
+                rawResponse: raw,
+            },
+        })
+        storedCount += 1
+    }
+
+    return storedCount > 0
+}
+
+async function refreshOfficialFallbackRates(userId: string, settings: EvdsSettings) {
+    const [xmlResult, goldResult] = await Promise.allSettled([
+        refreshTcmbDailyXmlRates(userId, settings),
+        refreshEvds3GoldRates(userId, settings),
+    ])
+
+    return xmlResult.status === 'fulfilled' && xmlResult.value
+        || goldResult.status === 'fulfilled' && goldResult.value
+}
+
 export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
     const [apiKey, cacheRaw, seriesRaw] = await Promise.all([
         getSecureSetting(userId, SETTINGS_KEYS.apiKey).catch(() => null),
@@ -369,6 +501,10 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
                     userId,
                     currencyCode: series.code,
                     rateDate: { lt: latest.rateDate },
+                    OR: [
+                        { buyRate: { not: null } },
+                        { sellRate: { not: null } },
+                    ],
                 },
                 orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
             })
@@ -404,6 +540,7 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
 function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number, settingsUpdatedAt: Date | null = null) {
     if (items.length === 0) return true
     if (items.some((item) => !hasRate(item) && !item.updatedAt)) return true
+    if (items.some((item) => !hasRate(item) && (item.code === 'XAU_GRAM' || item.code === 'XAU_REPUBLIC'))) return true
     const lastUpdated = getLastUpdatedAt(items)
     if (!lastUpdated) return true
     if (settingsUpdatedAt && settingsUpdatedAt.getTime() > lastUpdated) return true
@@ -451,16 +588,16 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
     const apiKeyState = await getEvdsApiKeyState(userId)
 
     if (apiKeyState.status === 'invalid') {
-        await refreshTcmbDailyXmlRates(userId, settings).catch(() => false)
+        await refreshOfficialFallbackRates(userId, settings).catch(() => false)
         const items = await getLatestStoredRates(userId, settings)
         return {
             status: hasAnyRate(items) ? 'stale' : 'invalid_key',
             message: hasAnyRate(items)
-                ? 'EVDS API anahtarı çözülemedi. Resmi TCMB günlük kur yedeği gösteriliyor.'
+                ? 'EVDS API anahtarı çözülemedi. Resmi TCMB yedeği gösteriliyor.'
                 : 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasAnyRate(items) ? markStoredRatesStale(items, 'TCMB günlük kur yedeği') : items,
+            items: hasAnyRate(items) ? markStoredRatesStale(items, 'TCMB resmi yedeği') : items,
         }
     }
 
@@ -513,8 +650,8 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
 
         for (const series of enabled) {
             const row = [...rows].reverse().find((item) => {
-                const buy = series.buySeriesCode ? parseNumber(item[series.buySeriesCode]) : null
-                const sell = series.sellSeriesCode ? parseNumber(item[series.sellSeriesCode]) : null
+                const buy = series.buySeriesCode ? readSeriesNumber(item, series.buySeriesCode) : null
+                const sell = series.sellSeriesCode ? readSeriesNumber(item, series.sellSeriesCode) : null
                 return buy !== null || sell !== null
             })
             if (!row) {
@@ -523,8 +660,8 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             }
 
             const rateDate = parseEvdsDate(row.Tarih ?? row.tarih ?? row.DATE) ?? new Date()
-            const buyRate = series.buySeriesCode ? parseNumber(row[series.buySeriesCode]) : null
-            const sellRate = series.sellSeriesCode ? parseNumber(row[series.sellSeriesCode]) : buyRate
+            const buyRate = series.buySeriesCode ? readSeriesNumber(row, series.buySeriesCode) : null
+            const sellRate = series.sellSeriesCode ? readSeriesNumber(row, series.sellSeriesCode) : buyRate
 
             await prisma.marketRate.upsert({
                 where: {
@@ -554,6 +691,8 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             })
         }
 
+        await refreshEvds3GoldRates(userId, settings).catch(() => false)
+
         const items = await getLatestStoredRates(userId, settings)
         if (!hasAnyRate(items)) {
             return {
@@ -577,16 +716,30 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             items,
         }
     } catch (error) {
-        await refreshTcmbDailyXmlRates(userId, settings).catch(() => false)
+        const refreshedFallback = await refreshOfficialFallbackRates(userId, settings).catch(() => false)
         await Promise.all(enabled.map((series) => recordEmptyRateAttempt(userId, series).catch(() => null)))
         const items = await getLatestStoredRates(userId, settings)
         const hasStoredRate = hasAnyRate(items)
+        if (refreshedFallback && hasStoredRate) {
+            const missingRateCount = getMissingRateCount(items)
+
+            return {
+                status: 'ok',
+                message: missingRateCount > 0
+                    ? `Piyasa verileri resmi TCMB kaynaklarından güncellendi; ${missingRateCount} aktif kart için veri bulunamadı.`
+                    : 'Piyasa verileri resmi TCMB kaynaklarından güncellendi.',
+                lastUpdatedAt: getResultLastUpdatedAt(items),
+                cacheMinutes: settings.cacheMinutes,
+                items,
+            }
+        }
+
         return {
             status: hasStoredRate ? 'stale' : 'error',
-            message: hasStoredRate ? 'EVDS verisi alınamadı. Resmi TCMB günlük kur yedeği gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
+            message: hasStoredRate ? 'EVDS verisi alınamadı. Resmi TCMB yedeği gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasStoredRate ? markStoredRatesStale(items, 'TCMB günlük kur yedeği') : items,
+            items: hasStoredRate ? markStoredRatesStale(items, 'TCMB resmi yedeği') : items,
         }
     }
 }

@@ -45,6 +45,10 @@ async function readStoredMarketRates(userId: string): Promise<MarketRates> {
         where: {
             userId,
             currencyCode: { in: Object.values(RATE_CODES) },
+            OR: [
+                { buyRate: { not: null } },
+                { sellRate: { not: null } },
+            ],
         },
         orderBy: [
             { rateDate: 'desc' },
