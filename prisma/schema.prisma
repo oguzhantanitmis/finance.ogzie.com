@@ -943,7 +943,7 @@ model FinancialGoal {
 model MarketRate {
   id           String   @id @default(cuid())
   userId       String?
-  source       String   @default("TCMB_EVDS")
+  source       String   @default("COLLECTAPI_ECONOMY")
   currencyCode String
   seriesCode   String
   buyRate      Float?

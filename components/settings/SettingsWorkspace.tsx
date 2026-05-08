@@ -194,14 +194,14 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                 </button>
             </div>
 
-            {/* ===== TCMB / EVDS Ayarları ===== */}
+            {/* ===== CollectAPI Ayarları ===== */}
             <div className="fintech-card p-6 md:p-8">
                 <div className="flex items-center gap-3 mb-6">
                     <Settings2 className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
                     <div>
-                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>TCMB / EVDS Ayarları</h2>
+                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>CollectAPI Ayarları</h2>
                         <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                            API anahtarı şifreli saklanır. EVDS anahtarı boşsa dashboard piyasa kartları uyarı durumunda kalır.
+                            API anahtarı şifreli saklanır. Anahtar boşsa dashboard piyasa kartları uyarı durumunda kalır.
                         </p>
                     </div>
                 </div>
@@ -209,12 +209,12 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                 <form action={evdsAction} className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-4">
                         <div>
-                            <label className="form-label">EVDS API anahtarı</label>
+                            <label className="form-label">CollectAPI API anahtarı</label>
                             <input
                                 name="apiKey"
                                 type="password"
                                 autoComplete="off"
-                                placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girmezsen mevcut anahtar korunur' : 'TCMB EVDS API anahtarını gir'}
+                                placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girmezsen mevcut anahtar korunur' : 'CollectAPI API anahtarını gir'}
                                 className="form-input"
                             />
                             {evdsSettings.hasApiKey ? (
@@ -227,7 +227,7 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         <div>
                             <label className="form-label">Cache süresi (dk)</label>
                             <input name="cacheMinutes" type="number" min="15" step="15" defaultValue={evdsSettings.cacheMinutes} className="form-input" />
-                            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>TCMB’ye gereksiz yük bindirmemek için en az 15 dk.</p>
+                            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>CollectAPI’ye gereksiz istek atmamak için en az 15 dk.</p>
                         </div>
                     </div>
 
@@ -237,20 +237,15 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                                 <tr>
                                     <th>Göster</th>
                                     <th>Kart adı</th>
-                                    <th>Alış seri kodu</th>
-                                    <th>Satış seri kodu</th>
+                                    <th>CollectAPI eşleşmesi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {evdsSettings.series.map((series) => {
-                                    const isGramGold = series.code === 'XAU_GRAM'
-                                    const isRepublicGold = series.code === 'XAU_REPUBLIC'
-                                    const isGold = isGramGold || isRepublicGold
-                                    const sellPlaceholder = isGramGold
-                                        ? 'TP.MK.KUL.YTL'
-                                        : isRepublicGold
-                                            ? 'TP.MK.CUM.YTL'
-                                            : 'TP.DK.USD.S.YTL'
+                                    const endpoint = series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC'
+                                        ? '/economy/goldPrice'
+                                        : '/economy/allCurrency'
+                                    const providerKey = series.sellSeriesCode || series.buySeriesCode || series.code
 
                                     return (
                                         <tr key={series.code}>
@@ -266,10 +261,12 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                                                 <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
                                             </td>
                                             <td>
-                                                <input name={`${series.code}_buy`} defaultValue={series.buySeriesCode} placeholder={isGold ? 'Altında boş bırakılabilir' : 'TP.DK.USD.A.YTL'} className="form-input font-mono" />
-                                            </td>
-                                            <td>
-                                                <input name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} placeholder={sellPlaceholder} className="form-input font-mono" />
+                                                <input type="hidden" name={`${series.code}_buy`} defaultValue={series.buySeriesCode} />
+                                                <input type="hidden" name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} />
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{endpoint}</span>
+                                                    <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{providerKey}</span>
+                                                </div>
                                             </td>
                                         </tr>
                                     )
@@ -278,11 +275,11 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         </table>
                     </div>
                     <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        Gram altın için TCMB EVDS serisi TP.MK.KUL.YTL, Cumhuriyet altını için TP.MK.CUM.YTL kullanılır. Bu seriler aylık satış fiyatıdır; döviz seri kodları altın kartlarında otomatik düzeltilir.
+                        Döviz kartları CollectAPI allCurrency, altın kartları goldPrice endpointinden beslenir. Token değerini başında apikey olmadan girebilirsin; sistem header formatını otomatik tamamlar.
                     </p>
 
                     <FormMessage success={evdsState.success} message={evdsState.message} />
-                    <SubmitButton label="EVDS Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
+                    <SubmitButton label="CollectAPI Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
                 </form>
             </div>
 

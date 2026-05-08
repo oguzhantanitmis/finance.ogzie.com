@@ -62,7 +62,7 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
     let activeGoal: Awaited<ReturnType<typeof getActiveGoalForDashboard>> | null = null
     let marketTicker: MarketTickerResult = {
         status: 'missing_key',
-        message: 'EVDS API anahtarı girilmedi.',
+        message: 'CollectAPI API anahtarı girilmedi.',
         lastUpdatedAt: null,
         cacheMinutes: 180,
         items: [],

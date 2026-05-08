@@ -1,5 +1,3 @@
-import { subDays } from 'date-fns'
-
 import { prisma } from '@/lib/prisma'
 import { getSecureSetting, getSetting, setSetting } from '@/lib/settings-service'
 
@@ -40,8 +38,17 @@ export interface MarketTickerResult {
     items: MarketTickerItem[]
 }
 
+const COLLECTAPI_BASE_URL = 'https://api.collectapi.com'
+const COLLECTAPI_SOURCE = 'COLLECTAPI_ECONOMY'
+const COLLECTAPI_EMPTY_SOURCE = 'COLLECTAPI_EMPTY'
+
 const SETTINGS_KEYS = {
-    apiKey: 'evds.apiKey',
+    apiKey: 'collectapi.apiKey',
+    cacheMinutes: 'collectapi.cacheMinutes',
+    seriesConfig: 'collectapi.seriesConfig',
+}
+
+const LEGACY_SETTINGS_KEYS = {
     cacheMinutes: 'evds.cacheMinutes',
     seriesConfig: 'evds.seriesConfig',
 }
@@ -51,82 +58,72 @@ export const DEFAULT_EVDS_SERIES: EvdsSeriesConfig[] = [
         code: 'USDTRY',
         label: 'Dolar',
         enabled: true,
-        buySeriesCode: 'TP.DK.USD.A.YTL',
-        sellSeriesCode: 'TP.DK.USD.S.YTL',
+        buySeriesCode: 'USD',
+        sellSeriesCode: 'USD',
     },
     {
         code: 'EURTRY',
         label: 'Euro',
         enabled: true,
-        buySeriesCode: 'TP.DK.EUR.A.YTL',
-        sellSeriesCode: 'TP.DK.EUR.S.YTL',
+        buySeriesCode: 'EUR',
+        sellSeriesCode: 'EUR',
     },
     {
         code: 'GBPTRY',
         label: 'Sterlin',
         enabled: true,
-        buySeriesCode: 'TP.DK.GBP.A.YTL',
-        sellSeriesCode: 'TP.DK.GBP.S.YTL',
+        buySeriesCode: 'GBP',
+        sellSeriesCode: 'GBP',
     },
     {
         code: 'XAU_GRAM',
         label: 'Gram Altın',
         enabled: false,
-        buySeriesCode: '',
-        sellSeriesCode: 'TP.MK.KUL.YTL',
+        buySeriesCode: 'gram-altin',
+        sellSeriesCode: 'gram-altin',
     },
     {
         code: 'XAU_REPUBLIC',
         label: 'Cumhuriyet Altını',
         enabled: false,
-        buySeriesCode: '',
-        sellSeriesCode: 'TP.MK.CUM.YTL',
+        buySeriesCode: 'cumhuriyet-altini',
+        sellSeriesCode: 'cumhuriyet-altini',
     },
 ]
 
-const DEFAULT_GOLD_SELL_SERIES: Partial<Record<EvdsTickerCode, string>> = {
-    XAU_GRAM: 'TP.MK.KUL.YTL',
-    XAU_REPUBLIC: 'TP.MK.CUM.YTL',
-}
+const SERIES_DEFAULTS = new Map(DEFAULT_EVDS_SERIES.map((series) => [series.code, series]))
+const COLLECTAPI_RATE_SOURCES = [COLLECTAPI_SOURCE, COLLECTAPI_EMPTY_SOURCE]
 
-function normalizeGoldSeries(series: EvdsSeriesConfig): EvdsSeriesConfig {
-    const defaultSellCode = DEFAULT_GOLD_SELL_SERIES[series.code]
-    if (!defaultSellCode) return series
+class CollectApiError extends Error {
+    statusCode?: number
+    invalidAuth: boolean
 
-    const hasNoCode = !series.buySeriesCode && !series.sellSeriesCode
-    const hasCurrencyCode = series.buySeriesCode.startsWith('TP.DK.') || series.sellSeriesCode.startsWith('TP.DK.')
-    if (!hasNoCode && !hasCurrencyCode) return series
-
-    return {
-        ...series,
-        buySeriesCode: '',
-        sellSeriesCode: defaultSellCode,
+    constructor(message: string, options: { statusCode?: number, invalidAuth?: boolean } = {}) {
+        super(message)
+        this.name = 'CollectApiError'
+        this.statusCode = options.statusCode
+        this.invalidAuth = Boolean(options.invalidAuth)
     }
 }
 
-function parseSeriesConfig(raw: string | null): EvdsSeriesConfig[] {
-    if (!raw) return DEFAULT_EVDS_SERIES
-    try {
-        const parsed = JSON.parse(raw) as Partial<EvdsSeriesConfig>[]
-        return DEFAULT_EVDS_SERIES.map((defaults) => {
-            const item = parsed.find((entry) => entry.code === defaults.code)
-            return normalizeGoldSeries({
-                ...defaults,
-                ...item,
-                enabled: Boolean(item?.enabled),
-                buySeriesCode: String(item?.buySeriesCode ?? defaults.buySeriesCode ?? '').trim(),
-                sellSeriesCode: String(item?.sellSeriesCode ?? defaults.sellSeriesCode ?? '').trim(),
-            })
-        })
-    } catch {
-        return DEFAULT_EVDS_SERIES
-    }
+function normalizeSearchText(value: unknown) {
+    return String(value ?? '')
+        .toLocaleLowerCase('tr-TR')
+        .replaceAll('ı', 'i')
+        .replaceAll('İ', 'i')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u')
+        .replaceAll('ş', 's')
+        .replaceAll('ö', 'o')
+        .replaceAll('ç', 'c')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
 }
 
 function parseNumber(value: unknown) {
-    if (value === null || value === undefined || value === '') return null
+    if (value === null || value === undefined || value === '' || value === '-') return null
     const raw = String(value).trim().replace(/\s/g, '')
-    if (!raw) return null
+    if (!raw || raw === '-') return null
 
     const lastComma = raw.lastIndexOf(',')
     const lastDot = raw.lastIndexOf('.')
@@ -144,65 +141,42 @@ function parseNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : null
 }
 
-function evdsValueKey(seriesCode: string) {
-    return seriesCode.replaceAll('.', '_')
+function isLegacyEvdsCode(value: string) {
+    return value.toLocaleUpperCase('tr-TR').startsWith('TP.')
 }
 
-function readSeriesNumber(row: Record<string, unknown>, seriesCode: string) {
-    return parseNumber(row[seriesCode] ?? row[evdsValueKey(seriesCode)])
-}
-
-function formatEvdsDate(date: Date) {
-    return new Intl.DateTimeFormat('tr-TR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        timeZone: 'Europe/Istanbul',
-    }).format(date).replaceAll('.', '-')
-}
-
-function parseEvdsDate(value: unknown) {
-    const raw = String(value ?? '').trim()
-    const monthlyMatch = raw.match(/^(\d{2})[-.](\d{4})$/)
-    if (monthlyMatch) {
-        return new Date(Number(monthlyMatch[2]), Number(monthlyMatch[1]) - 1, 1)
-    }
-
-    const match = raw.match(/^(\d{2})[-.](\d{2})[-.](\d{4})$/)
-    if (!match) return null
-    return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]))
-}
-
-function parseTcmbXmlDate(xml: string) {
-    const dateMatch = xml.match(/\bTarih="(\d{2})\.(\d{2})\.(\d{4})"/)
-    if (dateMatch) {
-        return new Date(Number(dateMatch[3]), Number(dateMatch[2]) - 1, Number(dateMatch[1]))
-    }
-
-    const isoMatch = xml.match(/\bDate="(\d{2})\/(\d{2})\/(\d{4})"/)
-    if (isoMatch) {
-        return new Date(Number(isoMatch[3]), Number(isoMatch[1]) - 1, Number(isoMatch[2]))
-    }
-
-    return new Date()
-}
-
-function parseTcmbCurrency(xml: string, currencyCode: string) {
-    const blockMatch = xml.match(new RegExp(`<Currency[^>]+CurrencyCode="${currencyCode}"[\\s\\S]*?<\\/Currency>`))
-    const block = blockMatch?.[0]
-    if (!block) return null
-
-    const buy = block.match(/<ForexBuying>([^<]+)<\/ForexBuying>/)?.[1]
-    const sell = block.match(/<ForexSelling>([^<]+)<\/ForexSelling>/)?.[1]
+function normalizeSeriesConfigItem(defaults: EvdsSeriesConfig, item?: Partial<EvdsSeriesConfig>) {
+    const incomingBuy = String(item?.buySeriesCode ?? defaults.buySeriesCode ?? '').trim()
+    const incomingSell = String(item?.sellSeriesCode ?? defaults.sellSeriesCode ?? '').trim()
+    const buySeriesCode = !incomingBuy || isLegacyEvdsCode(incomingBuy) ? defaults.buySeriesCode : incomingBuy
+    const sellSeriesCode = !incomingSell || isLegacyEvdsCode(incomingSell) ? defaults.sellSeriesCode : incomingSell
 
     return {
-        buyRate: parseNumber(buy),
-        sellRate: parseNumber(sell),
+        ...defaults,
+        ...item,
+        code: defaults.code,
+        label: String(item?.label ?? defaults.label).trim() || defaults.label,
+        enabled: Boolean(item?.enabled),
+        buySeriesCode,
+        sellSeriesCode,
+    }
+}
+
+function parseSeriesConfig(raw: string | null): EvdsSeriesConfig[] {
+    if (!raw) return DEFAULT_EVDS_SERIES
+    try {
+        const parsed = JSON.parse(raw) as Partial<EvdsSeriesConfig>[]
+        return DEFAULT_EVDS_SERIES.map((defaults) => {
+            const item = Array.isArray(parsed) ? parsed.find((entry) => entry.code === defaults.code) : undefined
+            return normalizeSeriesConfigItem(defaults, item)
+        })
+    } catch {
+        return DEFAULT_EVDS_SERIES
     }
 }
 
 function getEnabledSeries(settings: EvdsSettings) {
-    return settings.series.filter((series) => series.enabled && (series.buySeriesCode || series.sellSeriesCode))
+    return settings.series.filter((series) => series.enabled)
 }
 
 function hasAnyRate(items: MarketTickerItem[]) {
@@ -235,6 +209,169 @@ function markStoredRatesStale(items: MarketTickerItem[], warning: string) {
         : item)
 }
 
+function getSeriesProviderKey(series: EvdsSeriesConfig) {
+    return series.sellSeriesCode || series.buySeriesCode || SERIES_DEFAULTS.get(series.code)?.sellSeriesCode || series.code
+}
+
+function getSeriesDatabaseCode(series: EvdsSeriesConfig) {
+    return [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|') || getSeriesProviderKey(series)
+}
+
+function isGoldSeries(series: EvdsSeriesConfig) {
+    return series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC'
+}
+
+function isCurrencySeries(series: EvdsSeriesConfig) {
+    return series.code === 'USDTRY' || series.code === 'EURTRY' || series.code === 'GBPTRY'
+}
+
+function extractRows(raw: unknown): Record<string, unknown>[] {
+    if (!raw || typeof raw !== 'object') return []
+    const result = (raw as { result?: unknown }).result
+    if (Array.isArray(result)) return result.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+    if (result && typeof result === 'object' && !Array.isArray(result)) {
+        const data = (result as { data?: unknown }).data
+        if (Array.isArray(data)) return data.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+        return [result as Record<string, unknown>]
+    }
+    return []
+}
+
+function getRowSearchText(row: Record<string, unknown>) {
+    return normalizeSearchText(Object.entries(row)
+        .filter(([, value]) => value !== null && value !== undefined)
+        .map(([key, value]) => `${key} ${String(value)}`)
+        .join(' '))
+}
+
+function pickNumber(row: Record<string, unknown>, keys: string[]) {
+    const normalizedEntries = Object.entries(row).map(([key, value]) => [normalizeSearchText(key), value] as const)
+    for (const key of keys) {
+        const normalizedKey = normalizeSearchText(key)
+        const direct = parseNumber(row[key])
+        if (direct !== null) return direct
+        const entry = normalizedEntries.find(([candidate]) => candidate === normalizedKey)
+        const parsed = parseNumber(entry?.[1])
+        if (parsed !== null) return parsed
+    }
+    return null
+}
+
+function parseCollectApiDate(row: Record<string, unknown>) {
+    const rawValue = ['datetime', 'date', 'lastupdate', 'lastUpdate', 'updatedAt', 'updatetime', 'time']
+        .map((key) => row[key])
+        .find((value) => value !== null && value !== undefined && String(value).trim())
+
+    if (!rawValue) return new Date()
+
+    const raw = String(rawValue).trim()
+    const timeOnly = raw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+    if (timeOnly) {
+        const date = new Date()
+        date.setHours(Number(timeOnly[1]), Number(timeOnly[2]), Number(timeOnly[3] ?? 0), 0)
+        return date
+    }
+
+    const parsed = new Date(raw)
+    if (Number.isFinite(parsed.getTime())) return parsed
+
+    const normalized = new Date(raw.replace(' ', 'T'))
+    return Number.isFinite(normalized.getTime()) ? normalized : new Date()
+}
+
+function formatCollectApiAuthorization(apiKey: string) {
+    const trimmed = apiKey.trim()
+    return /^(apikey|bearer)\s+/i.test(trimmed) ? trimmed : `apikey ${trimmed}`
+}
+
+async function fetchCollectApi(endpoint: string, apiKey: string) {
+    const response = await fetch(`${COLLECTAPI_BASE_URL}${endpoint}`, {
+        cache: 'no-store',
+        headers: {
+            Accept: 'application/json',
+            Authorization: formatCollectApiAuthorization(apiKey),
+            'Content-Type': 'application/json',
+            'User-Agent': 'OgzieFinance/1.0',
+        },
+    })
+
+    const responseText = await response.text()
+    if (!response.ok) {
+        throw new CollectApiError(`CollectAPI ${endpoint} HTTP ${response.status}`, {
+            statusCode: response.status,
+            invalidAuth: response.status === 401 || response.status === 403,
+        })
+    }
+
+    try {
+        const raw = JSON.parse(responseText) as { success?: boolean, message?: string, error?: string }
+        if (raw.success === false) {
+            const message = raw.message || raw.error || 'CollectAPI isteği başarısız.'
+            throw new CollectApiError(message, { invalidAuth: /token|auth|api.?key|yetki|izin/i.test(message) })
+        }
+        return raw
+    } catch (error) {
+        if (error instanceof CollectApiError) throw error
+        throw new CollectApiError('CollectAPI JSON yanıtı okunamadı.')
+    }
+}
+
+function matchesCurrencyRow(row: Record<string, unknown>, series: EvdsSeriesConfig) {
+    const text = getRowSearchText(row)
+    const providerKey = normalizeSearchText(getSeriesProviderKey(series)).replace(/\s/g, '')
+    const currencyCode = series.code.replace('TRY', '')
+    const expectedCode = normalizeSearchText(providerKey || currencyCode)
+
+    if (text.split(' ').includes(expectedCode)) return true
+    if (text.includes(normalizeSearchText(currencyCode))) return true
+
+    if (series.code === 'USDTRY') return text.includes('dolar') || text.includes('american dollar') || text.includes('us dollar')
+    if (series.code === 'EURTRY') return text.includes('euro')
+    if (series.code === 'GBPTRY') return text.includes('sterlin') || text.includes('pound') || text.includes('british')
+    return false
+}
+
+function matchesGoldRow(row: Record<string, unknown>, series: EvdsSeriesConfig) {
+    const text = getRowSearchText(row)
+    const providerKey = normalizeSearchText(getSeriesProviderKey(series))
+
+    if (providerKey && text.includes(providerKey)) return true
+    if (providerKey && text.includes(providerKey.replace(/\s+/g, ' '))) return true
+
+    if (series.code === 'XAU_GRAM') {
+        return text.includes('gram altin') && !text.includes('gram has')
+    }
+
+    if (series.code === 'XAU_REPUBLIC') {
+        return text.includes('cumhuriyet') || text.includes('ata lira') || text.includes('ata altin')
+    }
+
+    return false
+}
+
+function findCollectApiRow(rows: Record<string, unknown>[], series: EvdsSeriesConfig) {
+    return rows.find((row) => isGoldSeries(series)
+        ? matchesGoldRow(row, series)
+        : matchesCurrencyRow(row, series))
+}
+
+function parseCollectApiRates(row: Record<string, unknown>, series: EvdsSeriesConfig) {
+    const buyKeys = isGoldSeries(series)
+        ? ['buy', 'buying', 'buyingstr', 'buyingStr', 'alış', 'alis']
+        : ['buying', 'buyingstr', 'buyingStr', 'buy', 'alış', 'alis']
+    const sellKeys = isGoldSeries(series)
+        ? ['sell', 'selling', 'sellingstr', 'sellingStr', 'satış', 'satis']
+        : ['selling', 'sellingstr', 'sellingStr', 'sell', 'satış', 'satis']
+
+    const buyRate = pickNumber(row, buyKeys)
+    const sellRate = pickNumber(row, sellKeys)
+
+    return {
+        buyRate,
+        sellRate: sellRate ?? buyRate,
+    }
+}
+
 async function getEvdsSettingsUpdatedAt(userId: string) {
     const latestSetting = await prisma.appSettings.findFirst({
         where: {
@@ -264,192 +401,21 @@ async function getEvdsApiKeyState(userId: string) {
     }
 }
 
-async function refreshTcmbDailyXmlRates(userId: string, settings: EvdsSettings) {
-    const enabled = getEnabledSeries(settings)
-    const fallbackCurrencyMap: Partial<Record<EvdsTickerCode, string>> = {
-        USDTRY: 'USD',
-        EURTRY: 'EUR',
-        GBPTRY: 'GBP',
-    }
-    const fallbackSeries = enabled.filter((series) => fallbackCurrencyMap[series.code])
-
-    if (fallbackSeries.length === 0) {
-        return false
-    }
-
-    const response = await fetch('https://www.tcmb.gov.tr/kurlar/today.xml', {
-        cache: 'no-store',
-        headers: {
-            Accept: 'application/xml,text/xml,*/*',
-            'User-Agent': 'OgzieFinance/1.0',
-        },
-    })
-
-    if (!response.ok) {
-        throw new Error(`TCMB günlük kur HTTP ${response.status}`)
-    }
-
-    const xml = await response.text()
-    const rateDate = parseTcmbXmlDate(xml)
-    let storedCount = 0
-
-    for (const series of fallbackSeries) {
-        const fallbackCurrency = fallbackCurrencyMap[series.code]
-        if (!fallbackCurrency) continue
-
-        const parsed = parseTcmbCurrency(xml, fallbackCurrency)
-        if (!parsed || (parsed.buyRate === null && parsed.sellRate === null)) continue
-
-        await prisma.marketRate.upsert({
-            where: {
-                userId_source_currencyCode_seriesCode_rateDate: {
-                    userId,
-                    source: 'TCMB_DAILY_XML',
-                    currencyCode: series.code,
-                    seriesCode: `TCMB_DAILY_XML:${fallbackCurrency}`,
-                    rateDate,
-                },
-            },
-            create: {
-                userId,
-                source: 'TCMB_DAILY_XML',
-                currencyCode: series.code,
-                seriesCode: `TCMB_DAILY_XML:${fallbackCurrency}`,
-                buyRate: parsed.buyRate,
-                sellRate: parsed.sellRate,
-                rateDate,
-                rawResponse: { source: 'https://www.tcmb.gov.tr/kurlar/today.xml' },
-            },
-            update: {
-                buyRate: parsed.buyRate,
-                sellRate: parsed.sellRate,
-                rawResponse: { source: 'https://www.tcmb.gov.tr/kurlar/today.xml' },
-            },
-        })
-        storedCount += 1
-    }
-
-    return storedCount > 0
-}
-
-async function refreshEvds3GoldRates(userId: string, settings: EvdsSettings) {
-    const enabled = getEnabledSeries(settings).filter((series) => series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC')
-    if (enabled.length === 0) return false
-
-    const seriesCodes = Array.from(new Set(enabled.flatMap((item) => [item.buySeriesCode, item.sellSeriesCode]).filter(Boolean)))
-    if (seriesCodes.length === 0) return false
-
-    const end = new Date()
-    const start = subDays(end, 730)
-    const payload = {
-        type: 'json',
-        series: seriesCodes.join('-'),
-        aggregationTypes: seriesCodes.map(() => 'avg').join('-'),
-        formulas: seriesCodes.map(() => '0').join('-'),
-        startDate: formatEvdsDate(start),
-        endDate: formatEvdsDate(end),
-        frequency: '5',
-        decimalSeperator: '.',
-        decimal: '4',
-        dateFormat: '1',
-        lang: 'tr',
-        yon: '1',
-        sira: '1',
-        ozelFormuller: [],
-        groupSeperator: true,
-        isRaporSayfasi: false,
-    }
-
-    const response = await fetch('https://evds3.tcmb.gov.tr/igmevdsms-dis/fe', {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'OgzieFinance/1.0',
-        },
-        body: JSON.stringify(payload),
-    })
-
-    if (!response.ok) {
-        throw new Error(`EVDS3 HTTP ${response.status}`)
-    }
-
-    const raw = await response.json()
-    const rows = Array.isArray(raw?.items) ? raw.items : []
-    let storedCount = 0
-
-    for (const series of enabled) {
-        const row = [...rows].reverse().find((item: Record<string, unknown>) => {
-            const buy = series.buySeriesCode ? readSeriesNumber(item, series.buySeriesCode) : null
-            const sell = series.sellSeriesCode ? readSeriesNumber(item, series.sellSeriesCode) : null
-            return buy !== null || sell !== null
-        })
-
-        if (!row) {
-            await recordEmptyRateAttempt(userId, series)
-            continue
-        }
-
-        const rateDate = parseEvdsDate(row.Tarih ?? row.tarih ?? row.DATE) ?? new Date()
-        const buyRate = series.buySeriesCode ? readSeriesNumber(row, series.buySeriesCode) : null
-        const sellRate = series.sellSeriesCode ? readSeriesNumber(row, series.sellSeriesCode) : buyRate
-
-        await prisma.marketRate.upsert({
-            where: {
-                userId_source_currencyCode_seriesCode_rateDate: {
-                    userId,
-                    source: 'TCMB_EVDS3',
-                    currencyCode: series.code,
-                    seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|'),
-                    rateDate,
-                },
-            },
-            create: {
-                userId,
-                source: 'TCMB_EVDS3',
-                currencyCode: series.code,
-                seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|'),
-                buyRate,
-                sellRate,
-                rateDate,
-                rawResponse: raw,
-            },
-            update: {
-                buyRate,
-                sellRate,
-                rawResponse: raw,
-            },
-        })
-        storedCount += 1
-    }
-
-    return storedCount > 0
-}
-
-async function refreshOfficialFallbackRates(userId: string, settings: EvdsSettings) {
-    const [xmlResult, goldResult] = await Promise.allSettled([
-        refreshTcmbDailyXmlRates(userId, settings),
-        refreshEvds3GoldRates(userId, settings),
-    ])
-
-    return xmlResult.status === 'fulfilled' && xmlResult.value
-        || goldResult.status === 'fulfilled' && goldResult.value
-}
-
 export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
-    const [apiKey, cacheRaw, seriesRaw] = await Promise.all([
+    const [apiKey, cacheRaw, legacyCacheRaw, seriesRaw, legacySeriesRaw] = await Promise.all([
         getSecureSetting(userId, SETTINGS_KEYS.apiKey).catch(() => null),
         getSetting(userId, SETTINGS_KEYS.cacheMinutes),
+        getSetting(userId, LEGACY_SETTINGS_KEYS.cacheMinutes),
         getSetting(userId, SETTINGS_KEYS.seriesConfig),
+        getSetting(userId, LEGACY_SETTINGS_KEYS.seriesConfig),
     ])
 
-    const cacheMinutes = Math.max(15, Number(cacheRaw ?? 180) || 180)
+    const cacheMinutes = Math.max(15, Number(cacheRaw ?? legacyCacheRaw ?? 180) || 180)
 
     return {
         hasApiKey: Boolean(apiKey),
         cacheMinutes,
-        series: parseSeriesConfig(seriesRaw),
+        series: parseSeriesConfig(seriesRaw ?? legacySeriesRaw),
     }
 }
 
@@ -470,7 +436,10 @@ export async function saveEvdsSettings(
 
     await Promise.all([
         setSetting(userId, SETTINGS_KEYS.cacheMinutes, String(Math.max(15, data.cacheMinutes || 180))),
-        setSetting(userId, SETTINGS_KEYS.seriesConfig, JSON.stringify(data.series)),
+        setSetting(userId, SETTINGS_KEYS.seriesConfig, JSON.stringify(data.series.map((series) => {
+            const defaults = SERIES_DEFAULTS.get(series.code)
+            return defaults ? normalizeSeriesConfigItem(defaults, series) : series
+        }))),
     ])
 }
 
@@ -482,6 +451,7 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
         const latest = await prisma.marketRate.findFirst({
             where: {
                 userId,
+                source: COLLECTAPI_SOURCE,
                 currencyCode: series.code,
                 OR: [
                     { buyRate: { not: null } },
@@ -491,7 +461,7 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
         })
         const latestAttempt = latest ?? await prisma.marketRate.findFirst({
-            where: { userId, currencyCode: series.code },
+            where: { userId, currencyCode: series.code, source: { in: COLLECTAPI_RATE_SOURCES } },
             orderBy: [{ createdAt: 'desc' }, { rateDate: 'desc' }],
         })
 
@@ -499,6 +469,7 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             ? await prisma.marketRate.findFirst({
                 where: {
                     userId,
+                    source: COLLECTAPI_SOURCE,
                     currencyCode: series.code,
                     rateDate: { lt: latest.rateDate },
                     OR: [
@@ -529,8 +500,8 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             warning: latest
                 ? undefined
                 : latestAttempt
-                    ? 'EVDS denendi ancak bu seri için değer bulunamadı.'
-                    : 'Aktif kart, ancak EVDS henüz bu seri için veri döndürmedi.',
+                    ? 'CollectAPI denendi ancak bu kart için değer bulunamadı.'
+                    : 'Aktif kart, ancak CollectAPI henüz bu veri için değer döndürmedi.',
         })
     }
 
@@ -540,7 +511,6 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
 function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number, settingsUpdatedAt: Date | null = null) {
     if (items.length === 0) return true
     if (items.some((item) => !hasRate(item) && !item.updatedAt)) return true
-    if (items.some((item) => !hasRate(item) && (item.code === 'XAU_GRAM' || item.code === 'XAU_REPUBLIC'))) return true
     const lastUpdated = getLastUpdatedAt(items)
     if (!lastUpdated) return true
     if (settingsUpdatedAt && settingsUpdatedAt.getTime() > lastUpdated) return true
@@ -551,6 +521,7 @@ async function hasStoredRateForSeries(userId: string, currencyCode: EvdsTickerCo
     const existing = await prisma.marketRate.findFirst({
         where: {
             userId,
+            source: COLLECTAPI_SOURCE,
             currencyCode,
             OR: [
                 { buyRate: { not: null } },
@@ -563,24 +534,82 @@ async function hasStoredRateForSeries(userId: string, currencyCode: EvdsTickerCo
     return Boolean(existing)
 }
 
-async function recordEmptyRateAttempt(userId: string, series: EvdsSeriesConfig) {
+function getAttemptDate() {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+async function recordEmptyRateAttempt(userId: string, series: EvdsSeriesConfig, reason: string) {
     const hasStoredRate = await hasStoredRateForSeries(userId, series.code)
     if (hasStoredRate) return
 
-    await prisma.marketRate.create({
-        data: {
-            userId,
-            source: 'TCMB_EVDS_EMPTY',
-            currencyCode: series.code,
-            seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|') || series.code,
-            buyRate: null,
-            sellRate: null,
-            rateDate: new Date(),
-            rawResponse: {
-                reason: 'EVDS returned no value for the selected series in the requested range.',
+    const rateDate = getAttemptDate()
+    await prisma.marketRate.upsert({
+        where: {
+            userId_source_currencyCode_seriesCode_rateDate: {
+                userId,
+                source: COLLECTAPI_EMPTY_SOURCE,
+                currencyCode: series.code,
+                seriesCode: getSeriesDatabaseCode(series),
+                rateDate,
             },
         },
+        create: {
+            userId,
+            source: COLLECTAPI_EMPTY_SOURCE,
+            currencyCode: series.code,
+            seriesCode: getSeriesDatabaseCode(series),
+            buyRate: null,
+            sellRate: null,
+            rateDate,
+            rawResponse: { reason },
+        },
+        update: {
+            rawResponse: { reason },
+        },
     })
+}
+
+function isCollectApiAuthError(error: unknown) {
+    return error instanceof CollectApiError && error.invalidAuth
+}
+
+async function storeCollectApiRate(userId: string, series: EvdsSeriesConfig, row: Record<string, unknown>, endpoint: string) {
+    const parsed = parseCollectApiRates(row, series)
+    if (parsed.buyRate === null && parsed.sellRate === null) {
+        await recordEmptyRateAttempt(userId, series, 'CollectAPI row matched but did not include a usable rate.')
+        return false
+    }
+
+    const rateDate = parseCollectApiDate(row)
+    await prisma.marketRate.upsert({
+        where: {
+            userId_source_currencyCode_seriesCode_rateDate: {
+                userId,
+                source: COLLECTAPI_SOURCE,
+                currencyCode: series.code,
+                seriesCode: getSeriesDatabaseCode(series),
+                rateDate,
+            },
+        },
+        create: {
+            userId,
+            source: COLLECTAPI_SOURCE,
+            currencyCode: series.code,
+            seriesCode: getSeriesDatabaseCode(series),
+            buyRate: parsed.buyRate,
+            sellRate: parsed.sellRate,
+            rateDate,
+            rawResponse: { endpoint, row },
+        },
+        update: {
+            buyRate: parsed.buyRate,
+            sellRate: parsed.sellRate,
+            rawResponse: { endpoint, row },
+        },
+    })
+
+    return true
 }
 
 export async function refreshEvdsRates(userId: string): Promise<MarketTickerResult> {
@@ -588,16 +617,15 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
     const apiKeyState = await getEvdsApiKeyState(userId)
 
     if (apiKeyState.status === 'invalid') {
-        await refreshOfficialFallbackRates(userId, settings).catch(() => false)
         const items = await getLatestStoredRates(userId, settings)
         return {
             status: hasAnyRate(items) ? 'stale' : 'invalid_key',
             message: hasAnyRate(items)
-                ? 'EVDS API anahtarı çözülemedi. Resmi TCMB yedeği gösteriliyor.'
-                : 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
+                ? 'CollectAPI API anahtarı çözülemedi. Son başarılı veri gösteriliyor.'
+                : 'CollectAPI API anahtarı çözülemedi. Lütfen Ayarlar > CollectAPI bölümünden API anahtarını yeniden kaydedin.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasAnyRate(items) ? markStoredRatesStale(items, 'TCMB resmi yedeği') : items,
+            items: hasAnyRate(items) ? markStoredRatesStale(items, 'Son başarılı CollectAPI verisi') : items,
         }
     }
 
@@ -605,7 +633,7 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         const items = await getLatestStoredRates(userId, settings)
         return {
             status: 'missing_key',
-            message: 'EVDS API anahtarı girilmedi.',
+            message: 'CollectAPI API anahtarı girilmedi.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -616,88 +644,55 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
     if (enabled.length === 0) {
         return {
             status: 'empty',
-            message: 'Gösterilecek EVDS serisi seçilmedi.',
+            message: 'Gösterilecek piyasa kartı seçilmedi.',
             lastUpdatedAt: null,
             cacheMinutes: settings.cacheMinutes,
             items: [],
         }
     }
 
-    const seriesCodes = Array.from(new Set(enabled.flatMap((item) => [item.buySeriesCode, item.sellSeriesCode]).filter(Boolean)))
-    const end = new Date()
-    const hasGoldSeries = enabled.some((series) => series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC')
-    const start = subDays(end, hasGoldSeries ? 370 : 10)
-    const url = `https://evds2.tcmb.gov.tr/service/evds/series=${seriesCodes.join('-')}&startDate=${formatEvdsDate(start)}&endDate=${formatEvdsDate(end)}&type=json&decimalSeperator=.`
+    const needsCurrency = enabled.some(isCurrencySeries)
+    const needsGold = enabled.some(isGoldSeries)
 
     try {
-        const response = await fetch(url, {
-            headers: { key: apiKeyState.apiKey },
-            cache: 'no-store',
-        })
+        const [currencyResult, goldResult] = await Promise.allSettled([
+            needsCurrency ? fetchCollectApi('/economy/allCurrency', apiKeyState.apiKey) : Promise.resolve(null),
+            needsGold ? fetchCollectApi('/economy/goldPrice', apiKeyState.apiKey) : Promise.resolve(null),
+        ])
 
-        if (!response.ok) {
-            throw new Error(`EVDS HTTP ${response.status}`)
+        const endpointErrors = [currencyResult, goldResult]
+            .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+            .map((result) => result.reason)
+        const allNeededEndpointsFailed = endpointErrors.length > 0
+            && endpointErrors.length === [needsCurrency, needsGold].filter(Boolean).length
+
+        if (allNeededEndpointsFailed) {
+            throw endpointErrors[0]
         }
 
-        const responseText = await response.text()
-        const contentType = response.headers.get('content-type') ?? ''
-        if (!contentType.includes('json') && responseText.trim().startsWith('<')) {
-            throw new Error('EVDS JSON yerine HTML döndürdü. API anahtarını ve EVDS erişimini kontrol edin.')
-        }
-
-        const raw = JSON.parse(responseText)
-        const rows = Array.isArray(raw?.items) ? raw.items : []
+        const currencyRows = currencyResult.status === 'fulfilled' ? extractRows(currencyResult.value) : []
+        const goldRows = goldResult.status === 'fulfilled' ? extractRows(goldResult.value) : []
+        let storedCount = 0
 
         for (const series of enabled) {
-            const row = [...rows].reverse().find((item) => {
-                const buy = series.buySeriesCode ? readSeriesNumber(item, series.buySeriesCode) : null
-                const sell = series.sellSeriesCode ? readSeriesNumber(item, series.sellSeriesCode) : null
-                return buy !== null || sell !== null
-            })
+            const rows = isGoldSeries(series) ? goldRows : currencyRows
+            const endpoint = isGoldSeries(series) ? '/economy/goldPrice' : '/economy/allCurrency'
+            const row = findCollectApiRow(rows, series)
+
             if (!row) {
-                await recordEmptyRateAttempt(userId, series)
+                await recordEmptyRateAttempt(userId, series, `CollectAPI ${endpoint} response did not include ${series.code}.`)
                 continue
             }
 
-            const rateDate = parseEvdsDate(row.Tarih ?? row.tarih ?? row.DATE) ?? new Date()
-            const buyRate = series.buySeriesCode ? readSeriesNumber(row, series.buySeriesCode) : null
-            const sellRate = series.sellSeriesCode ? readSeriesNumber(row, series.sellSeriesCode) : buyRate
-
-            await prisma.marketRate.upsert({
-                where: {
-                    userId_source_currencyCode_seriesCode_rateDate: {
-                        userId,
-                        source: 'TCMB_EVDS',
-                        currencyCode: series.code,
-                        seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|'),
-                        rateDate,
-                    },
-                },
-                create: {
-                    userId,
-                    source: 'TCMB_EVDS',
-                    currencyCode: series.code,
-                    seriesCode: [series.buySeriesCode, series.sellSeriesCode].filter(Boolean).join('|'),
-                    buyRate,
-                    sellRate,
-                    rateDate,
-                    rawResponse: raw,
-                },
-                update: {
-                    buyRate,
-                    sellRate,
-                    rawResponse: raw,
-                },
-            })
+            const stored = await storeCollectApiRate(userId, series, row, endpoint)
+            if (stored) storedCount += 1
         }
 
-        await refreshEvds3GoldRates(userId, settings).catch(() => false)
-
         const items = await getLatestStoredRates(userId, settings)
-        if (!hasAnyRate(items)) {
+        if (storedCount === 0 && !hasAnyRate(items)) {
             return {
                 status: 'empty',
-                message: 'EVDS bağlantısı başarılı ancak seçili seriler için veri bulunamadı. Seri kodlarını ve tarih aralığını kontrol edin.',
+                message: 'CollectAPI bağlantısı başarılı ancak seçili kartlar için veri bulunamadı.',
                 lastUpdatedAt: null,
                 cacheMinutes: settings.cacheMinutes,
                 items,
@@ -709,37 +704,30 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         return {
             status: 'ok',
             message: missingRateCount > 0
-                ? `Piyasa verileri güncellendi; ${missingRateCount} aktif kart için EVDS verisi bulunamadı.`
-                : 'Piyasa verileri TCMB EVDS üzerinden güncellendi.',
+                ? `Piyasa verileri CollectAPI üzerinden güncellendi; ${missingRateCount} aktif kart için veri bulunamadı.`
+                : 'Piyasa verileri CollectAPI üzerinden güncellendi.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
         }
     } catch (error) {
-        const refreshedFallback = await refreshOfficialFallbackRates(userId, settings).catch(() => false)
-        await Promise.all(enabled.map((series) => recordEmptyRateAttempt(userId, series).catch(() => null)))
+        await Promise.all(enabled.map((series) => recordEmptyRateAttempt(userId, series, String(error)).catch(() => null)))
         const items = await getLatestStoredRates(userId, settings)
         const hasStoredRate = hasAnyRate(items)
-        if (refreshedFallback && hasStoredRate) {
-            const missingRateCount = getMissingRateCount(items)
-
-            return {
-                status: 'ok',
-                message: missingRateCount > 0
-                    ? `Piyasa verileri resmi TCMB kaynaklarından güncellendi; ${missingRateCount} aktif kart için veri bulunamadı.`
-                    : 'Piyasa verileri resmi TCMB kaynaklarından güncellendi.',
-                lastUpdatedAt: getResultLastUpdatedAt(items),
-                cacheMinutes: settings.cacheMinutes,
-                items,
-            }
-        }
+        const invalidAuth = isCollectApiAuthError(error)
 
         return {
-            status: hasStoredRate ? 'stale' : 'error',
-            message: hasStoredRate ? 'EVDS verisi alınamadı. Resmi TCMB yedeği gösteriliyor.' : `EVDS verisi alınamadı: ${String(error)}`,
+            status: invalidAuth && !hasStoredRate ? 'invalid_key' : hasStoredRate ? 'stale' : 'error',
+            message: invalidAuth
+                ? hasStoredRate
+                    ? 'CollectAPI API anahtarı geçersiz görünüyor. Son başarılı veri gösteriliyor.'
+                    : 'CollectAPI API anahtarı geçersiz veya paket bu API için yetkili değil.'
+                : hasStoredRate
+                    ? 'CollectAPI verisi alınamadı. Son başarılı veri gösteriliyor.'
+                    : `CollectAPI verisi alınamadı: ${String(error)}`,
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasStoredRate ? markStoredRatesStale(items, 'TCMB resmi yedeği') : items,
+            items: hasStoredRate ? markStoredRatesStale(items, 'Son başarılı CollectAPI verisi') : items,
         }
     }
 }
@@ -755,7 +743,7 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
     if (apiKeyState.status === 'invalid') {
         return {
             status: 'invalid_key',
-            message: 'EVDS API anahtarı çözülemedi. Lütfen Ayarlar > TCMB / EVDS bölümünden API anahtarını yeniden kaydedin.',
+            message: 'CollectAPI API anahtarı çözülemedi. Lütfen Ayarlar > CollectAPI bölümünden API anahtarını yeniden kaydedin.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -765,7 +753,7 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
     if (!apiKeyState.apiKey) {
         return {
             status: 'missing_key',
-            message: 'EVDS API anahtarı girilmedi.',
+            message: 'CollectAPI API anahtarı girilmedi.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -784,7 +772,7 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
             ? missingRateCount > 0
                 ? `Piyasa verileri cache üzerinden gösteriliyor; ${missingRateCount} aktif kart için henüz veri yok.`
                 : 'Piyasa verileri cache üzerinden gösteriliyor.'
-            : 'Aktif piyasa kartları var ancak henüz veri yok.',
+            : 'Aktif piyasa kartları var ancak henüz CollectAPI verisi yok.',
         lastUpdatedAt: getResultLastUpdatedAt(items),
         cacheMinutes: settings.cacheMinutes,
         items,

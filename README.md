@@ -6,8 +6,8 @@ Uygulama mevcut Next.js + Prisma mimarisi korunarak genişletildi. Amaç sadece 
 
 ## Ana Özellikler
 
-- TCMB EVDS tabanlı USD, EUR, GBP ve ayarlanabilir altın/emtia seri kartları
-- Güvenli EVDS API anahtarı saklama ve cache destekli piyasa verisi
+- CollectAPI tabanlı USD, EUR, GBP ve altın piyasa kartları
+- Güvenli CollectAPI API anahtarı saklama ve cache destekli piyasa verisi
 - Alacak / verecek kayıtları, taksit planı, kısmi ödeme, gecikme ve yeniden taksitlendirme
 - Kayıt bazlı not, ödeme geçmişi ve timeline
 - Nakit seçimi destekli gelir/gider işlem formu
@@ -41,7 +41,7 @@ Geliştirme sunucusu varsayılan olarak `http://localhost:3000` adresinde çalı
 DATABASE_URL="mysql://USER:PASSWORD@HOST:PORT/DATABASE"
 NEXTAUTH_SECRET="uzun-guvenli-secret"
 NEXTAUTH_URL="http://localhost:3000"
-APP_SETTINGS_SECRET="evds-ve-diger-sifreli-ayarlar-icin-uzun-secret"
+APP_SETTINGS_SECRET="collectapi-ve-diger-sifreli-ayarlar-icin-uzun-secret"
 ```
 
 `APP_SETTINGS_SECRET` tanımlanmazsa şifreli ayar kaydı için `NEXTAUTH_SECRET` veya `AUTH_SECRET` kullanılır. Production ortamında sabit ve güçlü bir `APP_SETTINGS_SECRET` kullanılması önerilir.
@@ -81,18 +81,17 @@ Uygulamak için:
 npm run db:update
 ```
 
-## TCMB / EVDS Ayarları
+## CollectAPI Ayarları
 
 1. Ayarlar sayfasına gidin.
-2. `TCMB / EVDS Ayarları` bölümünde API anahtarını girin.
-3. Gösterilecek seri kartlarını seçin.
-4. EVDS seri kodlarını düzenleyin.
-5. Cache süresini belirleyin.
-6. Dashboard'da `Piyasa Kartları` bölümünü kontrol edin.
+2. `CollectAPI Ayarları` bölümünde API anahtarını girin.
+3. Gösterilecek piyasa kartlarını seçin.
+4. Cache süresini belirleyin.
+5. Dashboard'da `Piyasa Kartları` bölümünü kontrol edin.
 
-API anahtarı yoksa dashboard hata vermez, `EVDS API anahtarı girilmedi` uyarısını gösterir. Veri çekilemezse son başarılı kayıt gösterilir.
+API anahtarı yoksa dashboard hata vermez, `CollectAPI API anahtarı girilmedi` uyarısını gösterir. Veri çekilemezse son başarılı CollectAPI kaydı gösterilir.
 
-EVDS web servis entegrasyonu TCMB EVDS servis mantığına göre header içinde `key` kullanacak şekilde uygulanmıştır. Altın seri kodları varsayılan olarak kapalı bırakıldı; desteklenen güncel seri kodları Ayarlar ekranından yönetilebilir.
+CollectAPI entegrasyonu `Authorization: apikey <token>` header formatını kullanır. Döviz kartları `/economy/allCurrency`, altın kartları `/economy/goldPrice` endpointinden beslenir.
 
 ## Kişisel Muhasebe Kullanımı
 

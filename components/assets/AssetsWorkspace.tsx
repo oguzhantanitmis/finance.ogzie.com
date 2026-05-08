@@ -41,11 +41,9 @@ export default function AssetsWorkspace({
     const [createState, createAction] = useActionState(addAsset, EMPTY_ACTION_RESULT)
     const [updateState, updateAction] = useActionState(updateAsset, EMPTY_ACTION_RESULT)
     const hasUsdRate = Number.isFinite(usdRate) && usdRate > 0
-    const usdSourceLabel = usdRateSource === 'TCMB_DAILY_XML'
-        ? 'TCMB günlük kur'
-        : usdRateSource === 'TCMB_EVDS'
-            ? 'TCMB EVDS'
-            : 'TCMB'
+    const usdSourceLabel = usdRateSource === 'COLLECTAPI_ECONOMY'
+        ? 'CollectAPI'
+        : usdRateSource ?? 'CollectAPI'
     const usdUpdatedLabel = usdRateUpdatedAt
         ? new Date(usdRateUpdatedAt).toLocaleString('tr-TR', {
             day: '2-digit',
@@ -118,7 +116,7 @@ export default function AssetsWorkspace({
                     <p className="text-sm mt-2" style={{ color: hasUsdRate ? 'var(--text-muted)' : 'var(--accent-warning)' }}>
                         {hasUsdRate
                             ? `${usdSourceLabel}${usdUpdatedLabel ? ` • ${usdUpdatedLabel}` : ''}`
-                            : 'TCMB / EVDS verisi bulunamadı.'}
+                            : 'CollectAPI verisi bulunamadı.'}
                     </p>
                 </div>
             </div>

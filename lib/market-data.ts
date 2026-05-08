@@ -44,6 +44,7 @@ async function readStoredMarketRates(userId: string): Promise<MarketRates> {
     const rows = await prisma.marketRate.findMany({
         where: {
             userId,
+            source: 'COLLECTAPI_ECONOMY',
             currencyCode: { in: Object.values(RATE_CODES) },
             OR: [
                 { buyRate: { not: null } },
