@@ -11,7 +11,7 @@ import {
     toOptionalString,
 } from '@/lib/action-result'
 import { DEFAULT_EVDS_SERIES, refreshEvdsRates, saveEvdsSettings, type EvdsSeriesConfig } from '@/lib/evds-service'
-import { requireCurrentUser } from '@/lib/server-auth'
+import { requireCurrentUser, requireSuperuser } from '@/lib/server-auth'
 
 type EvdsField = 'apiKey' | 'cacheMinutes' | 'series'
 
@@ -26,7 +26,7 @@ export async function saveEvdsSettingsAction(
     const data = resolveFormData(previousState, formData)
 
     try {
-        const user = await requireCurrentUser()
+        const user = await requireSuperuser()
         const apiKey = toOptionalString(data.get('apiKey'))
         const keepExistingApiKey = data.get('keepExistingApiKey') === 'on'
         const cacheMinutes = Math.max(15, Number(data.get('cacheMinutes') ?? 180) || 180)

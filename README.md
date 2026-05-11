@@ -42,6 +42,7 @@ DATABASE_URL="mysql://USER:PASSWORD@HOST:PORT/DATABASE"
 NEXTAUTH_SECRET="uzun-guvenli-secret"
 NEXTAUTH_URL="http://localhost:3000"
 APP_SETTINGS_SECRET="collectapi-ve-diger-sifreli-ayarlar-icin-uzun-secret"
+COLLECTAPI_API_KEY="collectapi-token"
 ```
 
 `APP_SETTINGS_SECRET` tanımlanmazsa şifreli ayar kaydı için `NEXTAUTH_SECRET` veya `AUTH_SECRET` kullanılır. Production ortamında sabit ve güçlü bir `APP_SETTINGS_SECRET` kullanılması önerilir.
@@ -83,15 +84,15 @@ npm run db:update
 
 ## CollectAPI Ayarları
 
-1. Ayarlar sayfasına gidin.
-2. `CollectAPI Ayarları` bölümünde API anahtarını girin.
-3. Gösterilecek piyasa kartlarını seçin.
+1. Production ortamında `COLLECTAPI_API_KEY` değişkenini tanımlayın.
+2. Ayarlar sayfasına gidin.
+3. Superuser olarak `CollectAPI Ayarları` bölümünden gösterilecek piyasa kartlarını seçin.
 4. Cache süresini belirleyin.
 5. Dashboard'da `Piyasa Kartları` bölümünü kontrol edin.
 
 API anahtarı yoksa dashboard hata vermez, `CollectAPI API anahtarı girilmedi` uyarısını gösterir. Veri çekilemezse son başarılı CollectAPI kaydı gösterilir.
 
-CollectAPI entegrasyonu `Authorization: apikey <token>` header formatını kullanır. Döviz kartları `/economy/allCurrency`, altın kartları `/economy/goldPrice` endpointinden beslenir.
+CollectAPI entegrasyonu `Authorization: apikey <token>` header formatını kullanır. Döviz kartları `/economy/allCurrency`, altın kartları `/economy/goldPrice` endpointinden beslenir. Normal kullanıcılar sağlayıcı anahtarını görmez; anahtar uygulama seviyesinde tutulur.
 
 ## Kişisel Muhasebe Kullanımı
 

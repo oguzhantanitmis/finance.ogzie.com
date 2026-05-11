@@ -43,6 +43,7 @@ export default async function SettingsPage() {
     let cardSettingsData: CardSettingsData | null = null
     const evdsSettings = await getEvdsSettings(user.id).catch(() => ({
         hasApiKey: false,
+        apiKeySource: 'none' as const,
         cacheMinutes: 180,
         series: DEFAULT_EVDS_SERIES,
     }))

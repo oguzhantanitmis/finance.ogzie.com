@@ -194,94 +194,95 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                 </button>
             </div>
 
-            {/* ===== CollectAPI Ayarları ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <Settings2 className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
-                    <div>
-                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>CollectAPI Ayarları</h2>
-                        <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                            API anahtarı şifreli saklanır. Anahtar boşsa dashboard piyasa kartları uyarı durumunda kalır.
+            {canUseAi ? (
+                <div className="fintech-card p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                        <Settings2 className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
+                        <div>
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>CollectAPI Ayarları</h2>
+                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                                API anahtarı şifreli saklanır. Anahtar boşsa dashboard piyasa kartları uyarı durumunda kalır.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form action={evdsAction} className="space-y-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-4">
+                            <div>
+                                <label className="form-label">CollectAPI API anahtarı</label>
+                                <input
+                                    name="apiKey"
+                                    type="password"
+                                    autoComplete="off"
+                                    placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girmezsen mevcut anahtar korunur' : 'CollectAPI API anahtarını gir'}
+                                    className="form-input"
+                                />
+                                {evdsSettings.hasApiKey && evdsSettings.apiKeySource === 'user' ? (
+                                    <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                        <input name="keepExistingApiKey" type="checkbox" defaultChecked className="rounded border-[var(--border-default)] bg-[var(--bg-input)]" />
+                                        Mevcut API anahtarını koru
+                                    </label>
+                                ) : null}
+                            </div>
+                            <div>
+                                <label className="form-label">Cache süresi (dk)</label>
+                                <input name="cacheMinutes" type="number" min="15" step="15" defaultValue={evdsSettings.cacheMinutes} className="form-input" />
+                                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>CollectAPI’ye gereksiz istek atmamak için en az 15 dk.</p>
+                            </div>
+                        </div>
+
+                        <div className="data-table-wrapper">
+                            <table className="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Göster</th>
+                                        <th>Kart adı</th>
+                                        <th>CollectAPI eşleşmesi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {evdsSettings.series.map((series) => {
+                                        const endpoint = series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC'
+                                            ? '/economy/goldPrice'
+                                            : '/economy/allCurrency'
+                                        const providerKey = series.sellSeriesCode || series.buySeriesCode || series.code
+
+                                        return (
+                                            <tr key={series.code}>
+                                                <td>
+                                                    <input
+                                                        name={`${series.code}_enabled`}
+                                                        type="checkbox"
+                                                        defaultChecked={series.enabled}
+                                                        className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
+                                                </td>
+                                                <td>
+                                                    <input type="hidden" name={`${series.code}_buy`} defaultValue={series.buySeriesCode} />
+                                                    <input type="hidden" name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} />
+                                                    <div className="flex flex-col gap-1">
+                                                        <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{endpoint}</span>
+                                                        <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{providerKey}</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            Döviz kartları CollectAPI allCurrency, altın kartları goldPrice endpointinden beslenir. Token değerini başında apikey olmadan girebilirsin; sistem header formatını otomatik tamamlar.
                         </p>
-                    </div>
+
+                        <FormMessage success={evdsState.success} message={evdsState.message} />
+                        <SubmitButton label="CollectAPI Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
+                    </form>
                 </div>
-
-                <form action={evdsAction} className="space-y-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-4">
-                        <div>
-                            <label className="form-label">CollectAPI API anahtarı</label>
-                            <input
-                                name="apiKey"
-                                type="password"
-                                autoComplete="off"
-                                placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girmezsen mevcut anahtar korunur' : 'CollectAPI API anahtarını gir'}
-                                className="form-input"
-                            />
-                            {evdsSettings.hasApiKey ? (
-                                <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                    <input name="keepExistingApiKey" type="checkbox" defaultChecked className="rounded border-[var(--border-default)] bg-[var(--bg-input)]" />
-                                    Mevcut API anahtarını koru
-                                </label>
-                            ) : null}
-                        </div>
-                        <div>
-                            <label className="form-label">Cache süresi (dk)</label>
-                            <input name="cacheMinutes" type="number" min="15" step="15" defaultValue={evdsSettings.cacheMinutes} className="form-input" />
-                            <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>CollectAPI’ye gereksiz istek atmamak için en az 15 dk.</p>
-                        </div>
-                    </div>
-
-                    <div className="data-table-wrapper">
-                        <table className="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Göster</th>
-                                    <th>Kart adı</th>
-                                    <th>CollectAPI eşleşmesi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {evdsSettings.series.map((series) => {
-                                    const endpoint = series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC'
-                                        ? '/economy/goldPrice'
-                                        : '/economy/allCurrency'
-                                    const providerKey = series.sellSeriesCode || series.buySeriesCode || series.code
-
-                                    return (
-                                        <tr key={series.code}>
-                                            <td>
-                                                <input
-                                                    name={`${series.code}_enabled`}
-                                                    type="checkbox"
-                                                    defaultChecked={series.enabled}
-                                                    className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
-                                                />
-                                            </td>
-                                            <td>
-                                                <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
-                                            </td>
-                                            <td>
-                                                <input type="hidden" name={`${series.code}_buy`} defaultValue={series.buySeriesCode} />
-                                                <input type="hidden" name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} />
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{endpoint}</span>
-                                                    <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{providerKey}</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        Döviz kartları CollectAPI allCurrency, altın kartları goldPrice endpointinden beslenir. Token değerini başında apikey olmadan girebilirsin; sistem header formatını otomatik tamamlar.
-                    </p>
-
-                    <FormMessage success={evdsState.success} message={evdsState.message} />
-                    <SubmitButton label="CollectAPI Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
-                </form>
-            </div>
+            ) : null}
 
             {/* ===== Kart Faiz Ayarları ===== */}
             <div className="fintech-card p-6 md:p-8">

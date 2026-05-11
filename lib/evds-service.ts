@@ -15,6 +15,7 @@ export interface EvdsSeriesConfig {
 
 export interface EvdsSettings {
     hasApiKey: boolean
+    apiKeySource: 'environment' | 'user' | 'none'
     cacheMinutes: number
     series: EvdsSeriesConfig[]
 }
@@ -53,6 +54,11 @@ const SETTINGS_KEYS = {
 const LEGACY_SETTINGS_KEYS = {
     cacheMinutes: 'evds.cacheMinutes',
     seriesConfig: 'evds.seriesConfig',
+}
+
+function getEnvironmentCollectApiKey() {
+    const value = process.env.COLLECTAPI_API_KEY ?? process.env.COLLECT_API_KEY ?? ''
+    return value.trim() || null
 }
 
 export const DEFAULT_EVDS_SERIES: EvdsSeriesConfig[] = [
@@ -392,6 +398,11 @@ async function getEvdsSettingsUpdatedAt(userId: string) {
 }
 
 async function getEvdsApiKeyState(userId: string) {
+    const environmentApiKey = getEnvironmentCollectApiKey()
+    if (environmentApiKey) {
+        return { status: 'ok' as const, apiKey: environmentApiKey }
+    }
+
     const raw = await getSetting(userId, SETTINGS_KEYS.apiKey)
     if (!raw) {
         return { status: 'missing' as const, apiKey: null }
@@ -416,10 +427,12 @@ export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
         getSetting(userId, LEGACY_SETTINGS_KEYS.seriesConfig),
     ])
 
+    const environmentApiKey = getEnvironmentCollectApiKey()
     const cacheMinutes = Math.max(15, Number(cacheRaw ?? legacyCacheRaw ?? 180) || 180)
 
     return {
-        hasApiKey: Boolean(apiKey),
+        hasApiKey: Boolean(environmentApiKey || apiKey),
+        apiKeySource: environmentApiKey ? 'environment' : apiKey ? 'user' : 'none',
         cacheMinutes,
         series: parseSeriesConfig(seriesRaw ?? legacySeriesRaw),
     }
