@@ -275,7 +275,7 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                             </table>
                         </div>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            Döviz kartları CollectAPI allCurrency, altın kartları goldPrice endpointinden beslenir. Token değerini başında apikey olmadan girebilirsin; sistem header formatını otomatik tamamlar.
+                            Döviz kartları CollectAPI allCurrency, altın kartları goldPrice endpointinden beslenir; satır bulunamazsa serbestPiyasa fallback’i denenir. Token değerini başında apikey olmadan girebilirsin.
                         </p>
 
                         <FormMessage success={evdsState.success} message={evdsState.message} />

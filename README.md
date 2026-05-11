@@ -92,7 +92,7 @@ npm run db:update
 
 API anahtarı yoksa dashboard hata vermez, `CollectAPI API anahtarı girilmedi` uyarısını gösterir. Veri çekilemezse son başarılı CollectAPI kaydı gösterilir.
 
-CollectAPI entegrasyonu `Authorization: apikey <token>` header formatını kullanır. Döviz kartları `/economy/allCurrency`, altın kartları `/economy/goldPrice` endpointinden beslenir. Normal kullanıcılar sağlayıcı anahtarını görmez; anahtar uygulama seviyesinde tutulur.
+CollectAPI entegrasyonu `Authorization: apikey <token>` header formatını kullanır. Döviz kartları önce `/economy/allCurrency`, altın kartları önce `/economy/goldPrice` endpointinden beslenir. Satır bulunamazsa sistem `/economy/serbestPiyasa?base=...` fallback endpointini dener. Normal kullanıcılar sağlayıcı anahtarını görmez; anahtar uygulama seviyesinde tutulur.
 
 ## Kişisel Muhasebe Kullanımı
 

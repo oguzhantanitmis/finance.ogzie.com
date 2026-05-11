@@ -306,6 +306,13 @@ function formatCollectApiAuthorization(apiKey: string) {
     return /^(apikey|bearer)\s+/i.test(trimmed) ? trimmed : `apikey ${trimmed}`
 }
 
+function getCollectApiSerbestPiyasaEndpoint(series: EvdsSeriesConfig) {
+    const base = encodeURIComponent(getSeriesProviderKey(series))
+    return isGoldSeries(series)
+        ? `/economy/serbestPiyasa?base=${base}&type=gold`
+        : `/economy/serbestPiyasa?base=${base}`
+}
+
 async function fetchCollectApi(endpoint: string, apiKey: string) {
     const response = await fetch(`${COLLECTAPI_BASE_URL}${endpoint}`, {
         cache: 'no-store',
@@ -375,6 +382,13 @@ function findCollectApiRow(rows: Record<string, unknown>[], series: EvdsSeriesCo
     return rows.find((row) => isGoldSeries(series)
         ? matchesGoldRow(row, series)
         : matchesCurrencyRow(row, series))
+}
+
+async function fetchCollectApiSeriesFallback(series: EvdsSeriesConfig, apiKey: string) {
+    const endpoint = getCollectApiSerbestPiyasaEndpoint(series)
+    const rows = extractRows(await fetchCollectApi(endpoint, apiKey))
+    const row = findCollectApiRow(rows, series) ?? rows[0]
+    return row ? { endpoint, row } : null
 }
 
 function parseCollectApiRates(row: Record<string, unknown>, series: EvdsSeriesConfig) {
@@ -695,24 +709,30 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         const endpointErrors = [currencyResult, goldResult]
             .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
             .map((result) => result.reason)
-        const allNeededEndpointsFailed = endpointErrors.length > 0
-            && endpointErrors.length === [needsCurrency, needsGold].filter(Boolean).length
-
-        if (allNeededEndpointsFailed) {
-            throw endpointErrors[0]
-        }
-
         const currencyRows = currencyResult.status === 'fulfilled' ? extractRows(currencyResult.value) : []
         const goldRows = goldResult.status === 'fulfilled' ? extractRows(goldResult.value) : []
         let storedCount = 0
 
         for (const series of enabled) {
             const rows = isGoldSeries(series) ? goldRows : currencyRows
-            const endpoint = isGoldSeries(series) ? '/economy/goldPrice' : '/economy/allCurrency'
-            const row = findCollectApiRow(rows, series)
+            let endpoint = isGoldSeries(series) ? '/economy/goldPrice' : '/economy/allCurrency'
+            let row = findCollectApiRow(rows, series)
 
             if (!row) {
-                await recordEmptyRateAttempt(userId, series, `CollectAPI ${endpoint} response did not include ${series.code}.`)
+                const fallback = await fetchCollectApiSeriesFallback(series, apiKeyState.apiKey)
+                    .catch((error) => {
+                        endpointErrors.push(error)
+                        return null
+                    })
+
+                if (fallback) {
+                    endpoint = fallback.endpoint
+                    row = fallback.row
+                }
+            }
+
+            if (!row) {
+                await recordEmptyRateAttempt(userId, series, `CollectAPI ${endpoint} and ${getCollectApiSerbestPiyasaEndpoint(series)} responses did not include ${series.code}.`)
                 continue
             }
 
@@ -721,6 +741,15 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         }
 
         const items = await getLatestStoredRates(userId, settings)
+        const authError = endpointErrors.find(isCollectApiAuthError)
+        if (authError && storedCount === 0 && !hasAnyRate(items)) {
+            throw authError
+        }
+
+        if (endpointErrors.length > 0 && storedCount === 0 && !hasAnyRate(items)) {
+            throw endpointErrors[0]
+        }
+
         if (storedCount === 0 && !hasAnyRate(items)) {
             return {
                 status: 'empty',
