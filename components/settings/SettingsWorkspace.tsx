@@ -201,7 +201,7 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         <div>
                             <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>CollectAPI Ayarları</h2>
                             <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                                API anahtarı şifreli saklanır. Anahtar boşsa dashboard piyasa kartları uyarı durumunda kalır.
+                                Bu sağlayıcı ayarları tüm kullanıcıların piyasa kartlarına uygulanır. Anahtar boşsa dashboard uyarı durumunda kalır.
                             </p>
                         </div>
                     </div>

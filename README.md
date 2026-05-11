@@ -86,8 +86,8 @@ npm run db:update
 
 1. Production ortamında `COLLECTAPI_API_KEY` değişkenini tanımlayın.
 2. Ayarlar sayfasına gidin.
-3. Superuser olarak `CollectAPI Ayarları` bölümünden gösterilecek piyasa kartlarını seçin.
-4. Cache süresini belirleyin.
+3. Superuser olarak `CollectAPI Ayarları` bölümünden tüm kullanıcılar için gösterilecek piyasa kartlarını seçin.
+4. Cache süresini belirleyin. Bu sağlayıcı ayarları primary superuser hesabından okunur; piyasa rate kayıtları her kullanıcı için ayrı tutulur.
 5. Dashboard'da `Piyasa Kartları` bölümünü kontrol edin.
 
 API anahtarı yoksa dashboard hata vermez, `CollectAPI API anahtarı girilmedi` uyarısını gösterir. Veri çekilemezse son başarılı CollectAPI kaydı gösterilir.

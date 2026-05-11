@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 
+import { PRIMARY_SUPERUSER_EMAIL } from '@/lib/authz'
 import { prisma } from '@/lib/prisma'
 import { getSecureSetting, getSetting, setSetting } from '@/lib/settings-service'
 
@@ -61,6 +62,15 @@ function getEnvironmentCollectApiKey() {
     return value.trim() || null
 }
 
+export async function getCollectApiSettingsOwnerId(userId: string) {
+    const primarySuperuser = await prisma.user.findUnique({
+        where: { email: PRIMARY_SUPERUSER_EMAIL },
+        select: { id: true },
+    })
+
+    return primarySuperuser?.id ?? userId
+}
+
 export const DEFAULT_EVDS_SERIES: EvdsSeriesConfig[] = [
     {
         code: 'USDTRY',
@@ -86,7 +96,7 @@ export const DEFAULT_EVDS_SERIES: EvdsSeriesConfig[] = [
     {
         code: 'XAU_GRAM',
         label: 'Gram Altın',
-        enabled: false,
+        enabled: true,
         buySeriesCode: 'gram-altin',
         sellSeriesCode: 'gram-altin',
     },
@@ -385,9 +395,10 @@ function parseCollectApiRates(row: Record<string, unknown>, series: EvdsSeriesCo
 }
 
 async function getEvdsSettingsUpdatedAt(userId: string) {
+    const settingsOwnerId = await getCollectApiSettingsOwnerId(userId)
     const latestSetting = await prisma.appSettings.findFirst({
         where: {
-            userId,
+            userId: settingsOwnerId,
             key: { in: Object.values(SETTINGS_KEYS) },
         },
         orderBy: { updatedAt: 'desc' },
@@ -403,13 +414,14 @@ async function getEvdsApiKeyState(userId: string) {
         return { status: 'ok' as const, apiKey: environmentApiKey }
     }
 
-    const raw = await getSetting(userId, SETTINGS_KEYS.apiKey)
+    const settingsOwnerId = await getCollectApiSettingsOwnerId(userId)
+    const raw = await getSetting(settingsOwnerId, SETTINGS_KEYS.apiKey)
     if (!raw) {
         return { status: 'missing' as const, apiKey: null }
     }
 
     try {
-        const apiKey = await getSecureSetting(userId, SETTINGS_KEYS.apiKey)
+        const apiKey = await getSecureSetting(settingsOwnerId, SETTINGS_KEYS.apiKey)
         return apiKey
             ? { status: 'ok' as const, apiKey }
             : { status: 'missing' as const, apiKey: null }
@@ -419,12 +431,13 @@ async function getEvdsApiKeyState(userId: string) {
 }
 
 export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
+    const settingsOwnerId = await getCollectApiSettingsOwnerId(userId)
     const [apiKey, cacheRaw, legacyCacheRaw, seriesRaw, legacySeriesRaw] = await Promise.all([
-        getSecureSetting(userId, SETTINGS_KEYS.apiKey).catch(() => null),
-        getSetting(userId, SETTINGS_KEYS.cacheMinutes),
-        getSetting(userId, LEGACY_SETTINGS_KEYS.cacheMinutes),
-        getSetting(userId, SETTINGS_KEYS.seriesConfig),
-        getSetting(userId, LEGACY_SETTINGS_KEYS.seriesConfig),
+        getSecureSetting(settingsOwnerId, SETTINGS_KEYS.apiKey).catch(() => null),
+        getSetting(settingsOwnerId, SETTINGS_KEYS.cacheMinutes),
+        getSetting(settingsOwnerId, LEGACY_SETTINGS_KEYS.cacheMinutes),
+        getSetting(settingsOwnerId, SETTINGS_KEYS.seriesConfig),
+        getSetting(settingsOwnerId, LEGACY_SETTINGS_KEYS.seriesConfig),
     ])
 
     const environmentApiKey = getEnvironmentCollectApiKey()

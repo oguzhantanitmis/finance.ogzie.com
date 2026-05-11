@@ -10,7 +10,13 @@ import {
     resolveFormData,
     toOptionalString,
 } from '@/lib/action-result'
-import { DEFAULT_EVDS_SERIES, refreshEvdsRates, saveEvdsSettings, type EvdsSeriesConfig } from '@/lib/evds-service'
+import {
+    DEFAULT_EVDS_SERIES,
+    getCollectApiSettingsOwnerId,
+    refreshEvdsRates,
+    saveEvdsSettings,
+    type EvdsSeriesConfig,
+} from '@/lib/evds-service'
 import { requireCurrentUser, requireSuperuser } from '@/lib/server-auth'
 
 type EvdsField = 'apiKey' | 'cacheMinutes' | 'series'
@@ -42,7 +48,8 @@ export async function saveEvdsSettingsAction(
             }
         })
 
-        await saveEvdsSettings(user.id, {
+        const settingsOwnerId = await getCollectApiSettingsOwnerId(user.id)
+        await saveEvdsSettings(settingsOwnerId, {
             apiKey: apiKey ?? undefined,
             keepExistingApiKey,
             cacheMinutes,
