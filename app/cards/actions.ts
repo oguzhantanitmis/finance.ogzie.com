@@ -45,7 +45,7 @@ type CardField =
     | 'color'
     | 'description'
 
-type CardTransactionField = 'type' | 'description' | 'merchant' | 'amount'
+type CardTransactionField = 'type' | 'description' | 'merchant' | 'amount' | 'totalInstallments'
 type CardPaymentField = 'amount' | 'description' | 'statementId'
 
 function revalidateCardPaths(cardId?: string) {
@@ -245,6 +245,21 @@ export async function addCardTransaction(data: {
 }): Promise<ActionResult<CardTransactionField>> {
     try {
         const user = await requireCurrentUser()
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+            return {
+                success: false,
+                message: 'İşlem tutarı sıfırdan büyük olmalıdır.',
+                fieldErrors: { amount: 'Tutar geçersiz.' },
+            }
+        }
+        const totalInstallments = data.totalInstallments || 1
+        if (!Number.isInteger(totalInstallments) || totalInstallments < 1 || totalInstallments > 36) {
+            return {
+                success: false,
+                message: 'Taksit sayısı 1 ile 36 arasında olmalıdır.',
+                fieldErrors: { totalInstallments: 'Taksit sayısı geçersiz.' },
+            }
+        }
         const card = await getUserCard(data.creditCardId, user.id)
 
         await prisma.cardTransaction.create({
@@ -255,7 +270,7 @@ export async function addCardTransaction(data: {
                 merchant: data.merchant,
                 amount: data.amount,
                 remainingAmount: data.amount,
-                totalInstallments: data.totalInstallments || 1,
+                totalInstallments,
                 isCashAdvance: data.isCashAdvance || false,
             },
         })
@@ -275,6 +290,13 @@ export async function makeCardPayment(data: {
 }): Promise<ActionResult<CardPaymentField>> {
     try {
         const user = await requireCurrentUser()
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+            return {
+                success: false,
+                message: 'Ödeme tutarı sıfırdan büyük olmalıdır.',
+                fieldErrors: { amount: 'Tutar geçersiz.' },
+            }
+        }
         const card = await getUserCard(data.creditCardId, user.id)
         const statementId = data.statementId
             ? (await prisma.cardStatement.findFirstOrThrow({

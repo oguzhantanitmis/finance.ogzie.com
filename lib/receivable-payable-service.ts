@@ -437,6 +437,16 @@ async function recordRPPayment(
         throw new ActionError('İşlem tutarı kalan tutardan büyük olamaz.')
     }
 
+    if (options?.installmentId) {
+        const installment = record.installments.find((item) => item.id === options.installmentId)
+        if (!installment) {
+            throw new ActionError('Seçilen taksit bu kayda ait değil.')
+        }
+        if (amount > installment.remainingAmount) {
+            throw new ActionError('İşlem tutarı seçilen taksitin kalan tutarından büyük olamaz.')
+        }
+    }
+
     const newRemaining = roundMoney(record.remainingAmount - amount)
     const newPaid = roundMoney((record.paidAmount ?? Math.max(record.originalAmount - record.remainingAmount, 0)) + amount)
     const newStatus = resolveRPStatus(record.originalAmount, newRemaining, record.dueDate)
