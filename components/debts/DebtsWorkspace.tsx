@@ -26,6 +26,11 @@ function isPersonalDebt(debt: DebtView) {
     return debt.sourceKind === 'PERSONAL_RP'
 }
 
+function toPercentInput(value: number | null | undefined, fallbackFraction: number) {
+    const normalized = value ?? fallbackFraction
+    return +((normalized > 1 ? normalized : normalized * 100).toFixed(2))
+}
+
 export default function DebtsWorkspace({
     debts,
     people,
@@ -450,7 +455,7 @@ function StoredDebtForm({
                     defaultValue={debt?.interestRate ?? 0}
                 />
                 {isCard || isKmh ? (
-                    <Field label={isCard ? 'Asgari ödeme oranı' : 'Asgari/kapama oranı'} name="minPaymentRate" type="number" step="0.01" defaultValue={debt?.minPaymentRate ?? 0.2} />
+                    <Field label={isCard ? 'Asgari ödeme oranı (%)' : 'Asgari/kapama oranı (%)'} name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.minPaymentRate, 0.2)} />
                 ) : (
                     <Field label={isLoan ? 'Kalan borç' : 'Kalan bakiye'} name="remainingBalance" type="number" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
                 )}
@@ -496,8 +501,8 @@ function StoredDebtForm({
 
             {(isLoan || isCard || isKmh) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field label="KKDF oranı" name="kkdfRate" type="number" step="0.01" defaultValue={debt?.kkdfRate ?? 0.15} />
-                    <Field label="BSMV oranı" name="bsmvRate" type="number" step="0.01" defaultValue={debt?.bsmvRate ?? 0.15} />
+                    <Field label="KKDF oranı (%)" name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.kkdfRate, 0.15)} />
+                    <Field label="BSMV oranı (%)" name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.bsmvRate, 0.15)} />
                 </div>
             ) : null}
 

@@ -26,6 +26,11 @@ const BANKS = [
     'HSBC', 'ING', 'Enpara', 'Papara', 'Diğer',
 ]
 
+function toPercentInput(value: number | null | undefined, fallbackFraction: number) {
+    const normalized = value ?? fallbackFraction
+    return +((normalized > 1 ? normalized : normalized * 100).toFixed(2))
+}
+
 export interface EditableCard {
     id: string
     cardName: string
@@ -266,16 +271,16 @@ export default function CardFormModal({
 
                 <div className="grid grid-cols-3 gap-3">
                     <div>
-                        <label className="form-label">Asgari Oran</label>
-                        <input name="minPaymentRate" type="number" step="0.01" defaultValue={card?.minPaymentRate ?? 0.2} className="form-input font-mono text-sm" />
+                        <label className="form-label">Asgari Oran (%)</label>
+                        <input name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(card?.minPaymentRate, 0.2)} className="form-input font-mono text-sm" />
                     </div>
                     <div>
-                        <label className="form-label">KKDF</label>
-                        <input name="kkdfRate" type="number" step="0.01" defaultValue={card?.kkdfRate ?? 0.15} className="form-input font-mono text-sm" />
+                        <label className="form-label">KKDF (%)</label>
+                        <input name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(card?.kkdfRate, 0.15)} className="form-input font-mono text-sm" />
                     </div>
                     <div>
-                        <label className="form-label">BSMV</label>
-                        <input name="bsmvRate" type="number" step="0.01" defaultValue={card?.bsmvRate ?? 0.15} className="form-input font-mono text-sm" />
+                        <label className="form-label">BSMV (%)</label>
+                        <input name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(card?.bsmvRate, 0.15)} className="form-input font-mono text-sm" />
                     </div>
                 </div>
 

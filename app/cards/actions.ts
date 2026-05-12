@@ -79,7 +79,16 @@ function parseTransactionType(value: string) {
 const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
 const NON_NEGATIVE_OPTIONS = { min: 0 } as const
 const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
-const RATE_FRACTION_OPTIONS = { min: 0, max: 1 } as const
+
+function toOptionalPercentFraction<TField extends string>(
+    value: FormDataEntryValue | null,
+    field: TField,
+    label: string,
+) {
+    const parsed = toOptionalNumber(value, field, label, RATE_PERCENT_OPTIONS)
+    if (parsed === null || parsed === undefined) return null
+    return parsed > 1 ? parsed / 100 : parsed
+}
 
 async function getUserCard(cardId: string, userId: string) {
     return prisma.creditCard.findFirstOrThrow({
@@ -122,7 +131,7 @@ export async function addCreditCard(
     try {
         const user = await requireCurrentUser()
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
-        const minPaymentRate = toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? (totalLimit > 50000 ? 0.4 : 0.2)
+        const minPaymentRate = toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? (totalLimit > 50000 ? 0.4 : 0.2)
         const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
         const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
         const cardProgram = toOptionalString(data.get('cardProgram')) ?? resolveCardVisual(bankName, cardName).cardProgram
@@ -150,8 +159,8 @@ export async function addCreditCard(
                 defaultRate: toOptionalNumber(data.get('defaultRate'), 'defaultRate', 'Gecikme faiz orani', RATE_PERCENT_OPTIONS) ?? 5.42,
                 cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate'), 'cashAdvanceRate', 'Nakit avans faiz orani', RATE_PERCENT_OPTIONS) ?? 5.92,
                 minPaymentRate,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? 0.15,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                kkdfRate: toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 rewardsPoints: toOptionalNumber(data.get('rewardsPoints'), 'rewardsPoints', 'Odul puani', NON_NEGATIVE_OPTIONS) ?? 0,
                 color: toOptionalString(data.get('color')) ?? visual.themeColor,
                 logoPath: visual.logoPath,
@@ -178,7 +187,7 @@ export async function updateCreditCard(
         const cardId = String(data.get('cardId'))
         const existing = await getUserCard(cardId, user.id)
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
-        const minPaymentRate = toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? existing.minPaymentRate
+        const minPaymentRate = toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? existing.minPaymentRate
         const paymentDueDay = toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS)
         const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
         const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
@@ -206,8 +215,8 @@ export async function updateCreditCard(
                 contractualRate: toOptionalNumber(data.get('contractualRate'), 'contractualRate', 'Akdi faiz orani', RATE_PERCENT_OPTIONS) ?? existing.contractualRate,
                 defaultRate: toOptionalNumber(data.get('defaultRate'), 'defaultRate', 'Gecikme faiz orani', RATE_PERCENT_OPTIONS) ?? existing.defaultRate,
                 cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate'), 'cashAdvanceRate', 'Nakit avans faiz orani', RATE_PERCENT_OPTIONS) ?? existing.cashAdvanceRate,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? existing.kkdfRate,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? existing.bsmvRate,
+                kkdfRate: toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? existing.kkdfRate,
+                bsmvRate: toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? existing.bsmvRate,
                 minPaymentRate,
                 rewardsPoints: toOptionalNumber(data.get('rewardsPoints'), 'rewardsPoints', 'Odul puani', NON_NEGATIVE_OPTIONS) ?? existing.rewardsPoints,
                 color: toOptionalString(data.get('color')) ?? existing.color ?? visual.themeColor,

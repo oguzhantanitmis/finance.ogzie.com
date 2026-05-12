@@ -117,7 +117,16 @@ const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
 const INSTALLMENT_OPTIONS = { min: 1, max: 600, integer: true } as const
 const NON_NEGATIVE_OPTIONS = { min: 0 } as const
 const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
-const RATE_FRACTION_OPTIONS = { min: 0, max: 1 } as const
+
+function toOptionalPercentFraction<TField extends string>(
+    value: FormDataEntryValue | null,
+    field: TField,
+    label: string,
+) {
+    const parsed = toOptionalNumber(value, field, label, RATE_PERCENT_OPTIONS)
+    if (parsed === null || parsed === undefined) return null
+    return parsed > 1 ? parsed / 100 : parsed
+}
 
 function assertRemainingNotAboveTotal<TField extends string>(
     remaining: number,
@@ -268,9 +277,9 @@ export async function addDebt(
                 totalBalance,
                 remainingBalance,
                 interestRate: toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
-                minPaymentRate: toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? 0.2,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? 0.15,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                minPaymentRate: toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
+                kkdfRate: toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 dueDate: dueDate ?? null,
             },
         })
@@ -320,9 +329,9 @@ export async function updateDebt(
                 totalBalance,
                 remainingBalance,
                 interestRate: toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
-                minPaymentRate: toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? 0.2,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? 0.15,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                minPaymentRate: toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
+                kkdfRate: toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 dueDate,
                 isPaid: remainingBalance <= 0,
             },
