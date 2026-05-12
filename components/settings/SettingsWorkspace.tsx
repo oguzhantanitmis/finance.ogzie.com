@@ -43,6 +43,10 @@ const DEBT_STRATEGIES: { key: DebtStrategy; title: string; description: string; 
     { key: 'HYBRID', title: 'Hibrit Yöntem', description: 'Faiz ve bakiye dengesini gözetir.', icon: '⚡' },
 ]
 
+function toPercentInput(value: number | null | undefined, fallbackFraction: number) {
+    return +(((value ?? fallbackFraction) * 100).toFixed(2))
+}
+
 export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
     const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE')
     const [privacyMode, setPrivacyMode] = useState(true)
@@ -298,10 +302,10 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         <div><label className="form-label">Akdi Faiz (%)</label><input name="contractualRate" type="number" step="0.01" defaultValue={cardSettings?.contractualRate ?? 4.25} className="form-input" required /></div>
                         <div><label className="form-label">Temerrüt Faiz (%)</label><input name="defaultRate" type="number" step="0.01" defaultValue={cardSettings?.defaultRate ?? 4.75} className="form-input" required /></div>
                         <div><label className="form-label">Nakit Avans Faiz (%)</label><input name="cashAdvanceRate" type="number" step="0.01" defaultValue={cardSettings?.cashAdvanceRate ?? 5.0} className="form-input" required /></div>
-                        <div><label className="form-label">Asgari Ödeme ≤50k (%)</label><input name="minPaymentRateBelow50k" type="number" step="0.01" defaultValue={cardSettings?.minPaymentRateBelow50k ?? 0.30} className="form-input" required /></div>
-                        <div><label className="form-label">Asgari Ödeme &gt;50k (%)</label><input name="minPaymentRateAbove50k" type="number" step="0.01" defaultValue={cardSettings?.minPaymentRateAbove50k ?? 0.25} className="form-input" required /></div>
-                        <div><label className="form-label">KKDF (%)</label><input name="kkdfRate" type="number" step="0.01" defaultValue={cardSettings?.kkdfRate ?? 15.0} className="form-input" required /></div>
-                        <div><label className="form-label">BSMV (%)</label><input name="bsmvRate" type="number" step="0.01" defaultValue={cardSettings?.bsmvRate ?? 10.0} className="form-input" required /></div>
+                        <div><label className="form-label">Asgari Ödeme ≤50k (%)</label><input name="minPaymentRateBelow50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateBelow50k, 0.30)} className="form-input" required /></div>
+                        <div><label className="form-label">Asgari Ödeme &gt;50k (%)</label><input name="minPaymentRateAbove50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateAbove50k, 0.40)} className="form-input" required /></div>
+                        <div><label className="form-label">KKDF (%)</label><input name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.kkdfRate, 0.15)} className="form-input" required /></div>
+                        <div><label className="form-label">BSMV (%)</label><input name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.bsmvRate, 0.15)} className="form-input" required /></div>
                     </div>
                     <textarea name="notes" placeholder="Notlar (opsiyonel)" defaultValue={cardSettings?.notes ?? ''} className="form-input min-h-20" />
                     {cardSettings?.lastUpdated && (

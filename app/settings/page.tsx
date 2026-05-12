@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageShell from '@/components/PageShell'
 import SettingsWorkspace from '@/components/settings/SettingsWorkspace'
-import { getCardFinanceSettings } from '@/lib/card-finance-settings-service'
+import { getCardFinanceSettings, normalizeFractionRate } from '@/lib/card-finance-settings-service'
 import { DEFAULT_EVDS_SERIES, getEvdsSettings } from '@/lib/evds-service'
 import { isSuperuser } from '@/lib/authz'
 import { getCurrentUser } from '@/lib/server-auth'
@@ -73,10 +73,10 @@ export default async function SettingsPage() {
                 contractualRate: cardSettings.contractualRate,
                 defaultRate: cardSettings.defaultRate,
                 cashAdvanceRate: cardSettings.cashAdvanceRate,
-                minPaymentRateBelow50k: cardSettings.minPaymentRateBelow50k,
-                minPaymentRateAbove50k: cardSettings.minPaymentRateAbove50k,
-                kkdfRate: cardSettings.kkdfRate,
-                bsmvRate: cardSettings.bsmvRate,
+                minPaymentRateBelow50k: normalizeFractionRate(cardSettings.minPaymentRateBelow50k, 0.2),
+                minPaymentRateAbove50k: normalizeFractionRate(cardSettings.minPaymentRateAbove50k, 0.4),
+                kkdfRate: normalizeFractionRate(cardSettings.kkdfRate, 0.15),
+                bsmvRate: normalizeFractionRate(cardSettings.bsmvRate, 0.15),
                 notes: cardSettings.notes,
                 lastUpdated: cardSettings.lastUpdated.toISOString(),
             }

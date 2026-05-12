@@ -7,6 +7,14 @@ function assertFiniteRange(value: number, label: string, min: number, max: numbe
     }
 }
 
+export function normalizeFractionRate(value: number | null | undefined, fallback = 0) {
+    if (!Number.isFinite(value)) return fallback
+    const rate = Number(value)
+    if (rate < 0 || rate > 100) return fallback
+    if (rate > 1 && rate <= 100) return rate / 100
+    return rate
+}
+
 /**
  * Kullanıcının genel kart finans ayarlarını getirir.
  * Yoksa null döner.
@@ -69,9 +77,9 @@ export async function getEffectiveRates(userId: string, cardId: string) {
                 contractualRate: global.contractualRate,
                 defaultRate: global.defaultRate,
                 cashAdvanceRate: global.cashAdvanceRate,
-                kkdfRate: global.kkdfRate,
-                bsmvRate: global.bsmvRate,
-                minPaymentRate: card.totalLimit <= 50000 ? global.minPaymentRateBelow50k : global.minPaymentRateAbove50k,
+                kkdfRate: normalizeFractionRate(global.kkdfRate, 0.15),
+                bsmvRate: normalizeFractionRate(global.bsmvRate, 0.15),
+                minPaymentRate: normalizeFractionRate(card.totalLimit <= 50000 ? global.minPaymentRateBelow50k : global.minPaymentRateAbove50k, card.totalLimit <= 50000 ? 0.2 : 0.4),
                 source: 'global' as const,
             }
         }
@@ -81,9 +89,9 @@ export async function getEffectiveRates(userId: string, cardId: string) {
         contractualRate: card.contractualRate,
         defaultRate: card.defaultRate,
         cashAdvanceRate: card.cashAdvanceRate,
-        kkdfRate: card.kkdfRate,
-        bsmvRate: card.bsmvRate,
-        minPaymentRate: card.minPaymentRate,
+        kkdfRate: normalizeFractionRate(card.kkdfRate, 0.15),
+        bsmvRate: normalizeFractionRate(card.bsmvRate, 0.15),
+        minPaymentRate: normalizeFractionRate(card.minPaymentRate, card.totalLimit <= 50000 ? 0.2 : 0.4),
         source: 'card' as const,
     }
 }
