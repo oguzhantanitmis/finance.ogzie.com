@@ -71,6 +71,10 @@ export async function getCollectApiSettingsOwnerId(userId: string) {
     return primarySuperuser?.id ?? userId
 }
 
+async function getCollectApiRatesOwnerId(userId: string) {
+    return getCollectApiSettingsOwnerId(userId)
+}
+
 export const DEFAULT_EVDS_SERIES: EvdsSeriesConfig[] = [
     {
         code: 'USDTRY',
@@ -496,13 +500,14 @@ export async function saveEvdsSettings(
 }
 
 async function getLatestStoredRates(userId: string, settings: EvdsSettings): Promise<MarketTickerItem[]> {
+    const ratesOwnerId = await getCollectApiRatesOwnerId(userId)
     const enabled = getEnabledSeries(settings)
     const items: MarketTickerItem[] = []
 
     for (const series of enabled) {
         const latest = await prisma.marketRate.findFirst({
             where: {
-                userId,
+                userId: ratesOwnerId,
                 source: COLLECTAPI_SOURCE,
                 currencyCode: series.code,
                 OR: [
@@ -513,14 +518,14 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             orderBy: [{ rateDate: 'desc' }, { createdAt: 'desc' }],
         })
         const latestAttempt = latest ?? await prisma.marketRate.findFirst({
-            where: { userId, currencyCode: series.code, source: { in: COLLECTAPI_RATE_SOURCES } },
+            where: { userId: ratesOwnerId, currencyCode: series.code, source: { in: COLLECTAPI_RATE_SOURCES } },
             orderBy: [{ createdAt: 'desc' }, { rateDate: 'desc' }],
         })
 
         const previous = latest
             ? await prisma.marketRate.findFirst({
                 where: {
-                    userId,
+                    userId: ratesOwnerId,
                     source: COLLECTAPI_SOURCE,
                     currencyCode: series.code,
                     rateDate: { lt: latest.rateDate },
@@ -570,9 +575,10 @@ function shouldRefresh(items: MarketTickerItem[], cacheMinutes: number, settings
 }
 
 async function hasStoredRateForSeries(userId: string, currencyCode: EvdsTickerCode) {
+    const ratesOwnerId = await getCollectApiRatesOwnerId(userId)
     const existing = await prisma.marketRate.findFirst({
         where: {
-            userId,
+            userId: ratesOwnerId,
             source: COLLECTAPI_SOURCE,
             currencyCode,
             OR: [
@@ -595,11 +601,12 @@ async function recordEmptyRateAttempt(userId: string, series: EvdsSeriesConfig, 
     const hasStoredRate = await hasStoredRateForSeries(userId, series.code)
     if (hasStoredRate) return
 
+    const ratesOwnerId = await getCollectApiRatesOwnerId(userId)
     const rateDate = getAttemptDate()
     await prisma.marketRate.upsert({
         where: {
             userId_source_currencyCode_seriesCode_rateDate: {
-                userId,
+                userId: ratesOwnerId,
                 source: COLLECTAPI_EMPTY_SOURCE,
                 currencyCode: series.code,
                 seriesCode: getSeriesDatabaseCode(series),
@@ -607,7 +614,7 @@ async function recordEmptyRateAttempt(userId: string, series: EvdsSeriesConfig, 
             },
         },
         create: {
-            userId,
+            userId: ratesOwnerId,
             source: COLLECTAPI_EMPTY_SOURCE,
             currencyCode: series.code,
             seriesCode: getSeriesDatabaseCode(series),
@@ -633,11 +640,12 @@ async function storeCollectApiRate(userId: string, series: EvdsSeriesConfig, row
         return false
     }
 
+    const ratesOwnerId = await getCollectApiRatesOwnerId(userId)
     const rateDate = parseCollectApiDate(row)
     await prisma.marketRate.upsert({
         where: {
             userId_source_currencyCode_seriesCode_rateDate: {
-                userId,
+                userId: ratesOwnerId,
                 source: COLLECTAPI_SOURCE,
                 currencyCode: series.code,
                 seriesCode: getSeriesDatabaseCode(series),
@@ -645,7 +653,7 @@ async function storeCollectApiRate(userId: string, series: EvdsSeriesConfig, row
             },
         },
         create: {
-            userId,
+            userId: ratesOwnerId,
             source: COLLECTAPI_SOURCE,
             currencyCode: series.code,
             seriesCode: getSeriesDatabaseCode(series),

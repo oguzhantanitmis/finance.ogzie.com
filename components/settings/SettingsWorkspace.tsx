@@ -48,6 +48,7 @@ function toPercentInput(value: number | null | undefined, fallbackFraction: numb
 }
 
 export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
+    const preferenceStorageKey = `finance_prefs:${userProfile.email.toLowerCase()}`
     const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE')
     const [privacyMode, setPrivacyMode] = useState(true)
     const [notifications, setNotifications] = useState({
@@ -61,7 +62,7 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
 
     function handleSavePreferences() {
         if (typeof window !== 'undefined') {
-            localStorage.setItem('finance_prefs', JSON.stringify({ debtStrategy, privacyMode, notifications }))
+            localStorage.setItem(preferenceStorageKey, JSON.stringify({ debtStrategy, privacyMode, notifications }))
         }
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
@@ -113,11 +114,11 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         </div>
                         <div>
                             <label className="form-label">Yeni Şifre</label>
-                            <input name="newPassword" type="password" className="form-input" required minLength={6} />
+                            <input name="newPassword" type="password" className="form-input" required minLength={8} />
                         </div>
                         <div>
                             <label className="form-label">Yeni Şifre (Tekrar)</label>
-                            <input name="confirmPassword" type="password" className="form-input" required minLength={6} />
+                            <input name="confirmPassword" type="password" className="form-input" required minLength={8} />
                         </div>
                         <FormMessage success={passwordState.success} message={passwordState.message} />
                         <SubmitButton label="Şifreyi Değiştir" pendingLabel="Değiştiriliyor..." />

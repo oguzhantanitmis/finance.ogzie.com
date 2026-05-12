@@ -118,7 +118,7 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
                 />
             ) : null}
 
-            <MarketTicker ticker={marketTicker} />
+            <MarketTicker ticker={marketTicker} canRefresh={canUseAi} />
 
             <DashboardInsights insights={insights} />
 

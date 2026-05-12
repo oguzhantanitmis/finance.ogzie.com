@@ -1,4 +1,4 @@
-import { getMarketTicker, refreshEvdsRates } from '@/lib/evds-service'
+import { getCollectApiSettingsOwnerId, getMarketTicker, refreshEvdsRates } from '@/lib/evds-service'
 import { prisma } from '@/lib/prisma'
 
 export interface MarketRates {
@@ -41,9 +41,10 @@ function hasFiatRate(rates: MarketRates) {
 }
 
 async function readStoredMarketRates(userId: string): Promise<MarketRates> {
+    const ratesOwnerId = await getCollectApiSettingsOwnerId(userId)
     const rows = await prisma.marketRate.findMany({
         where: {
-            userId,
+            userId: ratesOwnerId,
             source: 'COLLECTAPI_ECONOMY',
             currencyCode: { in: Object.values(RATE_CODES) },
             OR: [

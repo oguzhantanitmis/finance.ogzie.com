@@ -36,8 +36,8 @@ export async function changePasswordAction(_prev: ActionResult, formData: FormDa
         return createErrorResult('Tüm alanları doldurun.')
     }
 
-    if (newPassword.length < 6) {
-        return createErrorResult('Yeni şifre en az 6 karakter olmalıdır.')
+    if (newPassword.length < 8) {
+        return createErrorResult('Yeni şifre en az 8 karakter olmalıdır.')
     }
 
     if (newPassword !== confirmPassword) {

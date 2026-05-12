@@ -22,7 +22,7 @@ function formatDate(value: string | null) {
     })
 }
 
-export default function MarketTicker({ ticker }: { ticker: MarketTickerResult }) {
+export default function MarketTicker({ ticker, canRefresh = false }: { ticker: MarketTickerResult; canRefresh?: boolean }) {
     const hasVisibleRate = ticker.items.some((item) => item.buyRate !== null || item.sellRate !== null)
     const showEmpty = ticker.items.length === 0 || ((ticker.status === 'missing_key' || ticker.status === 'invalid_key') && !hasVisibleRate)
 
@@ -39,12 +39,14 @@ export default function MarketTicker({ ticker }: { ticker: MarketTickerResult })
                         {ticker.message}
                     </p>
                 </div>
-                <form action={refreshEvdsRatesFormAction}>
-                    <button type="submit" className="btn-secondary">
-                        <RefreshCw className="w-4 h-4" />
-                        Manuel yenile
-                    </button>
-                </form>
+                {canRefresh ? (
+                    <form action={refreshEvdsRatesFormAction}>
+                        <button type="submit" className="btn-secondary">
+                            <RefreshCw className="w-4 h-4" />
+                            Manuel yenile
+                        </button>
+                    </form>
+                ) : null}
             </div>
 
             {showEmpty ? (

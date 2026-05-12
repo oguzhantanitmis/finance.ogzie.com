@@ -18,7 +18,7 @@ import {
     saveEvdsSettings,
     type EvdsSeriesConfig,
 } from '@/lib/evds-service'
-import { requireCurrentUser, requireSuperuser } from '@/lib/server-auth'
+import { requireSuperuser } from '@/lib/server-auth'
 
 type EvdsField = 'apiKey' | 'cacheMinutes' | 'series'
 
@@ -76,7 +76,7 @@ export async function saveEvdsSettingsAction(
 
 export async function refreshEvdsRatesAction(): Promise<ActionResult> {
     try {
-        const user = await requireCurrentUser()
+        const user = await requireSuperuser()
         const result = await refreshEvdsRates(user.id)
         revalidateEvdsPaths()
         return result.status === 'ok' || result.status === 'stale'
