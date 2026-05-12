@@ -54,6 +54,10 @@ function mapCurrency(input?: string) {
     return 'TRY'
 }
 
+function isPositiveAmount(amount: number) {
+    return Number.isFinite(amount) && amount > 0
+}
+
 /** OpenAI streaming helper — returns a ReadableStream of text chunks */
 async function streamOpenAI(context: string, userMessage: string): Promise<ReadableStream<Uint8Array> | null> {
     const apiKey = process.env.OPENAI_API_KEY
@@ -164,6 +168,9 @@ export async function POST(req: Request) {
             const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)
             if (match) {
                 const amount = Number(match[1].replace(',', '.'))
+                if (!isPositiveAmount(amount)) {
+                    return NextResponse.json({ error: 'Tutar geçersiz.' }, { status: 400 })
+                }
                 const currency = mapCurrency(match[2])
                 const category = match[3].trim() || 'Gelir'
                 await prisma.transaction.create({
@@ -177,6 +184,9 @@ export async function POST(req: Request) {
             const match = prompt.toLowerCase().match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)
             if (match) {
                 const amount = Number(match[1].replace(',', '.'))
+                if (!isPositiveAmount(amount)) {
+                    return NextResponse.json({ error: 'Tutar geçersiz.' }, { status: 400 })
+                }
                 const currency = mapCurrency(match[2])
                 const category = match[3].trim() || 'Gider'
                 await prisma.transaction.create({

@@ -8,6 +8,7 @@ import {
     createSuccessResult,
     getActionErrorResult,
     resolveFormData,
+    toOptionalNumber,
     toOptionalString,
 } from '@/lib/action-result'
 import {
@@ -35,7 +36,7 @@ export async function saveEvdsSettingsAction(
         const user = await requireSuperuser()
         const apiKey = toOptionalString(data.get('apiKey'))
         const keepExistingApiKey = data.get('keepExistingApiKey') === 'on'
-        const cacheMinutes = Math.max(15, Number(data.get('cacheMinutes') ?? 180) || 180)
+        const cacheMinutes = toOptionalNumber(data.get('cacheMinutes'), 'cacheMinutes', 'Cache suresi', { min: 15, max: 1440, integer: true }) ?? 180
 
         const series: EvdsSeriesConfig[] = DEFAULT_EVDS_SERIES.map((defaults) => {
             const code = defaults.code

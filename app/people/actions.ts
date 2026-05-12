@@ -4,9 +4,11 @@ import { RPNoteType, RPPaymentPlanType, RPRiskLevel } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import {
     type ActionResult,
+    ActionError,
     createSuccessResult,
     getActionErrorResult,
     resolveFormData,
+    toOptionalNumber,
     toOptionalString,
     toRequiredNumber,
     toRequiredString,
@@ -49,13 +51,24 @@ type RPRescheduleField = 'installmentCount' | 'firstInstallmentDate' | 'installm
 type RPNoteField = 'note' | 'noteType'
 type InstallmentPeriod = 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'CUSTOM'
 
+const INSTALLMENT_OPTIONS = { min: 1, max: 600, integer: true } as const
+
 function revalidatePeoplePaths() {
     ;['/', '/people', '/accounts', '/budget', '/debts', '/payment-plan', '/reports'].forEach((p) => revalidatePath(p))
 }
 
-function parseDateOrNull(value: FormDataEntryValue | null) {
+function parseDateOrNull<TField extends string>(
+    value: FormDataEntryValue | null,
+    field: TField,
+    label: string,
+) {
     const raw = String(value ?? '').trim()
-    return raw ? new Date(raw) : null
+    if (!raw) return null
+    const date = new Date(raw)
+    if (Number.isNaN(date.getTime())) {
+        throw new ActionError(`${label} gecersiz.`, { [field]: `${label} gecersiz.` } as Record<TField, string>)
+    }
+    return date
 }
 
 function parsePaymentPlanType(value: FormDataEntryValue | null) {
@@ -149,7 +162,11 @@ export async function createRPAction(
         const user = await requireCurrentUser()
         const paymentPlanType = parsePaymentPlanType(data.get('paymentPlanType'))
         const amount = toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 })
-        const totalAmount = Number(data.get('totalAmount') || amount)
+        const totalAmount = toOptionalNumber(data.get('totalAmount'), 'totalAmount', 'Toplam tutar', { min: amount }) ?? amount
+        const principalAmount = toOptionalNumber(data.get('principalAmount'), 'principalAmount', 'Ana para', { min: 0.01 }) ?? amount
+        const installmentCount = paymentPlanType === 'INSTALLMENT'
+            ? toRequiredNumber(data.get('installmentCount'), 'installmentCount', 'Taksit sayisi', INSTALLMENT_OPTIONS)
+            : toOptionalNumber(data.get('installmentCount'), 'installmentCount', 'Taksit sayisi', INSTALLMENT_OPTIONS)
         const rp = await createRP(user.id, {
             personId: String(data.get('personId')),
             type: data.get('type') === 'PAYABLE' ? 'PAYABLE' : 'RECEIVABLE',
@@ -157,17 +174,17 @@ export async function createRPAction(
             category: toOptionalString(data.get('category')),
             description: toRequiredString(data.get('description'), 'description', 'Aciklama'),
             originalAmount: amount,
-            principalAmount: Number(data.get('principalAmount') || amount),
+            principalAmount,
             totalAmount,
             currency: String(data.get('currency') ?? 'TRY'),
-            startDate: parseDateOrNull(data.get('startDate')),
-            dueDate: parseDateOrNull(data.get('dueDate')),
+            startDate: parseDateOrNull(data.get('startDate'), 'startDate', 'Baslangic tarihi'),
+            dueDate: parseDateOrNull(data.get('dueDate'), 'dueDate', 'Vade tarihi'),
             notes: toOptionalString(data.get('notes')),
             internalNote: toOptionalString(data.get('internalNote')),
             isInstallment: paymentPlanType === 'INSTALLMENT',
-            installmentCount: Number(data.get('installmentCount') || 0) || undefined,
+            installmentCount,
             paymentPlanType,
-            firstInstallmentDate: parseDateOrNull(data.get('firstInstallmentDate')),
+            firstInstallmentDate: parseDateOrNull(data.get('firstInstallmentDate'), 'firstInstallmentDate', 'Ilk taksit tarihi'),
             installmentPeriod: parseInstallmentPeriod(data.get('installmentPeriod')),
             reminderEnabled: data.get('reminderEnabled') === 'on',
             reminderOptions: parseReminderOptions(data),
@@ -211,7 +228,7 @@ export async function updateRPAction(
             originalAmount,
             remainingAmount,
             currency: String(data.get('currency') ?? 'TRY'),
-            dueDate: parseDateOrNull(data.get('dueDate')),
+            dueDate: parseDateOrNull(data.get('dueDate'), 'dueDate', 'Vade tarihi'),
             notes: toOptionalString(data.get('notes')),
             internalNote: toOptionalString(data.get('internalNote')),
             riskLevel: parseRiskLevel(data.get('riskLevel')),
@@ -304,13 +321,13 @@ export async function rescheduleRPAction(
     try {
         const user = await requireCurrentUser()
         const personId = String(data.get('personId'))
-        const firstInstallmentDate = parseDateOrNull(data.get('firstInstallmentDate'))
+        const firstInstallmentDate = parseDateOrNull(data.get('firstInstallmentDate'), 'firstInstallmentDate', 'Ilk taksit tarihi')
         if (!firstInstallmentDate) {
             return { success: false, message: 'İlk taksit tarihi zorunludur.', fieldErrors: { firstInstallmentDate: 'Tarih zorunlu.' } }
         }
 
         await rescheduleRemainingRP(user.id, String(data.get('rpId')), {
-            installmentCount: toRequiredNumber(data.get('installmentCount'), 'installmentCount', 'Taksit sayısı', { min: 1 }),
+            installmentCount: toRequiredNumber(data.get('installmentCount'), 'installmentCount', 'Taksit sayısı', INSTALLMENT_OPTIONS),
             firstInstallmentDate,
             installmentPeriod: parseInstallmentPeriod(data.get('installmentPeriod')),
             note: toOptionalString(data.get('note')),

@@ -40,6 +40,26 @@ export async function getOrCreateCashAccount(userId: string): Promise<Account> {
     })
 }
 
+function assertFinite(value: number, label: string) {
+    if (!Number.isFinite(value)) {
+        throw new ActionError(`${label} gecersiz.`)
+    }
+}
+
+function assertOptionalRange(value: number | null | undefined, label: string, min: number, max?: number) {
+    if (value === null || value === undefined) return
+    if (!Number.isFinite(value) || value < min || (typeof max === 'number' && value > max)) {
+        throw new ActionError(`${label} gecersiz.`)
+    }
+}
+
+function assertOptionalDay(value: number | null | undefined, label: string) {
+    if (value === null || value === undefined) return
+    if (!Number.isInteger(value) || value < 1 || value > 31) {
+        throw new ActionError(`${label} 1 ile 31 arasinda olmalidir.`)
+    }
+}
+
 export async function createAccount(
     userId: string,
     data: {
@@ -58,6 +78,14 @@ export async function createAccount(
         notes?: string
     }
 ): Promise<Account> {
+    assertFinite(data.balance ?? 0, 'Bakiye')
+    if (data.hasKmh) {
+        assertOptionalRange(data.kmhLimit, 'KMH limiti', 0)
+        assertOptionalRange(data.kmhInterestRate, 'KMH faiz orani', 0, 100)
+        assertOptionalDay(data.kmhCutOffDay, 'KMH hesap kesim gunu')
+        assertOptionalDay(data.kmhPaymentDueDay, 'KMH son odeme gunu')
+    }
+
     // Eğer isDefault true ise, diğer hesapların isDefault'unu kaldır
     if (data.isDefault) {
         await prisma.account.updateMany({
@@ -103,6 +131,13 @@ export async function updateAccount(
         notes?: string | null
     }
 ): Promise<Account> {
+    if (data.hasKmh) {
+        assertOptionalRange(data.kmhLimit, 'KMH limiti', 0)
+        assertOptionalRange(data.kmhInterestRate, 'KMH faiz orani', 0, 100)
+        assertOptionalDay(data.kmhCutOffDay, 'KMH hesap kesim gunu')
+        assertOptionalDay(data.kmhPaymentDueDay, 'KMH son odeme gunu')
+    }
+
     await prisma.account.findFirstOrThrow({
         where: { id: accountId, userId },
         select: { id: true },
@@ -161,6 +196,8 @@ export async function adjustBalance(
     newBalance: number,
     description?: string
 ): Promise<Account> {
+    assertFinite(newBalance, 'Yeni bakiye')
+
     const account = await prisma.account.findFirstOrThrow({ where: { id: accountId, userId } })
     const difference = newBalance - account.balance
 
@@ -195,7 +232,7 @@ export async function transferBetweenAccounts(
     if (fromAccountId === toAccountId) {
         throw new ActionError('Aynı hesaba transfer yapilamaz.')
     }
-    if (amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
         throw new ActionError('Transfer tutari sifirdan buyuk olmalidir.')
     }
 

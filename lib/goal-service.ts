@@ -17,6 +17,30 @@ export async function getGoals(userId: string): Promise<GoalWithProgress[]> {
     }))
 }
 
+function assertGoalNumbers(data: {
+    targetAmount: number
+    currentAmount?: number
+    priority?: number
+    monthlyRequiredAmount?: number | null
+    targetDate: Date
+}) {
+    if (!Number.isFinite(data.targetAmount) || data.targetAmount <= 0) {
+        throw new Error('Hedef tutar geçersiz.')
+    }
+    if (data.currentAmount !== undefined && (!Number.isFinite(data.currentAmount) || data.currentAmount < 0)) {
+        throw new Error('Birikmiş tutar geçersiz.')
+    }
+    if (data.priority !== undefined && (!Number.isInteger(data.priority) || data.priority < 1 || data.priority > 5)) {
+        throw new Error('Öncelik geçersiz.')
+    }
+    if (data.monthlyRequiredAmount !== null && data.monthlyRequiredAmount !== undefined && (!Number.isFinite(data.monthlyRequiredAmount) || data.monthlyRequiredAmount < 0)) {
+        throw new Error('Aylık gerekli tutar geçersiz.')
+    }
+    if (Number.isNaN(data.targetDate.getTime())) {
+        throw new Error('Hedef tarihi geçersiz.')
+    }
+}
+
 export async function createGoal(
     userId: string,
     data: {
@@ -33,12 +57,17 @@ export async function createGoal(
         relatedCardId?: string
     }
 ): Promise<FinancialGoal> {
+    assertGoalNumbers(data)
     return prisma.financialGoal.create({
         data: { userId, ...data, status: 'GOAL_ACTIVE' },
     })
 }
 
 export async function updateGoalProgress(userId: string, goalId: string, currentAmount: number) {
+    if (!Number.isFinite(currentAmount) || currentAmount < 0) {
+        throw new Error('Birikmiş tutar geçersiz.')
+    }
+
     const goal = await prisma.financialGoal.findFirstOrThrow({
         where: { id: goalId, userId },
     })
@@ -64,6 +93,8 @@ export async function updateGoal(
         monthlyRequiredAmount?: number | null
     },
 ) {
+    assertGoalNumbers(data)
+
     const goal = await prisma.financialGoal.findFirstOrThrow({
         where: { id: goalId, userId },
     })

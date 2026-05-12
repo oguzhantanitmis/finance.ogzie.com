@@ -52,6 +52,10 @@ function parseAccountType(value: FormDataEntryValue | null): AccountType {
         : AccountType.BANK_ACCOUNT
 }
 
+const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
+const NON_NEGATIVE_OPTIONS = { min: 0 } as const
+const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
+
 export async function createAccountAction(formData: FormData) {
     return createAccountActionState(formData)
 }
@@ -73,10 +77,10 @@ export async function createAccountActionState(
             bankName: toOptionalString(data.get('bankName')),
             iban: toOptionalString(data.get('iban')),
             hasKmh: data.get('hasKmh') === 'on',
-            kmhLimit: toOptionalNumber(data.get('kmhLimit')) ?? null,
-            kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate')) ?? null,
-            kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay')) ?? null,
-            kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay')) ?? null,
+            kmhLimit: toOptionalNumber(data.get('kmhLimit'), 'kmhLimit', 'KMH limiti', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate'), 'kmhInterestRate', 'KMH faiz orani', RATE_PERCENT_OPTIONS) ?? null,
+            kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay'), 'kmhCutOffDay', 'KMH hesap kesim gunu', DAY_OPTIONS) ?? null,
+            kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay'), 'kmhPaymentDueDay', 'KMH son odeme gunu', DAY_OPTIONS) ?? null,
             isDefault: data.get('isDefault') === 'on',
             notes: toOptionalString(data.get('notes')),
         })
@@ -104,10 +108,10 @@ export async function updateAccountAction(
             bankName: toOptionalString(data.get('bankName')) ?? null,
             iban: toOptionalString(data.get('iban')) ?? null,
             hasKmh: data.get('hasKmh') === 'on',
-            kmhLimit: toOptionalNumber(data.get('kmhLimit')) ?? null,
-            kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate')) ?? null,
-            kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay')) ?? null,
-            kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay')) ?? null,
+            kmhLimit: toOptionalNumber(data.get('kmhLimit'), 'kmhLimit', 'KMH limiti', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate'), 'kmhInterestRate', 'KMH faiz orani', RATE_PERCENT_OPTIONS) ?? null,
+            kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay'), 'kmhCutOffDay', 'KMH hesap kesim gunu', DAY_OPTIONS) ?? null,
+            kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay'), 'kmhPaymentDueDay', 'KMH son odeme gunu', DAY_OPTIONS) ?? null,
             isDefault: data.get('isDefault') === 'on',
             notes: toOptionalString(data.get('notes')) ?? null,
         })

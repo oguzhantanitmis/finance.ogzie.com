@@ -13,6 +13,18 @@ export interface LedgerEntryWithRelations extends LedgerEntry {
     account?: { name: string } | null
 }
 
+function assertPositiveAmount(amount: number) {
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    }
+}
+
+function assertValidDate(date?: Date) {
+    if (date && Number.isNaN(date.getTime())) {
+        throw new Error('Tarih geçersiz.')
+    }
+}
+
 export async function getLedgerEntries(
     userId: string,
     filters?: LedgerFilter,
@@ -66,7 +78,8 @@ export async function recordIncome(
         date?: Date
     }
 ): Promise<LedgerEntry> {
-    if (data.amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    assertPositiveAmount(data.amount)
+    assertValidDate(data.date)
 
     const account = await prisma.account.findFirstOrThrow({
         where: { id: data.accountId, userId },
@@ -110,7 +123,8 @@ export async function recordExpense(
         date?: Date
     }
 ): Promise<LedgerEntry> {
-    if (data.amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    assertPositiveAmount(data.amount)
+    assertValidDate(data.date)
 
     const account = await prisma.account.findFirstOrThrow({
         where: { id: data.accountId, userId },
@@ -154,7 +168,7 @@ export async function recordSubscriptionPayment(
         advanceNextPayment?: boolean
     }
 ): Promise<LedgerEntry> {
-    if (data.amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    assertPositiveAmount(data.amount)
 
     const [subscription, account] = await Promise.all([
         prisma.subscription.findFirstOrThrow({
@@ -221,7 +235,7 @@ export async function recordRecurringPayment(
         advanceNextPayment?: boolean
     }
 ): Promise<LedgerEntry> {
-    if (data.amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    assertPositiveAmount(data.amount)
 
     const [recurring, account] = await Promise.all([
         prisma.recurringExpense.findFirstOrThrow({

@@ -78,18 +78,55 @@ export function toRequiredString<TField extends string = string>(
     return parsed
 }
 
-export function toOptionalNumber(value: FormDataEntryValue | null) {
+type NumberParseOptions = {
+    min?: number
+    max?: number
+    integer?: boolean
+}
+
+function assertNumberBounds<TField extends string>(
+    parsed: number,
+    field: TField,
+    label: string,
+    options?: NumberParseOptions,
+) {
+    if (options?.integer && !Number.isInteger(parsed)) {
+        throw new ActionError(`${label} tam sayi olmalidir.`, { [field]: `${label} tam sayi olmalidir.` } as ActionFieldErrors<TField>)
+    }
+    if (typeof options?.min === 'number' && parsed < options.min) {
+        throw new ActionError(`${label} en az ${options.min} olmalidir.`, { [field]: `${label} en az ${options.min} olmalidir.` } as ActionFieldErrors<TField>)
+    }
+    if (typeof options?.max === 'number' && parsed > options.max) {
+        throw new ActionError(`${label} en fazla ${options.max} olmalidir.`, { [field]: `${label} en fazla ${options.max} olmalidir.` } as ActionFieldErrors<TField>)
+    }
+}
+
+export function toOptionalNumber<TField extends string = string>(
+    value: FormDataEntryValue | null,
+    field?: TField,
+    label?: string,
+    options?: NumberParseOptions,
+) {
     const raw = String(value ?? '').trim()
     if (!raw) return undefined
     const parsed = Number(raw)
-    return Number.isFinite(parsed) ? parsed : undefined
+    if (!Number.isFinite(parsed)) {
+        if (field && label) {
+            throw new ActionError(`${label} alani gecersiz.`, { [field]: `${label} gecersiz.` } as ActionFieldErrors<TField>)
+        }
+        return undefined
+    }
+    if (field && label) {
+        assertNumberBounds(parsed, field, label, options)
+    }
+    return parsed
 }
 
 export function toNumberOrZero<TField extends string = string>(
     value: FormDataEntryValue | null,
     field: TField,
     label: string,
-    options?: { min?: number },
+    options?: NumberParseOptions,
 ) {
     const raw = String(value ?? '').trim()
     if (!raw) return 0
@@ -98,9 +135,7 @@ export function toNumberOrZero<TField extends string = string>(
     if (!Number.isFinite(parsed)) {
         throw new ActionError(`${label} alani gecersiz.`, { [field]: `${label} gecersiz.` } as ActionFieldErrors<TField>)
     }
-    if (typeof options?.min === 'number' && parsed < options.min) {
-        throw new ActionError(`${label} en az ${options.min} olmalidir.`, { [field]: `${label} en az ${options.min} olmalidir.` } as ActionFieldErrors<TField>)
-    }
+    assertNumberBounds(parsed, field, label, options)
     return parsed
 }
 
@@ -108,15 +143,17 @@ export function toRequiredNumber<TField extends string = string>(
     value: FormDataEntryValue | null,
     field: TField,
     label: string,
-    options?: { min?: number },
+    options?: NumberParseOptions,
 ) {
-    const parsed = Number(value)
+    const raw = String(value ?? '').trim()
+    if (!raw) {
+        throw new ActionError(`${label} alani zorunludur.`, { [field]: `${label} zorunludur.` } as ActionFieldErrors<TField>)
+    }
+    const parsed = Number(raw)
     if (!Number.isFinite(parsed)) {
         throw new ActionError(`${label} alani gecersiz.`, { [field]: `${label} gecersiz.` } as ActionFieldErrors<TField>)
     }
-    if (typeof options?.min === 'number' && parsed < options.min) {
-        throw new ActionError(`${label} en az ${options.min} olmalidir.`, { [field]: `${label} en az ${options.min} olmalidir.` } as ActionFieldErrors<TField>)
-    }
+    assertNumberBounds(parsed, field, label, options)
     return parsed
 }
 

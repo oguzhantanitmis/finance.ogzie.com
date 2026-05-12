@@ -423,7 +423,7 @@ async function recordRPPayment(
         receiptFile?: string
     },
 ): Promise<void> {
-    if (amount <= 0) throw new ActionError('Tutar sıfırdan büyük olmalıdır.')
+    if (!Number.isFinite(amount) || amount <= 0) throw new ActionError('Tutar sıfırdan büyük olmalıdır.')
 
     const [record, account] = await Promise.all([
         prisma.receivablePayable.findFirstOrThrow({
@@ -550,6 +550,13 @@ export async function rescheduleRemainingRP(
         note?: string
     },
 ) {
+    if (!Number.isInteger(data.installmentCount) || data.installmentCount < 1 || data.installmentCount > 600) {
+        throw new ActionError('Taksit sayısı 1 ile 600 arasında olmalıdır.')
+    }
+    if (Number.isNaN(data.firstInstallmentDate.getTime())) {
+        throw new ActionError('İlk taksit tarihi geçersiz.')
+    }
+
     const record = await prisma.receivablePayable.findFirstOrThrow({
         where: { id: rpId, userId },
         include: { installments: true },

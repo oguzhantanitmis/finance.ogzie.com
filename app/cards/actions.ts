@@ -76,6 +76,11 @@ function parseTransactionType(value: string) {
         : TransactionType.PURCHASE
 }
 
+const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
+const NON_NEGATIVE_OPTIONS = { min: 0 } as const
+const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
+const RATE_FRACTION_OPTIONS = { min: 0, max: 1 } as const
+
 async function getUserCard(cardId: string, userId: string) {
     return prisma.creditCard.findFirstOrThrow({
         where: { id: cardId, userId },
@@ -117,12 +122,12 @@ export async function addCreditCard(
     try {
         const user = await requireCurrentUser()
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
-        const minPaymentRate = toOptionalNumber(data.get('minPaymentRate')) ?? (totalLimit > 50000 ? 0.4 : 0.2)
+        const minPaymentRate = toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? (totalLimit > 50000 ? 0.4 : 0.2)
         const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
         const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
         const cardProgram = toOptionalString(data.get('cardProgram')) ?? resolveCardVisual(bankName, cardName).cardProgram
         const visual = resolveCardVisual(bankName, cardName, cardProgram)
-        const currentDebt = toOptionalNumber(data.get('currentDebt')) ?? 0
+        const currentDebt = toOptionalNumber(data.get('currentDebt'), 'currentDebt', 'Guncel borc', NON_NEGATIVE_OPTIONS) ?? 0
 
         const card = await prisma.creditCard.create({
             data: {
@@ -134,20 +139,20 @@ export async function addCreditCard(
                 cardNetwork: parseCardNetwork(data.get('cardNetwork')),
                 status: parseCardStatus(data.get('status')),
                 totalLimit,
-                availableLimit: toOptionalNumber(data.get('availableLimit')) ?? Math.max(totalLimit - currentDebt, 0),
+                availableLimit: toOptionalNumber(data.get('availableLimit'), 'availableLimit', 'Kullanilabilir limit', NON_NEGATIVE_OPTIONS) ?? Math.max(totalLimit - currentDebt, 0),
                 currentDebt,
-                cashAdvanceLimit: toOptionalNumber(data.get('cashAdvanceLimit')) ?? totalLimit * 0.5,
-                cutOffDay: toRequiredNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', { min: 1 }),
-                paymentDueDay: toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', { min: 1 }),
+                cashAdvanceLimit: toOptionalNumber(data.get('cashAdvanceLimit'), 'cashAdvanceLimit', 'Nakit avans limiti', NON_NEGATIVE_OPTIONS) ?? totalLimit * 0.5,
+                cutOffDay: toRequiredNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', DAY_OPTIONS),
+                paymentDueDay: toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS),
                 statementDate: data.get('statementDate') ? new Date(String(data.get('statementDate'))) : null,
                 dueDate: data.get('dueDate') ? new Date(String(data.get('dueDate'))) : null,
-                contractualRate: toOptionalNumber(data.get('contractualRate')) ?? 4.42,
-                defaultRate: toOptionalNumber(data.get('defaultRate')) ?? 5.42,
-                cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate')) ?? 5.92,
+                contractualRate: toOptionalNumber(data.get('contractualRate'), 'contractualRate', 'Akdi faiz orani', RATE_PERCENT_OPTIONS) ?? 4.42,
+                defaultRate: toOptionalNumber(data.get('defaultRate'), 'defaultRate', 'Gecikme faiz orani', RATE_PERCENT_OPTIONS) ?? 5.42,
+                cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate'), 'cashAdvanceRate', 'Nakit avans faiz orani', RATE_PERCENT_OPTIONS) ?? 5.92,
                 minPaymentRate,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
-                rewardsPoints: toOptionalNumber(data.get('rewardsPoints')) ?? 0,
+                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                rewardsPoints: toOptionalNumber(data.get('rewardsPoints'), 'rewardsPoints', 'Odul puani', NON_NEGATIVE_OPTIONS) ?? 0,
                 color: toOptionalString(data.get('color')) ?? visual.themeColor,
                 logoPath: visual.logoPath,
                 cardImagePath: visual.cardImagePath,
@@ -173,13 +178,13 @@ export async function updateCreditCard(
         const cardId = String(data.get('cardId'))
         const existing = await getUserCard(cardId, user.id)
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
-        const minPaymentRate = toOptionalNumber(data.get('minPaymentRate')) ?? existing.minPaymentRate
-        const paymentDueDay = toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', { min: 1 })
+        const minPaymentRate = toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? existing.minPaymentRate
+        const paymentDueDay = toRequiredNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS)
         const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
         const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
         const cardProgram = toOptionalString(data.get('cardProgram')) ?? existing.cardProgram
         const visual = resolveCardVisual(bankName, cardName, cardProgram)
-        const currentDebt = toOptionalNumber(data.get('currentDebt')) ?? existing.currentDebt ?? 0
+        const currentDebt = toOptionalNumber(data.get('currentDebt'), 'currentDebt', 'Guncel borc', NON_NEGATIVE_OPTIONS) ?? existing.currentDebt ?? 0
 
         const card = await prisma.creditCard.update({
             where: { id: existing.id },
@@ -191,20 +196,20 @@ export async function updateCreditCard(
                 cardNetwork: parseCardNetwork(data.get('cardNetwork')),
                 status: parseCardStatus(data.get('status')),
                 totalLimit,
-                availableLimit: toOptionalNumber(data.get('availableLimit')) ?? Math.max(totalLimit - currentDebt, 0),
+                availableLimit: toOptionalNumber(data.get('availableLimit'), 'availableLimit', 'Kullanilabilir limit', NON_NEGATIVE_OPTIONS) ?? Math.max(totalLimit - currentDebt, 0),
                 currentDebt,
-                cashAdvanceLimit: toOptionalNumber(data.get('cashAdvanceLimit')) ?? totalLimit * 0.5,
-                cutOffDay: toRequiredNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', { min: 1 }),
+                cashAdvanceLimit: toOptionalNumber(data.get('cashAdvanceLimit'), 'cashAdvanceLimit', 'Nakit avans limiti', NON_NEGATIVE_OPTIONS) ?? totalLimit * 0.5,
+                cutOffDay: toRequiredNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', DAY_OPTIONS),
                 paymentDueDay,
                 statementDate: data.get('statementDate') ? new Date(String(data.get('statementDate'))) : existing.statementDate,
                 dueDate: data.get('dueDate') ? new Date(String(data.get('dueDate'))) : existing.dueDate,
-                contractualRate: toOptionalNumber(data.get('contractualRate')) ?? existing.contractualRate,
-                defaultRate: toOptionalNumber(data.get('defaultRate')) ?? existing.defaultRate,
-                cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate')) ?? existing.cashAdvanceRate,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? existing.kkdfRate,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? existing.bsmvRate,
+                contractualRate: toOptionalNumber(data.get('contractualRate'), 'contractualRate', 'Akdi faiz orani', RATE_PERCENT_OPTIONS) ?? existing.contractualRate,
+                defaultRate: toOptionalNumber(data.get('defaultRate'), 'defaultRate', 'Gecikme faiz orani', RATE_PERCENT_OPTIONS) ?? existing.defaultRate,
+                cashAdvanceRate: toOptionalNumber(data.get('cashAdvanceRate'), 'cashAdvanceRate', 'Nakit avans faiz orani', RATE_PERCENT_OPTIONS) ?? existing.cashAdvanceRate,
+                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? existing.kkdfRate,
+                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? existing.bsmvRate,
                 minPaymentRate,
-                rewardsPoints: toOptionalNumber(data.get('rewardsPoints')) ?? existing.rewardsPoints,
+                rewardsPoints: toOptionalNumber(data.get('rewardsPoints'), 'rewardsPoints', 'Odul puani', NON_NEGATIVE_OPTIONS) ?? existing.rewardsPoints,
                 color: toOptionalString(data.get('color')) ?? existing.color ?? visual.themeColor,
                 logoPath: visual.logoPath,
                 cardImagePath: visual.cardImagePath,

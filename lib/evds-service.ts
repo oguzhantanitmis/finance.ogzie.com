@@ -159,6 +159,12 @@ function parseNumber(value: unknown) {
     return Number.isFinite(parsed) ? parsed : null
 }
 
+function normalizeCacheMinutes(value: unknown) {
+    const parsed = Number(value ?? 180)
+    if (!Number.isFinite(parsed)) return 180
+    return Math.min(1440, Math.max(15, Math.trunc(parsed)))
+}
+
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
 }
@@ -455,7 +461,7 @@ export async function getEvdsSettings(userId: string): Promise<EvdsSettings> {
     ])
 
     const environmentApiKey = getEnvironmentCollectApiKey()
-    const cacheMinutes = Math.max(15, Number(cacheRaw ?? legacyCacheRaw ?? 180) || 180)
+    const cacheMinutes = normalizeCacheMinutes(cacheRaw ?? legacyCacheRaw ?? 180)
 
     return {
         hasApiKey: Boolean(environmentApiKey || apiKey),
@@ -481,7 +487,7 @@ export async function saveEvdsSettings(
     }
 
     await Promise.all([
-        setSetting(userId, SETTINGS_KEYS.cacheMinutes, String(Math.max(15, data.cacheMinutes || 180))),
+        setSetting(userId, SETTINGS_KEYS.cacheMinutes, String(normalizeCacheMinutes(data.cacheMinutes))),
         setSetting(userId, SETTINGS_KEYS.seriesConfig, JSON.stringify(data.series.map((series) => {
             const defaults = SERIES_DEFAULTS.get(series.code)
             return defaults ? normalizeSeriesConfigItem(defaults, series) : series

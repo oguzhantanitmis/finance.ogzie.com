@@ -1,6 +1,12 @@
 import type { CardFinanceSettings } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 
+function assertFiniteRange(value: number, label: string, min: number, max: number) {
+    if (!Number.isFinite(value) || value < min || value > max) {
+        throw new Error(`${label} gecersiz.`)
+    }
+}
+
 /**
  * Kullanıcının genel kart finans ayarlarını getirir.
  * Yoksa null döner.
@@ -25,6 +31,14 @@ export async function upsertCardFinanceSettings(
         notes?: string
     }
 ): Promise<CardFinanceSettings> {
+    assertFiniteRange(data.contractualRate, 'Akdi faiz orani', 0, 100)
+    assertFiniteRange(data.defaultRate, 'Gecikme faiz orani', 0, 100)
+    assertFiniteRange(data.cashAdvanceRate, 'Nakit avans faiz orani', 0, 100)
+    assertFiniteRange(data.minPaymentRateBelow50k, 'Asgari odeme orani', 0, 1)
+    assertFiniteRange(data.minPaymentRateAbove50k, 'Asgari odeme orani', 0, 1)
+    assertFiniteRange(data.kkdfRate, 'KKDF orani', 0, 1)
+    assertFiniteRange(data.bsmvRate, 'BSMV orani', 0, 1)
+
     return prisma.cardFinanceSettings.upsert({
         where: { userId },
         create: {
@@ -86,7 +100,7 @@ export async function recordCardPayment(
     accountId: string,
     description?: string
 ): Promise<void> {
-    if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
 
     const [card, account] = await Promise.all([
         prisma.creditCard.findFirstOrThrow({ where: { id: cardId, userId } }),

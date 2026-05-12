@@ -3,9 +3,11 @@
 import { revalidatePath } from 'next/cache'
 import {
     type ActionResult,
+    ActionError,
     createSuccessResult,
     getActionErrorResult,
     resolveFormData,
+    toOptionalNumber,
     toOptionalString,
     toRequiredNumber,
     toRequiredString,
@@ -13,8 +15,30 @@ import {
 import { requireCurrentUser } from '@/lib/server-auth'
 import { createGoal, deleteGoal, updateGoal, updateGoalProgress } from '@/lib/goal-service'
 
-type GoalField = 'title' | 'description' | 'targetAmount' | 'currentAmount' | 'targetDate' | 'category'
+type GoalField =
+    | 'title'
+    | 'description'
+    | 'targetAmount'
+    | 'currentAmount'
+    | 'targetDate'
+    | 'category'
+    | 'goalType'
+    | 'priority'
+    | 'monthlyRequiredAmount'
+    | 'relatedDebtId'
+    | 'relatedCardId'
 type GoalProgressField = 'currentAmount'
+
+const PRIORITY_OPTIONS = { min: 1, max: 5, integer: true } as const
+const NON_NEGATIVE_OPTIONS = { min: 0 } as const
+
+function parseGoalDate(value: FormDataEntryValue | null) {
+    const date = new Date(String(value ?? new Date().toISOString()))
+    if (Number.isNaN(date.getTime())) {
+        throw new ActionError('Hedef tarihi gecersiz.', { targetDate: 'Hedef tarihi gecersiz.' })
+    }
+    return date
+}
 
 export async function createGoalAction(
     previousState: ActionResult<GoalField> | FormData,
@@ -24,7 +48,7 @@ export async function createGoalAction(
 
     try {
         const user = await requireCurrentUser()
-        const targetDate = new Date(String(data.get('targetDate') ?? new Date().toISOString()))
+        const targetDate = parseGoalDate(data.get('targetDate'))
         const goal = await createGoal(user.id, {
             title: toRequiredString(data.get('title'), 'title', 'Hedef basligi'),
             description: toOptionalString(data.get('description')),
@@ -32,8 +56,8 @@ export async function createGoalAction(
             targetDate,
             category: toOptionalString(data.get('category')),
             goalType: toOptionalString(data.get('goalType')) ?? 'SAVINGS',
-            priority: Number(data.get('priority') ?? 2),
-            monthlyRequiredAmount: Number(data.get('monthlyRequiredAmount') || 0) || null,
+            priority: toOptionalNumber(data.get('priority'), 'priority', 'Oncelik', PRIORITY_OPTIONS) ?? 2,
+            monthlyRequiredAmount: toOptionalNumber(data.get('monthlyRequiredAmount'), 'monthlyRequiredAmount', 'Aylik gerekli tutar', NON_NEGATIVE_OPTIONS) ?? null,
             relatedDebtId: toOptionalString(data.get('relatedDebtId')),
             relatedCardId: toOptionalString(data.get('relatedCardId')),
         })
@@ -58,11 +82,11 @@ export async function updateGoalAction(
             description: toOptionalString(data.get('description')) ?? null,
             targetAmount: toRequiredNumber(data.get('targetAmount'), 'targetAmount', 'Hedef tutar', { min: 0.01 }),
             currentAmount: toRequiredNumber(data.get('currentAmount'), 'currentAmount', 'Birikmis tutar', { min: 0 }),
-            targetDate: new Date(String(data.get('targetDate') ?? new Date().toISOString())),
+            targetDate: parseGoalDate(data.get('targetDate')),
             category: toOptionalString(data.get('category')) ?? null,
             goalType: toOptionalString(data.get('goalType')) ?? 'SAVINGS',
-            priority: Number(data.get('priority') ?? 2),
-            monthlyRequiredAmount: Number(data.get('monthlyRequiredAmount') || 0) || null,
+            priority: toOptionalNumber(data.get('priority'), 'priority', 'Oncelik', PRIORITY_OPTIONS) ?? 2,
+            monthlyRequiredAmount: toOptionalNumber(data.get('monthlyRequiredAmount'), 'monthlyRequiredAmount', 'Aylik gerekli tutar', NON_NEGATIVE_OPTIONS) ?? null,
         })
         ;['/', '/goals'].forEach((p) => revalidatePath(p))
         return createSuccessResult('Hedef guncellendi.', goal.id)

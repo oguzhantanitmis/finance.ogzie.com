@@ -62,7 +62,7 @@ export async function recordSubscriptionPayment(
     accountId: string,
     description?: string
 ): Promise<void> {
-    if (amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error('Tutar sıfırdan büyük olmalıdır.')
 
     const [sub, account] = await Promise.all([
         prisma.subscription.findFirstOrThrow({ where: { id: subscriptionId, userId } }),

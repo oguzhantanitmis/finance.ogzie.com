@@ -15,11 +15,21 @@ import {
 import { getOrCreateCashAccount } from '@/lib/account-service'
 import { requireCurrentUser } from '@/lib/server-auth'
 
-type TransactionField = 'amount' | 'accountId' | 'description' | 'category'
+type TransactionField = 'amount' | 'accountId' | 'description' | 'category' | 'date'
 
 function revalidateFinancePaths() {
     const paths = ['/', '/transactions', '/accounts', '/budget']
     paths.forEach((p) => revalidatePath(p))
+}
+
+function validatePositiveAmount(amount: number) {
+    return Number.isFinite(amount) && amount > 0
+}
+
+function parseOptionalDate(value?: string) {
+    if (!value) return undefined
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date
 }
 
 export async function addIncomeAction(data: {
@@ -33,8 +43,12 @@ export async function addIncomeAction(data: {
     try {
         const user = await requireCurrentUser()
 
-        if (!data.amount || data.amount <= 0) {
+        if (!validatePositiveAmount(data.amount)) {
             return { success: false, message: 'Tutar sıfırdan büyük olmalıdır.', fieldErrors: { amount: 'Tutar geçersiz.' } }
+        }
+        const date = parseOptionalDate(data.date)
+        if (date === null) {
+            return { success: false, message: 'Tarih geçersiz.', fieldErrors: { date: 'Tarih geçersiz.' } }
         }
         const accountId = data.isCash ? (await getOrCreateCashAccount(user.id)).id : data.accountId
 
@@ -50,7 +64,7 @@ export async function addIncomeAction(data: {
             accountId,
             description: data.description.trim(),
             category: data.category || undefined,
-            date: data.date ? new Date(data.date) : undefined,
+            date,
         })
 
         revalidateFinancePaths()
@@ -71,8 +85,12 @@ export async function addExpenseAction(data: {
     try {
         const user = await requireCurrentUser()
 
-        if (!data.amount || data.amount <= 0) {
+        if (!validatePositiveAmount(data.amount)) {
             return { success: false, message: 'Tutar sıfırdan büyük olmalıdır.', fieldErrors: { amount: 'Tutar geçersiz.' } }
+        }
+        const date = parseOptionalDate(data.date)
+        if (date === null) {
+            return { success: false, message: 'Tarih geçersiz.', fieldErrors: { date: 'Tarih geçersiz.' } }
         }
         const accountId = data.isCash ? (await getOrCreateCashAccount(user.id)).id : data.accountId
 
@@ -88,7 +106,7 @@ export async function addExpenseAction(data: {
             accountId,
             description: data.description.trim(),
             category: data.category || undefined,
-            date: data.date ? new Date(data.date) : undefined,
+            date,
         })
 
         revalidateFinancePaths()
@@ -105,6 +123,9 @@ export async function paySubscriptionAction(data: {
 }): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        if (!validatePositiveAmount(data.amount)) {
+            return { success: false, message: 'Tutar sıfırdan büyük olmalıdır.', fieldErrors: { amount: 'Tutar geçersiz.' } }
+        }
 
         await recordSubscriptionPayment(user.id, {
             subscriptionId: data.subscriptionId,
@@ -129,6 +150,9 @@ export async function payRecurringAction(data: {
 }): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        if (!validatePositiveAmount(data.amount)) {
+            return { success: false, message: 'Tutar sıfırdan büyük olmalıdır.', fieldErrors: { amount: 'Tutar geçersiz.' } }
+        }
 
         await recordRecurringPayment(user.id, {
             recurringExpenseId: data.recurringExpenseId,

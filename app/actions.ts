@@ -113,6 +113,24 @@ function validateDate<TField extends string>(date: Date, field: TField, label: s
     return date
 }
 
+const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
+const INSTALLMENT_OPTIONS = { min: 1, max: 600, integer: true } as const
+const NON_NEGATIVE_OPTIONS = { min: 0 } as const
+const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
+const RATE_FRACTION_OPTIONS = { min: 0, max: 1 } as const
+
+function assertRemainingNotAboveTotal<TField extends string>(
+    remaining: number,
+    total: number,
+    field: TField,
+) {
+    if (remaining > total) {
+        throw new ActionError('Kalan bakiye toplam bakiyeden buyuk olamaz.', {
+            [field]: 'Kalan bakiye toplam bakiyeden buyuk olamaz.',
+        } as Record<TField, string>)
+    }
+}
+
 async function refreshFinanceState(userId: string) {
     const summary = await getMonthlyBudgetSummary(userId)
     await syncBudgetAlerts(userId, summary)
@@ -131,9 +149,9 @@ async function findUserDebt(debtId: string, userId: string) {
 }
 
 function buildLoanPaymentPlan(debtId: string, formData: FormData) {
-    const totalPrincipal = toOptionalNumber(formData.get('totalPrincipal'))
-    const installments = toOptionalNumber(formData.get('installments'))
-    const interestRate = toOptionalNumber(formData.get('interestRate')) ?? 0
+    const totalPrincipal = toOptionalNumber(formData.get('totalPrincipal'), 'totalPrincipal', 'Ana para', { min: 0.01 })
+    const installments = toOptionalNumber(formData.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS)
+    const interestRate = toOptionalNumber(formData.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0
 
     if (!totalPrincipal || !installments || installments <= 0) {
         return []
@@ -166,10 +184,10 @@ export async function addAsset(
             data: {
                 name: toRequiredString(data.get('name'), 'name', 'Varlik adi'),
                 type: parseAssetType(data.get('type')),
-                amount: toRequiredNumber(data.get('amount'), 'amount', 'Miktar'),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Miktar', NON_NEGATIVE_OPTIONS),
                 currency: String(data.get('currency') ?? 'TRY'),
-                unitPrice: toOptionalNumber(data.get('unitPrice')) ?? null,
-                lastValue: toOptionalNumber(data.get('lastValue')) ?? null,
+                unitPrice: toOptionalNumber(data.get('unitPrice'), 'unitPrice', 'Birim fiyat', NON_NEGATIVE_OPTIONS) ?? null,
+                lastValue: toOptionalNumber(data.get('lastValue'), 'lastValue', 'Son deger', NON_NEGATIVE_OPTIONS) ?? null,
                 userId: user.id,
             },
         })
@@ -196,10 +214,10 @@ export async function updateAsset(
             data: {
                 name: toRequiredString(data.get('name'), 'name', 'Varlik adi'),
                 type: parseAssetType(data.get('type')),
-                amount: toRequiredNumber(data.get('amount'), 'amount', 'Miktar'),
+                amount: toRequiredNumber(data.get('amount'), 'amount', 'Miktar', NON_NEGATIVE_OPTIONS),
                 currency: String(data.get('currency') ?? 'TRY'),
-                unitPrice: toOptionalNumber(data.get('unitPrice')) ?? null,
-                lastValue: toOptionalNumber(data.get('lastValue')) ?? null,
+                unitPrice: toOptionalNumber(data.get('unitPrice'), 'unitPrice', 'Birim fiyat', NON_NEGATIVE_OPTIONS) ?? null,
+                lastValue: toOptionalNumber(data.get('lastValue'), 'lastValue', 'Son deger', NON_NEGATIVE_OPTIONS) ?? null,
             },
         })
 
@@ -232,24 +250,27 @@ export async function addDebt(
         const user = await requireCurrentUser()
         const debtType = parseDebtType(data.get('type'))
         const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : undefined
+        const totalBalance = toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye', NON_NEGATIVE_OPTIONS)
+        const remainingBalance = toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye', NON_NEGATIVE_OPTIONS)
+        assertRemainingNotAboveTotal(remainingBalance, totalBalance, 'remainingBalance')
 
         const debt = await prisma.debt.create({
             data: {
                 userId: user.id,
                 name: toRequiredString(data.get('name'), 'name', 'Borc adi'),
                 type: debtType,
-                limit: toOptionalNumber(data.get('limit')) ?? null,
-                cutOffDay: toOptionalNumber(data.get('cutOffDay')) ?? null,
-                paymentDueDay: toOptionalNumber(data.get('paymentDueDay')) ?? null,
-                totalPrincipal: toOptionalNumber(data.get('totalPrincipal')) ?? null,
-                installments: toOptionalNumber(data.get('installments')) ?? null,
-                remainingInstallments: toOptionalNumber(data.get('remainingInstallments')) ?? null,
-                totalBalance: toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye'),
-                remainingBalance: toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye'),
-                interestRate: toOptionalNumber(data.get('interestRate')) ?? 0,
-                minPaymentRate: toOptionalNumber(data.get('minPaymentRate')) ?? 0.2,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
+                limit: toOptionalNumber(data.get('limit'), 'limit', 'Limit', NON_NEGATIVE_OPTIONS) ?? null,
+                cutOffDay: toOptionalNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', DAY_OPTIONS) ?? null,
+                paymentDueDay: toOptionalNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS) ?? null,
+                totalPrincipal: toOptionalNumber(data.get('totalPrincipal'), 'totalPrincipal', 'Ana para', NON_NEGATIVE_OPTIONS) ?? null,
+                installments: toOptionalNumber(data.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS) ?? null,
+                remainingInstallments: toOptionalNumber(data.get('remainingInstallments'), 'remainingInstallments', 'Kalan taksit', INSTALLMENT_OPTIONS) ?? null,
+                totalBalance,
+                remainingBalance,
+                interestRate: toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
+                minPaymentRate: toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? 0.2,
+                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? 0.15,
                 dueDate: dueDate ?? null,
             },
         })
@@ -281,26 +302,29 @@ export async function updateDebt(
         await findUserDebt(debtId, user.id)
         const debtType = parseDebtType(data.get('type'))
         const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : null
+        const totalBalance = toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye', NON_NEGATIVE_OPTIONS)
+        const remainingBalance = toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye', NON_NEGATIVE_OPTIONS)
+        assertRemainingNotAboveTotal(remainingBalance, totalBalance, 'remainingBalance')
 
         const debt = await prisma.debt.update({
             where: { id: debtId },
             data: {
                 name: toRequiredString(data.get('name'), 'name', 'Borc adi'),
                 type: debtType,
-                limit: toOptionalNumber(data.get('limit')) ?? null,
-                cutOffDay: toOptionalNumber(data.get('cutOffDay')) ?? null,
-                paymentDueDay: toOptionalNumber(data.get('paymentDueDay')) ?? null,
-                totalPrincipal: toOptionalNumber(data.get('totalPrincipal')) ?? null,
-                installments: toOptionalNumber(data.get('installments')) ?? null,
-                remainingInstallments: toOptionalNumber(data.get('remainingInstallments')) ?? null,
-                totalBalance: toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye'),
-                remainingBalance: toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye'),
-                interestRate: toOptionalNumber(data.get('interestRate')) ?? 0,
-                minPaymentRate: toOptionalNumber(data.get('minPaymentRate')) ?? 0.2,
-                kkdfRate: toOptionalNumber(data.get('kkdfRate')) ?? 0.15,
-                bsmvRate: toOptionalNumber(data.get('bsmvRate')) ?? 0.15,
+                limit: toOptionalNumber(data.get('limit'), 'limit', 'Limit', NON_NEGATIVE_OPTIONS) ?? null,
+                cutOffDay: toOptionalNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', DAY_OPTIONS) ?? null,
+                paymentDueDay: toOptionalNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS) ?? null,
+                totalPrincipal: toOptionalNumber(data.get('totalPrincipal'), 'totalPrincipal', 'Ana para', NON_NEGATIVE_OPTIONS) ?? null,
+                installments: toOptionalNumber(data.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS) ?? null,
+                remainingInstallments: toOptionalNumber(data.get('remainingInstallments'), 'remainingInstallments', 'Kalan taksit', INSTALLMENT_OPTIONS) ?? null,
+                totalBalance,
+                remainingBalance,
+                interestRate: toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
+                minPaymentRate: toOptionalNumber(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani', RATE_FRACTION_OPTIONS) ?? 0.2,
+                kkdfRate: toOptionalNumber(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani', RATE_FRACTION_OPTIONS) ?? 0.15,
+                bsmvRate: toOptionalNumber(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani', RATE_FRACTION_OPTIONS) ?? 0.15,
                 dueDate,
-                isPaid: (toOptionalNumber(data.get('remainingBalance')) ?? 0) <= 0,
+                isPaid: remainingBalance <= 0,
             },
         })
 
@@ -343,6 +367,12 @@ export async function addTransaction(data: {
 }) {
     try {
         const user = await requireCurrentUser()
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+            throw new ActionError('Tutar sifirdan buyuk olmalidir.', { amount: 'Tutar gecersiz.' })
+        }
+        if (!['INCOME', 'EXPENSE'].includes(data.type)) {
+            throw new ActionError('Islem tipi gecersiz.')
+        }
 
         await prisma.transaction.create({
             data: {
@@ -588,7 +618,7 @@ export async function createIncomeSource(
                 amount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
                 currency: String(data.get('currency') ?? 'TRY'),
                 billingCycle: parseBillingCycle(data.get('billingCycle')),
-                payday: toOptionalNumber(data.get('payday')) ?? null,
+                payday: toOptionalNumber(data.get('payday'), 'payday', 'Odeme gunu', DAY_OPTIONS) ?? null,
                 isPrimary: data.get('isPrimary') === 'on',
                 status: parseRecordStatus(data.get('status')),
             },
@@ -623,7 +653,7 @@ export async function updateIncomeSource(
                 amount: toRequiredNumber(data.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
                 currency: String(data.get('currency') ?? 'TRY'),
                 billingCycle: parseBillingCycle(data.get('billingCycle')),
-                payday: toOptionalNumber(data.get('payday')) ?? null,
+                payday: toOptionalNumber(data.get('payday'), 'payday', 'Odeme gunu', DAY_OPTIONS) ?? null,
                 isPrimary: data.get('isPrimary') === 'on',
                 status: parseRecordStatus(data.get('status')),
             },

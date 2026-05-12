@@ -3,13 +3,14 @@
 import { revalidatePath } from 'next/cache'
 import { requireCurrentUser } from '@/lib/server-auth'
 import { recordSubscriptionPayment, toggleSubscriptionEssential } from '@/lib/subscription-analysis-service'
+import { toRequiredNumber } from '@/lib/action-result'
 
 export async function recordSubscriptionPaymentAction(formData: FormData) {
     const user = await requireCurrentUser()
     await recordSubscriptionPayment(
         user.id,
         String(formData.get('subscriptionId')),
-        Number(formData.get('amount') ?? 0),
+        toRequiredNumber(formData.get('amount'), 'amount', 'Tutar', { min: 0.01 }),
         String(formData.get('accountId')),
         String(formData.get('description') ?? '') || undefined
     )
