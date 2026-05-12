@@ -85,6 +85,25 @@ export function toOptionalNumber(value: FormDataEntryValue | null) {
     return Number.isFinite(parsed) ? parsed : undefined
 }
 
+export function toNumberOrZero<TField extends string = string>(
+    value: FormDataEntryValue | null,
+    field: TField,
+    label: string,
+    options?: { min?: number },
+) {
+    const raw = String(value ?? '').trim()
+    if (!raw) return 0
+
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) {
+        throw new ActionError(`${label} alani gecersiz.`, { [field]: `${label} gecersiz.` } as ActionFieldErrors<TField>)
+    }
+    if (typeof options?.min === 'number' && parsed < options.min) {
+        throw new ActionError(`${label} en az ${options.min} olmalidir.`, { [field]: `${label} en az ${options.min} olmalidir.` } as ActionFieldErrors<TField>)
+    }
+    return parsed
+}
+
 export function toRequiredNumber<TField extends string = string>(
     value: FormDataEntryValue | null,
     field: TField,

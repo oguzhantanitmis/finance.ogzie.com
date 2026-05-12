@@ -16,6 +16,7 @@ import {
     createSuccessResult,
     getActionErrorResult,
     resolveFormData,
+    toNumberOrZero,
     toOptionalNumber,
     toOptionalString,
     toRequiredNumber,
@@ -661,6 +662,19 @@ export async function updateBudgetMonth(
     try {
         const user = await requireCurrentUser()
         const month = startOfMonth(validateDate(parseDateInput(data.get('month')), 'month', 'Ay'))
+        const values = {
+            openingCash: toNumberOrZero(data.get('openingCash'), 'openingCash', 'Açılış nakdi'),
+            plannedIncome: toNumberOrZero(data.get('plannedIncome'), 'plannedIncome', 'Planlanan gelir'),
+            fixedCommitments: toNumberOrZero(data.get('fixedCommitments'), 'fixedCommitments', 'Sabit yükler'),
+            debtCommitments: toNumberOrZero(data.get('debtCommitments'), 'debtCommitments', 'Borç yükleri'),
+            plannedReceivableCollection: toNumberOrZero(data.get('plannedReceivableCollection'), 'plannedReceivableCollection', 'Planlanan tahsilat'),
+            savingGoal: toNumberOrZero(data.get('savingGoal'), 'savingGoal', 'Birikim hedefi'),
+            debtPaymentBudget: toNumberOrZero(data.get('debtPaymentBudget'), 'debtPaymentBudget', 'Borç ödeme bütçesi'),
+            manualAdjustment: toNumberOrZero(data.get('manualAdjustment'), 'manualAdjustment', 'Manuel düzeltme'),
+            freeCash: toNumberOrZero(data.get('freeCash'), 'freeCash', 'Serbest nakit'),
+            bufferTarget: toNumberOrZero(data.get('bufferTarget'), 'bufferTarget', 'Tampon hedef'),
+            notes: toOptionalString(data.get('notes')) ?? null,
+        }
 
         await prisma.budgetMonth.upsert({
             where: {
@@ -672,31 +686,9 @@ export async function updateBudgetMonth(
             create: {
                 userId: user.id,
                 month,
-                openingCash: Number(data.get('openingCash') ?? 0),
-                plannedIncome: Number(data.get('plannedIncome') ?? 0),
-                fixedCommitments: Number(data.get('fixedCommitments') ?? 0),
-                debtCommitments: Number(data.get('debtCommitments') ?? 0),
-                plannedReceivableCollection: Number(data.get('plannedReceivableCollection') ?? 0),
-                savingGoal: Number(data.get('savingGoal') ?? 0),
-                debtPaymentBudget: Number(data.get('debtPaymentBudget') ?? 0),
-                manualAdjustment: Number(data.get('manualAdjustment') ?? 0),
-                freeCash: Number(data.get('freeCash') ?? 0),
-                bufferTarget: Number(data.get('bufferTarget') ?? 0),
-                notes: toOptionalString(data.get('notes')) ?? null,
+                ...values,
             },
-            update: {
-                openingCash: Number(data.get('openingCash') ?? 0),
-                plannedIncome: Number(data.get('plannedIncome') ?? 0),
-                fixedCommitments: Number(data.get('fixedCommitments') ?? 0),
-                debtCommitments: Number(data.get('debtCommitments') ?? 0),
-                plannedReceivableCollection: Number(data.get('plannedReceivableCollection') ?? 0),
-                savingGoal: Number(data.get('savingGoal') ?? 0),
-                debtPaymentBudget: Number(data.get('debtPaymentBudget') ?? 0),
-                manualAdjustment: Number(data.get('manualAdjustment') ?? 0),
-                freeCash: Number(data.get('freeCash') ?? 0),
-                bufferTarget: Number(data.get('bufferTarget') ?? 0),
-                notes: toOptionalString(data.get('notes')) ?? null,
-            },
+            update: values,
         })
 
         await refreshFinanceState(user.id)

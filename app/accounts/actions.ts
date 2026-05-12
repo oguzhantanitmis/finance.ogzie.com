@@ -15,8 +15,10 @@ import {
     createSuccessResult,
     getActionErrorResult,
     resolveFormData,
+    toNumberOrZero,
     toOptionalNumber,
     toOptionalString,
+    toRequiredNumber,
     toRequiredString,
 } from '@/lib/action-result'
 import { requireCurrentUser } from '@/lib/server-auth'
@@ -66,7 +68,7 @@ export async function createAccountActionState(
         const account = await createAccount(user.id, {
             name: toRequiredString(data.get('name'), 'name', 'Hesap adi'),
             type: parseAccountType(data.get('type')),
-            balance: Number(data.get('balance') ?? 0),
+            balance: toNumberOrZero(data.get('balance'), 'balance', 'Bakiye'),
             currency: String(data.get('currency') ?? 'TRY'),
             bankName: toOptionalString(data.get('bankName')),
             iban: toOptionalString(data.get('iban')),
@@ -137,7 +139,7 @@ export async function adjustBalanceAction(
     try {
         const user = await requireCurrentUser()
         const accountId = String(data.get('accountId'))
-        const newBalance = Number(data.get('newBalance') ?? 0)
+        const newBalance = toNumberOrZero(data.get('newBalance'), 'newBalance', 'Yeni bakiye')
         const description = toOptionalString(data.get('description'))
 
         await adjustBalance(accountId, user.id, newBalance, description)
@@ -158,7 +160,7 @@ export async function transferAction(
         const user = await requireCurrentUser()
         const fromAccountId = String(data.get('fromAccountId'))
         const toAccountId = String(data.get('toAccountId'))
-        const amount = Number(data.get('amount') ?? 0)
+        const amount = toRequiredNumber(data.get('amount'), 'amount', 'Transfer tutari', { min: 0.01 })
         const description = toOptionalString(data.get('description'))
 
         await transferBetweenAccounts(user.id, fromAccountId, toAccountId, amount, description)
