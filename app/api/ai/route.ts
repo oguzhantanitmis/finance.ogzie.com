@@ -10,6 +10,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 type CommandType = 'ADD_EXPENSE' | 'ADD_INCOME' | 'GREETING' | 'AI_CHAT'
+const MAX_PROMPT_LENGTH = 2000
 
 function parseCommand(text: string): CommandType {
     const lower = text.toLowerCase()
@@ -17,6 +18,33 @@ function parseCommand(text: string): CommandType {
     if (lower.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(yattı|geldi|kazandım|aldım)/)) return 'ADD_INCOME'
     if (lower.match(/(\d+[.,]?\d*)\s*(tl|usd|eur|dolar|euro)?\s*(.*?)\s*(harcadım|gitti|ödedim|verdim)/)) return 'ADD_EXPENSE'
     return 'AI_CHAT'
+}
+
+async function parsePrompt(req: Request) {
+    let body: unknown
+    try {
+        body = await req.json()
+    } catch {
+        return { error: 'Invalid JSON body', status: 400 as const }
+    }
+
+    if (!body || typeof body !== 'object' || !('prompt' in body)) {
+        return { error: 'Prompt zorunludur.', status: 400 as const }
+    }
+
+    const prompt = typeof (body as { prompt?: unknown }).prompt === 'string'
+        ? (body as { prompt: string }).prompt.trim()
+        : ''
+
+    if (!prompt) {
+        return { error: 'Prompt zorunludur.', status: 400 as const }
+    }
+
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+        return { error: `Prompt en fazla ${MAX_PROMPT_LENGTH} karakter olabilir.`, status: 413 as const }
+    }
+
+    return { prompt }
 }
 
 function mapCurrency(input?: string) {
@@ -117,7 +145,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
-        const { prompt } = (await req.json()) as { prompt: string }
+        const parsedPrompt = await parsePrompt(req)
+        if ('error' in parsedPrompt) {
+            return NextResponse.json({ error: parsedPrompt.error }, { status: parsedPrompt.status })
+        }
+
+        const { prompt } = parsedPrompt
         const commandType = parseCommand(prompt)
 
         // Quick responses that don't need AI

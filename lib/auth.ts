@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { resolveUserRole } from "@/lib/authz";
+import { normalizeEmail, resolveUserRole } from "@/lib/authz";
 
 export const authOptions: NextAuthOptions = {
     session: {
@@ -22,10 +22,11 @@ export const authOptions: NextAuthOptions = {
                 if (!credentials?.email || !credentials.password) {
                     return null;
                 }
+                const email = normalizeEmail(credentials.email);
 
                 const user = await prisma.user.findUnique({
                     where: {
-                        email: credentials.email,
+                        email,
                     },
                 });
 
