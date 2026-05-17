@@ -115,6 +115,7 @@ function validateDate<TField extends string>(date: Date, field: TField, label: s
 
 const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
 const INSTALLMENT_OPTIONS = { min: 1, max: 600, integer: true } as const
+const REMAINING_INSTALLMENT_OPTIONS = { min: 0, max: 600, integer: true } as const
 const NON_NEGATIVE_OPTIONS = { min: 0 } as const
 const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
 
@@ -157,27 +158,71 @@ async function findUserDebt(debtId: string, userId: string) {
     })
 }
 
-function buildLoanPaymentPlan(debtId: string, formData: FormData) {
-    const totalPrincipal = toOptionalNumber(formData.get('totalPrincipal'), 'totalPrincipal', 'Ana para', { min: 0.01 })
-    const installments = toOptionalNumber(formData.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS)
+function roundMoney(value: number) {
+    return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function sumMoney(items: number[]) {
+    return roundMoney(items.reduce((total, value) => total + value, 0))
+}
+
+function readLoanState(formData: FormData) {
+    const totalPrincipal = toRequiredNumber(formData.get('totalPrincipal'), 'totalPrincipal', 'Cekilen kredi', { min: 0.01 })
+    const installments = toRequiredNumber(formData.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS)
     const interestRate = toOptionalNumber(formData.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0
+    const kkdfRate = toOptionalPercentFraction(formData.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15
+    const bsmvRate = toOptionalPercentFraction(formData.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15
+    const rawRemainingInstallments = toOptionalNumber(
+        formData.get('remainingInstallments'),
+        'remainingInstallments',
+        'Kalan taksit',
+        REMAINING_INSTALLMENT_OPTIONS,
+    )
+    const remainingInstallments = Math.min(rawRemainingInstallments ?? installments, installments)
+    const paidInstallments = Math.max(0, installments - remainingInstallments)
+    const firstDueDate = validateDate(
+        parseDateInput(toRequiredString(formData.get('dueDate'), 'dueDate', 'Ilk taksit tarihi')),
+        'dueDate',
+        'Ilk taksit tarihi',
+    )
+    const schedule = calculateLoanSchedule(totalPrincipal, interestRate, installments, { kkdfRate, bsmvRate })
 
-    if (!totalPrincipal || !installments || installments <= 0) {
-        return []
+    const planAmounts = schedule.plan.map((item) => roundMoney(item.principal + item.interest + item.tax))
+    const totalBalance = sumMoney(planAmounts)
+    const remainingBalance = sumMoney(planAmounts.filter((_, index) => index >= paidInstallments))
+
+    return {
+        totalPrincipal,
+        installments,
+        remainingInstallments,
+        paidInstallments,
+        totalBalance,
+        remainingBalance,
+        interestRate,
+        kkdfRate,
+        bsmvRate,
+        firstDueDate,
+        schedule,
     }
+}
 
-    const schedule = calculateLoanSchedule(totalPrincipal, interestRate, installments)
-    const firstDueDate = validateDate(parseDateInput(formData.get('dueDate'), new Date()), 'dueDate', 'Vade tarihi')
-
-    return schedule.plan.map((item, index) => ({
+function buildLoanPaymentPlanRows(
+    debtId: string,
+    loanState: ReturnType<typeof readLoanState>,
+    paidDatesByInstallment = new Map<number, Date>(),
+) {
+    return loanState.schedule.plan.map((item, index) => ({
         debtId,
         installmentNo: item.installment,
-        amount: item.principal + item.interest + item.tax,
+        amount: roundMoney(item.principal + item.interest + item.tax),
         principalAmount: item.principal,
         interestAmount: item.interest,
         taxAmount: item.tax,
-        dueDate: addMonths(firstDueDate, index),
-        isPaid: false,
+        dueDate: addMonths(loanState.firstDueDate, index),
+        isPaid: item.installment <= loanState.paidInstallments,
+        paidDate: item.installment <= loanState.paidInstallments
+            ? paidDatesByInstallment.get(item.installment) ?? addMonths(loanState.firstDueDate, index)
+            : null,
     }))
 }
 
@@ -258,9 +303,18 @@ export async function addDebt(
     try {
         const user = await requireCurrentUser()
         const debtType = parseDebtType(data.get('type'))
-        const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : undefined
-        const totalBalance = toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye', NON_NEGATIVE_OPTIONS)
-        const remainingBalance = toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye', NON_NEGATIVE_OPTIONS)
+        const loanState = debtType === DebtType.LOAN ? readLoanState(data) : null
+        const dueDate = loanState
+            ? loanState.firstDueDate
+            : data.get('dueDate')
+                ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi')
+                : undefined
+        const totalBalance = loanState
+            ? loanState.totalBalance
+            : toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye', NON_NEGATIVE_OPTIONS)
+        const remainingBalance = loanState
+            ? loanState.remainingBalance
+            : toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye', NON_NEGATIVE_OPTIONS)
         assertRemainingNotAboveTotal(remainingBalance, totalBalance, 'remainingBalance')
 
         const debt = await prisma.debt.create({
@@ -270,25 +324,22 @@ export async function addDebt(
                 type: debtType,
                 limit: toOptionalNumber(data.get('limit'), 'limit', 'Limit', NON_NEGATIVE_OPTIONS) ?? null,
                 cutOffDay: toOptionalNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', DAY_OPTIONS) ?? null,
-                paymentDueDay: toOptionalNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS) ?? null,
-                totalPrincipal: toOptionalNumber(data.get('totalPrincipal'), 'totalPrincipal', 'Ana para', NON_NEGATIVE_OPTIONS) ?? null,
-                installments: toOptionalNumber(data.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS) ?? null,
-                remainingInstallments: toOptionalNumber(data.get('remainingInstallments'), 'remainingInstallments', 'Kalan taksit', INSTALLMENT_OPTIONS) ?? null,
+                paymentDueDay: loanState?.firstDueDate.getDate() ?? toOptionalNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS) ?? null,
+                totalPrincipal: loanState?.totalPrincipal ?? toOptionalNumber(data.get('totalPrincipal'), 'totalPrincipal', 'Ana para', NON_NEGATIVE_OPTIONS) ?? null,
+                installments: loanState?.installments ?? toOptionalNumber(data.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS) ?? null,
+                remainingInstallments: loanState?.remainingInstallments ?? toOptionalNumber(data.get('remainingInstallments'), 'remainingInstallments', 'Kalan taksit', REMAINING_INSTALLMENT_OPTIONS) ?? null,
                 totalBalance,
                 remainingBalance,
-                interestRate: toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
-                minPaymentRate: toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
-                kkdfRate: toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
-                bsmvRate: toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
+                interestRate: loanState?.interestRate ?? toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
+                minPaymentRate: debtType === DebtType.LOAN ? 0 : toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
+                kkdfRate: loanState?.kkdfRate ?? toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: loanState?.bsmvRate ?? toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 dueDate: dueDate ?? null,
             },
         })
 
-        if (debtType === DebtType.LOAN) {
-            const planRows = buildLoanPaymentPlan(debt.id, data)
-            if (planRows.length > 0) {
-                await prisma.paymentPlan.createMany({ data: planRows })
-            }
+        if (loanState) {
+            await prisma.paymentPlan.createMany({ data: buildLoanPaymentPlanRows(debt.id, loanState) })
         }
 
         await refreshFinanceState(user.id)
@@ -308,12 +359,27 @@ export async function updateDebt(
     try {
         const user = await requireCurrentUser()
         const debtId = String(data.get('debtId'))
-        await findUserDebt(debtId, user.id)
+        const existingDebt = await findUserDebt(debtId, user.id)
         const debtType = parseDebtType(data.get('type'))
-        const dueDate = data.get('dueDate') ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi') : null
-        const totalBalance = toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye', NON_NEGATIVE_OPTIONS)
-        const remainingBalance = toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye', NON_NEGATIVE_OPTIONS)
+        const loanState = debtType === DebtType.LOAN ? readLoanState(data) : null
+        const dueDate = loanState
+            ? loanState.firstDueDate
+            : data.get('dueDate')
+                ? validateDate(parseDateInput(data.get('dueDate')), 'dueDate', 'Vade tarihi')
+                : null
+        const totalBalance = loanState
+            ? loanState.totalBalance
+            : toRequiredNumber(data.get('totalBalance'), 'totalBalance', 'Toplam bakiye', NON_NEGATIVE_OPTIONS)
+        const remainingBalance = loanState
+            ? loanState.remainingBalance
+            : toRequiredNumber(data.get('remainingBalance'), 'remainingBalance', 'Kalan bakiye', NON_NEGATIVE_OPTIONS)
         assertRemainingNotAboveTotal(remainingBalance, totalBalance, 'remainingBalance')
+        const paidDates = loanState
+            ? new Map((await prisma.paymentPlan.findMany({
+                where: { debtId, isPaid: true },
+                select: { installmentNo: true, paidDate: true },
+            })).map((plan) => [plan.installmentNo, plan.paidDate ?? new Date()] as const))
+            : new Map<number, Date>()
 
         const debt = await prisma.debt.update({
             where: { id: debtId },
@@ -322,29 +388,26 @@ export async function updateDebt(
                 type: debtType,
                 limit: toOptionalNumber(data.get('limit'), 'limit', 'Limit', NON_NEGATIVE_OPTIONS) ?? null,
                 cutOffDay: toOptionalNumber(data.get('cutOffDay'), 'cutOffDay', 'Hesap kesim gunu', DAY_OPTIONS) ?? null,
-                paymentDueDay: toOptionalNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS) ?? null,
-                totalPrincipal: toOptionalNumber(data.get('totalPrincipal'), 'totalPrincipal', 'Ana para', NON_NEGATIVE_OPTIONS) ?? null,
-                installments: toOptionalNumber(data.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS) ?? null,
-                remainingInstallments: toOptionalNumber(data.get('remainingInstallments'), 'remainingInstallments', 'Kalan taksit', INSTALLMENT_OPTIONS) ?? null,
+                paymentDueDay: loanState?.firstDueDate.getDate() ?? toOptionalNumber(data.get('paymentDueDay'), 'paymentDueDay', 'Son odeme gunu', DAY_OPTIONS) ?? null,
+                totalPrincipal: loanState?.totalPrincipal ?? toOptionalNumber(data.get('totalPrincipal'), 'totalPrincipal', 'Ana para', NON_NEGATIVE_OPTIONS) ?? null,
+                installments: loanState?.installments ?? toOptionalNumber(data.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS) ?? null,
+                remainingInstallments: loanState?.remainingInstallments ?? toOptionalNumber(data.get('remainingInstallments'), 'remainingInstallments', 'Kalan taksit', REMAINING_INSTALLMENT_OPTIONS) ?? null,
                 totalBalance,
                 remainingBalance,
-                interestRate: toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
-                minPaymentRate: toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
-                kkdfRate: toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
-                bsmvRate: toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
+                interestRate: loanState?.interestRate ?? toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
+                minPaymentRate: debtType === DebtType.LOAN ? 0 : toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
+                kkdfRate: loanState?.kkdfRate ?? toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: loanState?.bsmvRate ?? toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 dueDate,
                 isPaid: remainingBalance <= 0,
             },
         })
 
-        if (debtType === DebtType.LOAN) {
-            await prisma.paymentPlan.deleteMany({
-                where: { debtId, isPaid: false },
-            })
-            const planRows = buildLoanPaymentPlan(debtId, data)
-            if (planRows.length > 0) {
-                await prisma.paymentPlan.createMany({ data: planRows })
-            }
+        if (loanState) {
+            await prisma.paymentPlan.deleteMany({ where: { debtId } })
+            await prisma.paymentPlan.createMany({ data: buildLoanPaymentPlanRows(debtId, loanState, paidDates) })
+        } else if (existingDebt.type === DebtType.LOAN) {
+            await prisma.paymentPlan.deleteMany({ where: { debtId } })
         }
 
         await refreshFinanceState(user.id)
@@ -365,6 +428,76 @@ export async function deleteDebt(debtId: string): Promise<ActionResult> {
         return createSuccessResult('Borc silindi.', debtId)
     } catch (error) {
         return getActionErrorResult(error, 'Borc silinemedi.')
+    }
+}
+
+export async function setDebtInstallmentPaid(paymentPlanId: string, paid: boolean): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+        const target = await prisma.paymentPlan.findFirstOrThrow({
+            where: {
+                id: paymentPlanId,
+                debt: { userId: user.id },
+            },
+            include: {
+                debt: true,
+            },
+        })
+
+        if (target.debt.type !== DebtType.LOAN) {
+            throw new ActionError('Sadece banka kredisi taksitleri bu ekrandan yonetilebilir.')
+        }
+
+        const plans = await prisma.paymentPlan.findMany({
+            where: { debtId: target.debtId },
+            orderBy: { installmentNo: 'asc' },
+        })
+
+        if (paid && plans.some((plan) => plan.installmentNo < target.installmentNo && !plan.isPaid)) {
+            throw new ActionError('Once onceki taksiti odendi olarak isaretleyin.')
+        }
+
+        if (!paid && plans.some((plan) => plan.installmentNo > target.installmentNo && plan.isPaid)) {
+            throw new ActionError('Odeme geri alma islemi son odenden geriye dogru yapilabilir.')
+        }
+
+        const now = new Date()
+        const updatedPlans = plans.map((plan) =>
+            plan.id === target.id
+                ? { ...plan, isPaid: paid, paidDate: paid ? now : null }
+                : plan,
+        )
+        const remainingPlans = updatedPlans.filter((plan) => !plan.isPaid)
+        const paidDates = updatedPlans
+            .map((plan) => plan.paidDate)
+            .filter((date): date is Date => Boolean(date))
+            .sort((left, right) => right.getTime() - left.getTime())
+
+        await prisma.$transaction([
+            prisma.paymentPlan.update({
+                where: { id: target.id },
+                data: {
+                    isPaid: paid,
+                    paidDate: paid ? now : null,
+                },
+            }),
+            prisma.debt.update({
+                where: { id: target.debtId },
+                data: {
+                    totalBalance: sumMoney(updatedPlans.map((plan) => plan.amount)),
+                    remainingBalance: sumMoney(remainingPlans.map((plan) => plan.amount)),
+                    remainingInstallments: remainingPlans.length,
+                    lastPaymentDate: paidDates[0] ?? null,
+                    isPaid: remainingPlans.length === 0,
+                },
+            }),
+        ])
+
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths(['/debts'])
+        return createSuccessResult(paid ? 'Taksit odendi olarak isaretlendi.' : 'Taksit odemesi geri alindi.', target.debtId)
+    } catch (error) {
+        return getActionErrorResult(error, 'Taksit durumu guncellenemedi.')
     }
 }
 

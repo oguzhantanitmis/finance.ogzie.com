@@ -4,13 +4,34 @@ export const TAX_RATES = {
     BSMV: 0.15,
 }
 
+type TaxRateInput = {
+    kkdfRate?: number
+    bsmvRate?: number
+}
+
+function resolveTaxRates(taxRates?: TaxRateInput) {
+    const kkdfRate = typeof taxRates?.kkdfRate === 'number' ? taxRates.kkdfRate : TAX_RATES.KKDF
+    const bsmvRate = typeof taxRates?.bsmvRate === 'number' ? taxRates.bsmvRate : TAX_RATES.BSMV
+
+    return {
+        kkdfRate,
+        bsmvRate,
+        totalTaxRate: kkdfRate + bsmvRate,
+    }
+}
+
+function roundCurrency(value: number) {
+    return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
 // Güncel Vergili Faiz Hesaplama
-export function calculateAccumulatedInterest(principal: number, monthlyRate: number, days: number): { interest: number, tax: number, total: number } {
+export function calculateAccumulatedInterest(principal: number, monthlyRate: number, days: number, taxRates?: TaxRateInput): { interest: number, tax: number, total: number } {
     // Günlük Faiz Formülü: (Anapara * AylıkFaiz * Gün) / 3000
     // Not: Bankalar genelde 30 gün üzerinden hesaplar.
 
+    const { totalTaxRate } = resolveTaxRates(taxRates)
     const interest = (principal * monthlyRate * days) / 3000
-    const tax = interest * (TAX_RATES.KKDF + TAX_RATES.BSMV)
+    const tax = interest * totalTaxRate
 
     return {
         interest: Number(interest.toFixed(2)),
@@ -26,22 +47,31 @@ export function calculateMinPayment(limit: number, totalDebt: number): number {
 }
 
 // Eşit Taksitli Kredi Hesaplama (Annuity)
-export function calculateLoanSchedule(principal: number, monthlyRate: number, installments: number): {
+export function calculateLoanSchedule(principal: number, monthlyRate: number, installments: number, taxRates?: TaxRateInput): {
     monthlyPayment: number,
     totalPayment: number,
     plan: { installment: number, principal: number, interest: number, tax: number, remainingPrincipal: number }[]
 } {
+    const { kkdfRate, bsmvRate, totalTaxRate } = resolveTaxRates(taxRates)
+
     // Faiz 0 ise (Elden borç vb)
     if (monthlyRate === 0) {
         const payment = principal / installments
-        const plan = Array.from({ length: installments }).map((_, i) => ({
-            installment: i + 1,
-            principal: Number(payment.toFixed(2)),
-            interest: 0,
-            tax: 0,
-            remainingPrincipal: Number((principal - (payment * (i + 1))).toFixed(2))
-        }))
-        return { monthlyPayment: payment, totalPayment: principal, plan }
+        let remainingPrincipal = principal
+        const plan = Array.from({ length: installments }).map((_, i) => {
+            const principalPart = i === installments - 1 ? remainingPrincipal : roundCurrency(payment)
+            remainingPrincipal = roundCurrency(Math.max(0, remainingPrincipal - principalPart))
+
+            return {
+                installment: i + 1,
+                principal: principalPart,
+                interest: 0,
+                tax: 0,
+                remainingPrincipal
+            }
+        })
+        const totalPayment = plan.reduce((total, item) => total + item.principal, 0)
+        return { monthlyPayment: roundCurrency(payment), totalPayment: roundCurrency(totalPayment), plan }
     }
 
     const r = monthlyRate / 100
@@ -53,37 +83,40 @@ export function calculateLoanSchedule(principal: number, monthlyRate: number, in
 
     // Banka formülü (Genelde BSMV/KKDF taksit içindedir):
     // Efektif Oran = r * (1 + KKDF + BSMV)
-    const effectiveRate = r * (1 + TAX_RATES.KKDF + TAX_RATES.BSMV)
+    const effectiveRate = r * (1 + totalTaxRate)
 
     const monthlyPayment = principal * (effectiveRate * Math.pow(1 + effectiveRate, n)) / (Math.pow(1 + effectiveRate, n) - 1)
+    const roundedMonthlyPayment = roundCurrency(monthlyPayment)
 
     let remainingPrincipal = principal
     const plan = []
 
     for (let i = 1; i <= n; i++) {
-        // Aylık brüt faiz (Vergi dahil)
-        const interestWithTax = remainingPrincipal * effectiveRate
-        const principalPart = monthlyPayment - interestWithTax
+        const pureInterest = roundCurrency(remainingPrincipal * r)
+        const kkdfTax = roundCurrency(pureInterest * kkdfRate)
+        const bsmvTax = roundCurrency(pureInterest * bsmvRate)
+        const taxVal = roundCurrency(kkdfTax + bsmvTax)
+        let principalPart = roundCurrency(roundedMonthlyPayment - pureInterest - taxVal)
+        if (i === n) {
+            principalPart = roundCurrency(remainingPrincipal)
+        }
 
-        // Vergi ayrıştırma
-        const pureInterest = interestWithTax / (1 + TAX_RATES.KKDF + TAX_RATES.BSMV)
-        const taxVal = interestWithTax - pureInterest
-
-        remainingPrincipal -= principalPart
-        if (remainingPrincipal < 0) remainingPrincipal = 0
+        remainingPrincipal = roundCurrency(Math.max(0, remainingPrincipal - principalPart))
 
         plan.push({
             installment: i,
-            principal: Number(principalPart.toFixed(2)),
-            interest: Number(pureInterest.toFixed(2)),
-            tax: Number(taxVal.toFixed(2)),
-            remainingPrincipal: Number(remainingPrincipal.toFixed(2))
+            principal: principalPart,
+            interest: pureInterest,
+            tax: taxVal,
+            remainingPrincipal
         })
     }
 
+    const totalPayment = plan.reduce((total, item) => total + item.principal + item.interest + item.tax, 0)
+
     return {
-        monthlyPayment: Number(monthlyPayment.toFixed(2)),
-        totalPayment: Number((monthlyPayment * n).toFixed(2)),
+        monthlyPayment: roundedMonthlyPayment,
+        totalPayment: roundCurrency(totalPayment),
         plan
     }
 }

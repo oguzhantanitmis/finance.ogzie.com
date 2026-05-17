@@ -5,14 +5,16 @@ import { useActionState, useEffect, useMemo, useState, useTransition } from 'rea
 import { CreditCard, Landmark, Plus, Users } from 'lucide-react'
 import type { DebtType } from '@prisma/client'
 
-import { addDebt, deleteDebt, updateDebt } from '@/app/actions'
+import { addDebt, deleteDebt, setDebtInstallmentPaid, updateDebt } from '@/app/actions'
 import { createRPAction, deleteRPAction, updateRPAction } from '@/app/people/actions'
 import DebtTable from '@/components/DebtTable'
 import FormMessage from '@/components/ui/FormMessage'
 import Modal from '@/components/ui/Modal'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
+import { calculateLoanSchedule } from '@/lib/banking-engine'
 import type { DebtPersonOption, DebtView } from '@/lib/debt-views'
+import { formatCurrency } from '@/lib/utils'
 
 type CreateDebtType = 'LOAN' | 'PERSONAL' | 'MANUAL'
 
@@ -31,6 +33,66 @@ function toPercentInput(value: number | null | undefined, fallbackFraction: numb
     return +((normalized > 1 ? normalized : normalized * 100).toFixed(2))
 }
 
+function parseNumberInput(value: string | number | null | undefined) {
+    const parsed = Number(String(value ?? '').replace(',', '.'))
+    return Number.isFinite(parsed) ? parsed : 0
+}
+
+function normalizePercentFraction(value: string | number | null | undefined, fallbackFraction: number) {
+    const raw = String(value ?? '').trim()
+    if (!raw) return fallbackFraction
+    const parsed = parseNumberInput(raw)
+    if (parsed < 0) return fallbackFraction
+    return parsed > 1 ? parsed / 100 : parsed
+}
+
+function roundMoney(value: number) {
+    return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function addMonthsToDateInput(dateInput: string, monthOffset: number) {
+    if (!dateInput) return ''
+
+    const [year, month, day] = dateInput.split('-').map((part) => Number(part))
+    if (!year || !month || !day) return ''
+
+    const date = new Date(year, month - 1 + monthOffset, day)
+    const normalizedYear = date.getFullYear()
+    const normalizedMonth = String(date.getMonth() + 1).padStart(2, '0')
+    const normalizedDay = String(date.getDate()).padStart(2, '0')
+    return `${normalizedYear}-${normalizedMonth}-${normalizedDay}`
+}
+
+function formatDateInput(value?: string | null) {
+    return value ? value.slice(0, 10) : ''
+}
+
+function getPaidInstallmentCount(debt?: DebtView) {
+    if (!debt) return 0
+
+    const paidFromPlan = debt.paymentPlan?.filter((item) => item.isPaid).length ?? 0
+    if (paidFromPlan > 0) return paidFromPlan
+
+    if (debt.installments && typeof debt.remainingInstallments === 'number') {
+        return Math.max(0, debt.installments - debt.remainingInstallments)
+    }
+
+    return 0
+}
+
+function splitTaxAmount(taxAmount: number, kkdfRate: number, bsmvRate: number) {
+    const totalTaxRate = kkdfRate + bsmvRate
+    if (totalTaxRate <= 0) {
+        return { kkdf: 0, bsmv: 0 }
+    }
+
+    const kkdf = roundMoney(taxAmount * (kkdfRate / totalTaxRate))
+    return {
+        kkdf,
+        bsmv: roundMoney(taxAmount - kkdf),
+    }
+}
+
 export default function DebtsWorkspace({
     debts,
     people,
@@ -42,7 +104,9 @@ export default function DebtsWorkspace({
     const [createType, setCreateType] = useState<CreateDebtType>('LOAN')
     const [editingDebt, setEditingDebt] = useState<DebtView | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
+    const [pendingInstallmentId, setPendingInstallmentId] = useState<string | null>(null)
     const [, startDeleteTransition] = useTransition()
+    const [, startInstallmentTransition] = useTransition()
 
     const syncedCount = useMemo(
         () => debts.filter((debt) => debt.sourceKind === 'CREDIT_CARD' || debt.sourceKind === 'KMH_ACCOUNT').length,
@@ -61,6 +125,15 @@ export default function DebtsWorkspace({
                     ? await deleteRPAction(debt.entityId, debt.personId)
                     : await deleteDebt(debt.entityId)
 
+            setFeedback(result)
+        })
+    }
+
+    function handleToggleInstallment(paymentPlanId: string, paid: boolean) {
+        setPendingInstallmentId(paymentPlanId)
+        startInstallmentTransition(async () => {
+            const result = await setDebtInstallmentPaid(paymentPlanId, paid)
+            setPendingInstallmentId(null)
             setFeedback(result)
         })
     }
@@ -140,10 +213,20 @@ export default function DebtsWorkspace({
                 </p>
             ) : null}
 
-            <DebtTable debts={debts} onEdit={setEditingDebt} onDelete={handleDelete} />
+            <DebtTable
+                debts={debts}
+                onEdit={setEditingDebt}
+                onDelete={handleDelete}
+                onToggleInstallment={handleToggleInstallment}
+                pendingInstallmentId={pendingInstallmentId}
+            />
 
             {showAdd ? (
-                <Modal title="Yeni Borç Ekle" onClose={() => setShowAdd(false)}>
+                <Modal
+                    title="Yeni Borç Ekle"
+                    onClose={() => setShowAdd(false)}
+                    maxWidthClassName={createType === 'LOAN' ? 'max-w-5xl' : 'max-w-xl'}
+                >
                     <DebtCreateForm
                         people={people}
                         type={createType}
@@ -157,7 +240,11 @@ export default function DebtsWorkspace({
             ) : null}
 
             {editingDebt ? (
-                <Modal title="Borcu Düzenle" onClose={() => setEditingDebt(null)}>
+                <Modal
+                    title="Borcu Düzenle"
+                    onClose={() => setEditingDebt(null)}
+                    maxWidthClassName={editingDebt.type === 'LOAN' ? 'max-w-5xl' : 'max-w-xl'}
+                >
                     {isPersonalDebt(editingDebt) ? (
                         <PersonalDebtEditForm
                             debt={editingDebt}
@@ -446,37 +533,25 @@ function StoredDebtForm({
                 />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Field
-                    label={isLoan ? 'Faiz oranı (%)' : isKmh ? 'KMH faiz oranı (%)' : isCard ? 'Kart faiz oranı (%)' : 'Faiz oranı (%)'}
-                    name="interestRate"
-                    type="number"
-                    step="0.01"
-                    defaultValue={debt?.interestRate ?? 0}
-                />
-                {isCard || isKmh ? (
-                    <Field label={isCard ? 'Asgari ödeme oranı (%)' : 'Asgari/kapama oranı (%)'} name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.minPaymentRate, 0.2)} />
-                ) : (
-                    <Field label={isLoan ? 'Kalan borç' : 'Kalan bakiye'} name="remainingBalance" type="number" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
-                )}
-            </div>
+            {!isLoan ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Field
+                        label={isKmh ? 'KMH faiz oranı (%)' : isCard ? 'Kart faiz oranı (%)' : 'Faiz oranı (%)'}
+                        name="interestRate"
+                        type="number"
+                        step="0.01"
+                        defaultValue={debt?.interestRate ?? 0}
+                    />
+                    {isCard || isKmh ? (
+                        <Field label={isCard ? 'Asgari ödeme oranı (%)' : 'Asgari/kapama oranı (%)'} name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.minPaymentRate, 0.2)} />
+                    ) : (
+                        <Field label="Kalan bakiye" name="remainingBalance" type="number" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
+                    )}
+                </div>
+            ) : null}
 
             {isLoan ? (
-                <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Field label="Çekilen kredi" name="totalPrincipal" type="number" step="0.01" defaultValue={debt?.totalPrincipal ?? ''} required />
-                        <Field label="Geri ödenecek toplam" name="totalBalance" type="number" step="0.01" defaultValue={debt?.totalBalance ?? ''} required />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Field label="Kalan borç" name="remainingBalance" type="number" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
-                        <Field label="Kredi vadesi (ay)" name="installments" type="number" min="1" defaultValue={debt?.installments ?? ''} required />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Field label="Kalan vade" name="remainingInstallments" type="number" min="0" defaultValue={debt?.remainingInstallments ?? ''} />
-                        <Field label="İlk ödeme tarihi" name="dueDate" type="date" defaultValue={debt?.dueDate ? debt.dueDate.slice(0, 10) : ''} required />
-                    </div>
-                    <Field label="Aylık ödeme günü (opsiyonel)" name="paymentDueDay" type="number" min="1" max="31" defaultValue={debt?.paymentDueDay ?? ''} />
-                </>
+                <LoanFields debt={debt} />
             ) : isCard || isKmh ? (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -499,7 +574,7 @@ function StoredDebtForm({
                 </>
             )}
 
-            {(isLoan || isCard || isKmh) ? (
+            {(isCard || isKmh) ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field label="KKDF oranı (%)" name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.kkdfRate, 0.15)} />
                     <Field label="BSMV oranı (%)" name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.bsmvRate, 0.15)} />
@@ -515,6 +590,217 @@ function StoredDebtForm({
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label={mode === 'create' ? 'Borcu Kaydet' : 'Borcu Güncelle'} pendingLabel={mode === 'create' ? 'Kaydediliyor...' : 'Güncelleniyor...'} />
         </form>
+    )
+}
+
+function LoanFields({ debt }: { debt?: DebtView }) {
+    const initialPaidInstallments = getPaidInstallmentCount(debt)
+    const [totalPrincipal, setTotalPrincipal] = useState(debt?.totalPrincipal ? String(debt.totalPrincipal) : '')
+    const [interestRate, setInterestRate] = useState(String(debt?.interestRate ?? 4.49))
+    const [installments, setInstallments] = useState(String(debt?.installments ?? 12))
+    const [paidInstallments, setPaidInstallments] = useState(String(initialPaidInstallments))
+    const [firstDueDate, setFirstDueDate] = useState(formatDateInput(debt?.dueDate))
+    const [kkdfRate, setKkdfRate] = useState(String(toPercentInput(debt?.kkdfRate, 0.15)))
+    const [bsmvRate, setBsmvRate] = useState(String(toPercentInput(debt?.bsmvRate, 0.15)))
+
+    const principalValue = Math.max(0, parseNumberInput(totalPrincipal))
+    const interestValue = Math.max(0, parseNumberInput(interestRate))
+    const installmentCount = Math.max(0, Math.trunc(parseNumberInput(installments)))
+    const paidCount = Math.min(Math.max(0, Math.trunc(parseNumberInput(paidInstallments))), installmentCount)
+    const remainingInstallments = Math.max(0, installmentCount - paidCount)
+    const kkdfFraction = normalizePercentFraction(kkdfRate, 0.15)
+    const bsmvFraction = normalizePercentFraction(bsmvRate, 0.15)
+
+    const schedule = useMemo(() => {
+        if (principalValue <= 0 || installmentCount <= 0) return null
+        return calculateLoanSchedule(principalValue, interestValue, installmentCount, {
+            kkdfRate: kkdfFraction,
+            bsmvRate: bsmvFraction,
+        })
+    }, [bsmvFraction, installmentCount, interestValue, kkdfFraction, principalValue])
+
+    const rows = useMemo(() => {
+        if (!schedule) return []
+
+        return schedule.plan.map((item, index) => {
+            const amount = roundMoney(item.principal + item.interest + item.tax)
+            const taxes = splitTaxAmount(item.tax, kkdfFraction, bsmvFraction)
+
+            return {
+                ...item,
+                amount,
+                dueDate: addMonthsToDateInput(firstDueDate, index),
+                kkdf: taxes.kkdf,
+                bsmv: taxes.bsmv,
+                isPaid: item.installment <= paidCount,
+            }
+        })
+    }, [bsmvFraction, firstDueDate, kkdfFraction, paidCount, schedule])
+
+    const totalPayment = roundMoney(rows.reduce((total, item) => total + item.amount, 0))
+    const remainingPayment = roundMoney(rows.filter((item) => !item.isPaid).reduce((total, item) => total + item.amount, 0))
+    const totalInterest = roundMoney(rows.reduce((total, item) => total + item.interest, 0))
+    const totalTax = roundMoney(rows.reduce((total, item) => total + item.kkdf + item.bsmv, 0))
+    const remainingPrincipal = paidCount > 0
+        ? rows[paidCount - 1]?.remainingPrincipal ?? 0
+        : principalValue
+    const monthlyPayment = rows[0]?.amount ?? 0
+    const paymentDueDay = firstDueDate ? Number(firstDueDate.slice(-2)) : ''
+
+    return (
+        <div className="space-y-5">
+            <input type="hidden" name="totalBalance" value={totalPayment || ''} />
+            <input type="hidden" name="remainingBalance" value={remainingPayment || ''} />
+            <input type="hidden" name="remainingInstallments" value={remainingInstallments} />
+            <input type="hidden" name="paymentDueDay" value={paymentDueDay} />
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label className="form-label">Çekilen kredi</label>
+                    <input
+                        name="totalPrincipal"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={totalPrincipal}
+                        onChange={(event) => setTotalPrincipal(event.target.value)}
+                        className="form-input"
+                        required
+                    />
+                </div>
+                <div>
+                    <label className="form-label">Aylık faiz (%)</label>
+                    <input
+                        name="interestRate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={interestRate}
+                        onChange={(event) => setInterestRate(event.target.value)}
+                        className="form-input"
+                    />
+                </div>
+                <div>
+                    <label className="form-label">Vade (ay)</label>
+                    <input
+                        name="installments"
+                        type="number"
+                        min="1"
+                        max="600"
+                        value={installments}
+                        onChange={(event) => setInstallments(event.target.value)}
+                        className="form-input"
+                        required
+                    />
+                </div>
+                <div>
+                    <label className="form-label">İlk taksit tarihi</label>
+                    <input
+                        name="dueDate"
+                        type="date"
+                        value={firstDueDate}
+                        onChange={(event) => setFirstDueDate(event.target.value)}
+                        className="form-input"
+                        required
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label className="form-label">Ödenen taksit</label>
+                    <input
+                        type="number"
+                        min="0"
+                        max={installmentCount || 600}
+                        value={paidInstallments}
+                        onChange={(event) => setPaidInstallments(event.target.value)}
+                        className="form-input"
+                    />
+                </div>
+                <div>
+                    <label className="form-label">KKDF (%)</label>
+                    <input
+                        name="kkdfRate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={kkdfRate}
+                        onChange={(event) => setKkdfRate(event.target.value)}
+                        className="form-input"
+                    />
+                </div>
+                <div>
+                    <label className="form-label">BSMV (%)</label>
+                    <input
+                        name="bsmvRate"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={bsmvRate}
+                        onChange={(event) => setBsmvRate(event.target.value)}
+                        className="form-input"
+                    />
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <LoanMetric label="Aylık taksit" value={monthlyPayment} />
+                <LoanMetric label="Toplam ödeme" value={totalPayment} />
+                <LoanMetric label="Kalan ödeme" value={remainingPayment} />
+                <LoanMetric label="Kalan anapara" value={remainingPrincipal} />
+                <LoanMetric label="Faiz + vergi" value={totalInterest + totalTax} />
+            </div>
+
+            {rows.length > 0 ? (
+                <div className="data-table-wrapper max-h-80 overflow-y-auto">
+                    <table className="data-table">
+                        <thead>
+                            <tr>
+                                <th>Taksit</th>
+                                <th>Vade</th>
+                                <th>Tutar</th>
+                                <th>Faiz</th>
+                                <th>KKDF</th>
+                                <th>BSMV</th>
+                                <th>Kalan Anapara</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((item) => (
+                                <tr key={item.installment} className={item.isPaid ? 'opacity-50' : ''}>
+                                    <td className="font-medium">{item.installment}</td>
+                                    <td style={{ color: 'var(--text-secondary)' }}>{item.dueDate ? new Date(`${item.dueDate}T00:00:00`).toLocaleDateString('tr-TR') : '-'}</td>
+                                    <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(item.amount, 'TRY')}</td>
+                                    <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.interest, 'TRY')}</td>
+                                    <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.kkdf, 'TRY')}</td>
+                                    <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.bsmv, 'TRY')}</td>
+                                    <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(item.remainingPrincipal, 'TRY')}</td>
+                                    <td>
+                                        <span className={item.isPaid ? 'status-badge status-badge-success' : 'status-badge status-badge-neutral'}>
+                                            {item.isPaid ? 'Ödendi' : 'Bekliyor'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function LoanMetric({ label, value }: { label: string; value: number }) {
+    return (
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
+            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
+            <p className="font-mono text-sm font-semibold tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(value, 'TRY')}</p>
+        </div>
     )
 }
 

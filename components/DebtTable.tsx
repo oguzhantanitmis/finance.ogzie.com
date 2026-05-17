@@ -2,21 +2,63 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { AlertCircle, Banknote, Calendar, ChevronDown, ChevronUp, CreditCard, Landmark, Pencil, Trash2 } from 'lucide-react'
+import { AlertCircle, Banknote, Calendar, CheckCircle2, ChevronDown, ChevronUp, CreditCard, Landmark, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
 import { calculateAccumulatedInterest, calculateMinPayment } from '@/lib/banking-engine'
 import { formatCategoryLabel } from '@/lib/ui-text'
 import type { DebtView } from '@/lib/debt-views'
 import { cn, formatCurrency } from '@/lib/utils'
 
+function normalizeRate(value: number | null | undefined) {
+    const normalized = value ?? 0
+    return normalized > 1 ? normalized / 100 : normalized
+}
+
+function roundMoney(value: number) {
+    return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function splitTaxAmount(taxAmount: number, kkdfRate: number, bsmvRate: number) {
+    const totalTaxRate = kkdfRate + bsmvRate
+    if (totalTaxRate <= 0) return { kkdf: 0, bsmv: 0 }
+
+    const kkdf = roundMoney(taxAmount * (kkdfRate / totalTaxRate))
+    return {
+        kkdf,
+        bsmv: roundMoney(taxAmount - kkdf),
+    }
+}
+
+function buildLoanDisplayRows(debt: DebtView) {
+    const kkdfRate = normalizeRate(debt.kkdfRate)
+    const bsmvRate = normalizeRate(debt.bsmvRate)
+    let remainingPrincipal = debt.totalPrincipal ?? debt.paymentPlan?.reduce((total, item) => total + item.principalAmount, 0) ?? debt.remainingBalance
+
+    return (debt.paymentPlan ?? []).map((item) => {
+        const taxes = splitTaxAmount(item.taxAmount, kkdfRate, bsmvRate)
+        remainingPrincipal = roundMoney(Math.max(0, remainingPrincipal - item.principalAmount))
+
+        return {
+            ...item,
+            kkdf: taxes.kkdf,
+            bsmv: taxes.bsmv,
+            remainingPrincipal,
+        }
+    })
+}
+
 export default function DebtTable({
     debts,
     onEdit,
     onDelete,
+    onToggleInstallment,
+    pendingInstallmentId,
 }: {
     debts: DebtView[]
     onEdit: (debt: DebtView) => void
     onDelete: (debtId: string) => void
+    onToggleInstallment?: (paymentPlanId: string, paid: boolean) => void
+    pendingInstallmentId?: string | null
 }) {
     const [expandedDebtId, setExpandedDebtId] = useState<string | null>(null)
     const [search, setSearch] = useState('')
@@ -72,8 +114,21 @@ export default function DebtTable({
                 const isKMH = debt.type === 'KMH'
                 const utilization = debt.limit ? (debt.remainingBalance / debt.limit) * 100 : 0
                 const minPayment = isCard ? calculateMinPayment(debt.limit || 0, debt.remainingBalance) : 0
-                const monthlyInterest = calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 30)
-                const dailyInterest = isKMH ? calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 1) : null
+                const taxRates = { kkdfRate: normalizeRate(debt.kkdfRate), bsmvRate: normalizeRate(debt.bsmvRate) }
+                const monthlyInterest = calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 30, taxRates)
+                const dailyInterest = isKMH ? calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 1, taxRates) : null
+                const loanRows = isLoan ? buildLoanDisplayRows(debt) : []
+                const loanPaidCount = loanRows.filter((item) => item.isPaid).length
+                const loanRemainingRows = loanRows.filter((item) => !item.isPaid)
+                const loanMonthlyPayment = loanRows[0]?.amount ?? 0
+                const loanTotalInterest = roundMoney(loanRows.reduce((total, item) => total + item.interestAmount, 0))
+                const loanTotalTax = roundMoney(loanRows.reduce((total, item) => total + item.kkdf + item.bsmv, 0))
+                const loanRemainingPrincipal = loanPaidCount > 0
+                    ? loanRows[loanPaidCount - 1]?.remainingPrincipal ?? 0
+                    : debt.totalPrincipal ?? loanRows.reduce((total, item) => total + item.principalAmount, 0)
+                const nextLoanRow = loanRemainingRows[0] ?? null
+                const firstUnpaidInstallmentId = nextLoanRow?.id ?? null
+                const lastPaidInstallmentId = [...loanRows].reverse().find((item) => item.isPaid)?.id ?? null
 
                 return (
                     <div key={debt.id} className="fintech-card overflow-hidden transition-all duration-300">
@@ -183,29 +238,67 @@ export default function DebtTable({
 
                                     <div className="space-y-3">
                                         <h4 className="text-sm font-medium pb-2" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-default)' }}>Maliyet Analizi</h4>
-                                        {dailyInterest ? (
-                                            <div className="flex justify-between text-sm">
-                                                <span style={{ color: 'var(--text-secondary)' }}>Günlük Faiz</span>
-                                                <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(dailyInterest.interest + dailyInterest.tax, 'TRY')}</span>
-                                            </div>
-                                        ) : null}
-                                        <div className="flex justify-between text-sm">
-                                            <span style={{ color: 'var(--text-secondary)' }}>Aylık Faiz</span>
-                                            <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(monthlyInterest.interest, 'TRY')}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span style={{ color: 'var(--text-secondary)' }}>Vergi (KKDF+BSMV)</span>
-                                            <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(monthlyInterest.tax, 'TRY')}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                                            <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Toplam Aylık Yük</span>
-                                            <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(monthlyInterest.total, 'TRY')}</span>
-                                        </div>
+                                        {isLoan ? (
+                                            <>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Aylık Taksit</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(loanMonthlyPayment, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Toplam Faiz</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(loanTotalInterest, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Toplam Vergi</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(loanTotalTax, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Kalan Anapara</span>
+                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(loanRemainingPrincipal, 'TRY')}</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {dailyInterest ? (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span style={{ color: 'var(--text-secondary)' }}>Günlük Faiz</span>
+                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(dailyInterest.interest + dailyInterest.tax, 'TRY')}</span>
+                                                    </div>
+                                                ) : null}
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Aylık Faiz</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(monthlyInterest.interest, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Vergi (KKDF+BSMV)</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(monthlyInterest.tax, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Toplam Aylık Yük</span>
+                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(monthlyInterest.total, 'TRY')}</span>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
 
                                     <div className="space-y-3">
                                         <h4 className="text-sm font-medium pb-2" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-default)' }}>Ödeme Durumu</h4>
-                                        {isCard ? (
+                                        {isLoan ? (
+                                            <div className="p-3 rounded-lg space-y-2" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Ödenen / Kalan</span>
+                                                    <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{loanPaidCount} / {loanRemainingRows.length}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Sıradaki Taksit</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{nextLoanRow ? formatCurrency(nextLoanRow.amount, 'TRY') : '-'}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Sıradaki Vade</span>
+                                                    <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{nextLoanRow ? new Date(nextLoanRow.dueDate).toLocaleDateString('tr-TR') : '-'}</span>
+                                                </div>
+                                            </div>
+                                        ) : isCard ? (
                                             <div className="p-3 rounded-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
                                                 <div className="flex justify-between mb-1">
                                                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
@@ -223,7 +316,7 @@ export default function DebtTable({
                                     </div>
                                 </div>
 
-                                {isLoan && debt.paymentPlan && debt.paymentPlan.length > 0 ? (
+                                {isLoan && loanRows.length > 0 ? (
                                     <div className="mt-6">
                                         <h4 className="text-sm font-medium mb-3 flex items-center gap-2" style={{ color: 'var(--text-muted)' }}>
                                             <Calendar className="w-4 h-4" /> Ödeme Planı
@@ -235,21 +328,30 @@ export default function DebtTable({
                                                         <th>Taksit</th>
                                                         <th>Tarih</th>
                                                         <th>Tutar</th>
-                                                        <th>Anapara</th>
-                                                        <th>Faiz+Vergi</th>
+                                                        <th>Faiz</th>
+                                                        <th>KKDF</th>
+                                                        <th>BSMV</th>
+                                                        <th>Kalan Anapara</th>
                                                         <th>Durum</th>
+                                                        {onToggleInstallment ? <th>İşlem</th> : null}
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {debt.paymentPlan.map((item) => {
+                                                    {loanRows.map((item) => {
                                                         const isPast = new Date(item.dueDate) < new Date()
+                                                        const canMarkPaid = item.id === firstUnpaidInstallmentId
+                                                        const canUndoPayment = item.id === lastPaidInstallmentId
+                                                        const isPending = pendingInstallmentId === item.id
+                                                        const lockActions = Boolean(pendingInstallmentId)
                                                         return (
                                                             <tr key={item.id} className={cn(item.isPaid && 'opacity-50 grayscale')}>
                                                                 <td className="font-medium">{item.installmentNo}</td>
                                                                 <td style={{ color: 'var(--text-secondary)' }}>{new Date(item.dueDate).toLocaleDateString('tr-TR')}</td>
-                                                                <td className="font-mono tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(item.amount, 'TRY')}</td>
-                                                                <td className="font-mono tabular-nums" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.principalAmount, 'TRY')}</td>
-                                                                <td className="font-mono tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(item.interestAmount + item.taxAmount, 'TRY')}</td>
+                                                                <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(item.amount, 'TRY')}</td>
+                                                                <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.interestAmount, 'TRY')}</td>
+                                                                <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.kkdf, 'TRY')}</td>
+                                                                <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-secondary)' }}>{formatCurrency(item.bsmv, 'TRY')}</td>
+                                                                <td className="font-mono tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(item.remainingPrincipal, 'TRY')}</td>
                                                                 <td>
                                                                     {item.isPaid ? (
                                                                         <span className="status-badge status-badge-success">Ödendi</span>
@@ -259,6 +361,35 @@ export default function DebtTable({
                                                                         <span className="status-badge status-badge-neutral">Bekliyor</span>
                                                                     )}
                                                                 </td>
+                                                                {onToggleInstallment ? (
+                                                                    <td>
+                                                                        {item.isPaid ? (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => onToggleInstallment(item.id, false)}
+                                                                                disabled={!canUndoPayment || lockActions}
+                                                                                title="Ödemeyi geri al"
+                                                                                aria-label="Ödemeyi geri al"
+                                                                                className="p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                                                style={{ color: 'var(--text-muted)', border: '1px solid var(--border-subtle)' }}
+                                                                            >
+                                                                                <RotateCcw className={cn('w-4 h-4', isPending && 'animate-spin')} />
+                                                                            </button>
+                                                                        ) : (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => onToggleInstallment(item.id, true)}
+                                                                                disabled={!canMarkPaid || lockActions}
+                                                                                title="Ödendi olarak işaretle"
+                                                                                aria-label="Ödendi olarak işaretle"
+                                                                                className="p-2 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                                                                                style={{ color: 'var(--accent-success)', border: '1px solid var(--border-subtle)' }}
+                                                                            >
+                                                                                <CheckCircle2 className="w-4 h-4" />
+                                                                            </button>
+                                                                        )}
+                                                                    </td>
+                                                                ) : null}
                                                             </tr>
                                                         )
                                                     })}
