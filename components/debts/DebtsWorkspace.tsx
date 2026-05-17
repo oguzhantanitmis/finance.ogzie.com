@@ -709,7 +709,7 @@ function LoanFields({ debt }: { debt?: DebtView }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label className="form-label">Ödenen taksit</label>
+                    <label className="form-label">Ödenen taksit sayısı</label>
                     <input
                         type="number"
                         min="0"

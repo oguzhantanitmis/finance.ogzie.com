@@ -1,5 +1,6 @@
 import type { DebtType } from '@prisma/client'
 
+import { calculateKmhStatement } from '@/lib/banking-engine'
 import { calculateCurrentCardDebt } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 
@@ -29,6 +30,11 @@ export interface DebtView {
     totalPrincipal?: number | null
     installments?: number | null
     remainingInstallments?: number | null
+    kmhStatementDate?: string | null
+    kmhStatementInterest?: number | null
+    kmhMinimumPayment?: number | null
+    kmhNextCutOffDate?: string | null
+    kmhNextPaymentDate?: string | null
     dueDate?: string | null
     paymentPlan?: Array<{
         id: string
@@ -42,6 +48,10 @@ export interface DebtView {
     }>
     personId?: string
     accountId?: string
+}
+
+function roundMoney(value: number) {
+    return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
 export interface DebtPersonOption {
@@ -60,6 +70,38 @@ function toNextMonthlyDate(day: number | null | undefined) {
     }
 
     return new Date(now.getFullYear(), now.getMonth() + 1, Math.min(day, 28))
+}
+
+function normalizeLoanPaymentPlan<TDebt extends {
+    type: DebtType
+    dueDate: Date | null
+    paymentPlan: Array<{ installmentNo: number; dueDate: Date }>
+}>(debt: TDebt): TDebt['paymentPlan'] {
+    if (debt.type !== 'LOAN') return debt.paymentPlan
+    if (debt.paymentPlan.length <= 1) return debt.paymentPlan
+
+    const preferredStart = debt.dueDate?.getTime() ?? null
+    const byInstallment = new Map<number, typeof debt.paymentPlan[number]>()
+
+    debt.paymentPlan.forEach((plan) => {
+        const existing = byInstallment.get(plan.installmentNo)
+        if (!existing) {
+            byInstallment.set(plan.installmentNo, plan)
+            return
+        }
+
+        const score = (item: typeof plan) => {
+            const dateScore = item.dueDate.getTime()
+            const preferredScore = preferredStart && dateScore >= preferredStart ? 10_000_000_000_000 : 0
+            return preferredScore + dateScore
+        }
+
+        if (score(plan) > score(existing)) {
+            byInstallment.set(plan.installmentNo, plan)
+        }
+    })
+
+    return Array.from(byInstallment.values()).sort((left, right) => left.installmentNo - right.installmentNo)
 }
 
 export async function getDebtWorkspaceData(userId: string): Promise<{
@@ -138,34 +180,38 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
         }),
     ])
 
-    const manualDebtViews: DebtView[] = manualDebts.map((debt) => ({
-        id: debt.id,
-        entityId: debt.id,
-        sourceKind: 'DEBT',
-        sourceLabel: 'Borç kaydı',
-        canEdit: true,
-        canDelete: true,
-        name: debt.name,
-        subtitle: null,
-        type: debt.type,
-        limit: debt.limit,
-        cutOffDay: debt.cutOffDay,
-        paymentDueDay: debt.paymentDueDay,
-        totalBalance: debt.totalBalance,
-        remainingBalance: debt.remainingBalance,
-        interestRate: debt.interestRate,
-        minPaymentRate: debt.minPaymentRate,
-        kkdfRate: debt.kkdfRate,
-        bsmvRate: debt.bsmvRate,
-        totalPrincipal: debt.totalPrincipal,
-        installments: debt.installments,
-        remainingInstallments: debt.remainingInstallments,
-        dueDate: debt.dueDate?.toISOString() ?? null,
-        paymentPlan: debt.paymentPlan.map((plan) => ({
-            ...plan,
-            dueDate: plan.dueDate.toISOString(),
-        })),
-    }))
+    const manualDebtViews: DebtView[] = manualDebts.map((debt) => {
+        const paymentPlan = normalizeLoanPaymentPlan(debt)
+
+        return {
+            id: debt.id,
+            entityId: debt.id,
+            sourceKind: 'DEBT',
+            sourceLabel: 'Borç kaydı',
+            canEdit: true,
+            canDelete: true,
+            name: debt.name,
+            subtitle: null,
+            type: debt.type,
+            limit: debt.limit,
+            cutOffDay: debt.cutOffDay,
+            paymentDueDay: debt.paymentDueDay,
+            totalBalance: debt.totalBalance,
+            remainingBalance: debt.remainingBalance,
+            interestRate: debt.interestRate,
+            minPaymentRate: debt.minPaymentRate,
+            kkdfRate: debt.kkdfRate,
+            bsmvRate: debt.bsmvRate,
+            totalPrincipal: debt.totalPrincipal,
+            installments: debt.installments,
+            remainingInstallments: debt.remainingInstallments,
+            dueDate: debt.dueDate?.toISOString() ?? null,
+            paymentPlan: paymentPlan.map((plan) => ({
+                ...plan,
+                dueDate: plan.dueDate.toISOString(),
+            })),
+        }
+    })
 
     const creditCardDebtViews: DebtView[] = creditCards.flatMap((card) => {
             const currentDebt = calculateCurrentCardDebt(card)
@@ -248,11 +294,28 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
     }))
 
     const kmhDebtViews: DebtView[] = kmhAccounts.flatMap((account) => {
-            const usedAmount = Math.max(account.balance * -1, 0)
+            const usedAmount = roundMoney(Math.max(account.balance * -1, 0))
+            const principal = roundMoney(account.kmhStatementPrincipal ?? usedAmount)
 
-            if (usedAmount <= 0) {
+            if (principal <= 0) {
                 return []
             }
+
+            const hasStatement = Boolean(
+                account.kmhStatementPrincipal ||
+                account.kmhStatementInterest ||
+                account.kmhMinimumPayment ||
+                account.kmhStatementDate,
+            )
+            const statement = calculateKmhStatement(
+                principal,
+                account.kmhInterestRate ?? 4.25,
+                30,
+                { kkdfRate: 0.15, bsmvRate: 0.15 },
+                hasStatement ? account.kmhStatementInterest : null,
+            )
+            const periodDebt = hasStatement ? statement.periodDebt : usedAmount
+            const dueDate = account.kmhNextPaymentDate ?? toNextMonthlyDate(account.kmhPaymentDueDay)
 
             return [{
                 id: `kmh-${account.id}`,
@@ -269,13 +332,19 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
                 limit: account.kmhLimit,
                 cutOffDay: account.kmhCutOffDay,
                 paymentDueDay: account.kmhPaymentDueDay,
-                totalBalance: usedAmount,
-                remainingBalance: usedAmount,
+                totalBalance: periodDebt,
+                remainingBalance: periodDebt,
                 interestRate: account.kmhInterestRate ?? 4.25,
-                minPaymentRate: 1,
+                minPaymentRate: 0.05,
                 kkdfRate: 0.15,
                 bsmvRate: 0.15,
-                dueDate: toNextMonthlyDate(account.kmhPaymentDueDay)?.toISOString() ?? null,
+                totalPrincipal: principal,
+                kmhStatementDate: account.kmhStatementDate?.toISOString() ?? null,
+                kmhStatementInterest: hasStatement ? statement.interestWithTax : null,
+                kmhMinimumPayment: account.kmhMinimumPayment ?? (hasStatement ? statement.minimumPayment : null),
+                kmhNextCutOffDate: account.kmhNextCutOffDate?.toISOString() ?? null,
+                kmhNextPaymentDate: account.kmhNextPaymentDate?.toISOString() ?? null,
+                dueDate: dueDate?.toISOString() ?? null,
                 paymentPlan: [],
                 accountId: account.id,
             } satisfies DebtView]

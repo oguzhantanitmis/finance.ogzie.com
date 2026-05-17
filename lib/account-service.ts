@@ -74,6 +74,12 @@ export async function createAccount(
         kmhInterestRate?: number | null
         kmhCutOffDay?: number | null
         kmhPaymentDueDay?: number | null
+        kmhStatementDate?: Date | null
+        kmhStatementPrincipal?: number | null
+        kmhStatementInterest?: number | null
+        kmhMinimumPayment?: number | null
+        kmhNextCutOffDate?: Date | null
+        kmhNextPaymentDate?: Date | null
         isDefault?: boolean
         notes?: string
     }
@@ -84,6 +90,9 @@ export async function createAccount(
         assertOptionalRange(data.kmhInterestRate, 'KMH faiz orani', 0, 100)
         assertOptionalDay(data.kmhCutOffDay, 'KMH hesap kesim gunu')
         assertOptionalDay(data.kmhPaymentDueDay, 'KMH son odeme gunu')
+        assertOptionalRange(data.kmhStatementPrincipal, 'KMH anapara borcu', 0)
+        assertOptionalRange(data.kmhStatementInterest, 'KMH donem faizi', 0)
+        assertOptionalRange(data.kmhMinimumPayment, 'KMH asgari odeme', 0)
     }
 
     // Eğer isDefault true ise, diğer hesapların isDefault'unu kaldır
@@ -108,6 +117,12 @@ export async function createAccount(
             kmhInterestRate: data.hasKmh ? (data.kmhInterestRate ?? null) : null,
             kmhCutOffDay: data.hasKmh ? (data.kmhCutOffDay ?? null) : null,
             kmhPaymentDueDay: data.hasKmh ? (data.kmhPaymentDueDay ?? null) : null,
+            kmhStatementDate: data.hasKmh ? (data.kmhStatementDate ?? null) : null,
+            kmhStatementPrincipal: data.hasKmh ? (data.kmhStatementPrincipal ?? null) : null,
+            kmhStatementInterest: data.hasKmh ? (data.kmhStatementInterest ?? null) : null,
+            kmhMinimumPayment: data.hasKmh ? (data.kmhMinimumPayment ?? null) : null,
+            kmhNextCutOffDate: data.hasKmh ? (data.kmhNextCutOffDate ?? null) : null,
+            kmhNextPaymentDate: data.hasKmh ? (data.kmhNextPaymentDate ?? null) : null,
             isDefault: data.isDefault ?? false,
             notes: data.notes ?? null,
         },
@@ -127,6 +142,12 @@ export async function updateAccount(
         kmhInterestRate?: number | null
         kmhCutOffDay?: number | null
         kmhPaymentDueDay?: number | null
+        kmhStatementDate?: Date | null
+        kmhStatementPrincipal?: number | null
+        kmhStatementInterest?: number | null
+        kmhMinimumPayment?: number | null
+        kmhNextCutOffDate?: Date | null
+        kmhNextPaymentDate?: Date | null
         isDefault?: boolean
         notes?: string | null
     }
@@ -136,6 +157,9 @@ export async function updateAccount(
         assertOptionalRange(data.kmhInterestRate, 'KMH faiz orani', 0, 100)
         assertOptionalDay(data.kmhCutOffDay, 'KMH hesap kesim gunu')
         assertOptionalDay(data.kmhPaymentDueDay, 'KMH son odeme gunu')
+        assertOptionalRange(data.kmhStatementPrincipal, 'KMH anapara borcu', 0)
+        assertOptionalRange(data.kmhStatementInterest, 'KMH donem faizi', 0)
+        assertOptionalRange(data.kmhMinimumPayment, 'KMH asgari odeme', 0)
     }
 
     await prisma.account.findFirstOrThrow({
@@ -158,6 +182,12 @@ export async function updateAccount(
             kmhInterestRate: data.hasKmh ? (data.kmhInterestRate ?? null) : null,
             kmhCutOffDay: data.hasKmh ? (data.kmhCutOffDay ?? null) : null,
             kmhPaymentDueDay: data.hasKmh ? (data.kmhPaymentDueDay ?? null) : null,
+            kmhStatementDate: data.hasKmh ? (data.kmhStatementDate ?? null) : null,
+            kmhStatementPrincipal: data.hasKmh ? (data.kmhStatementPrincipal ?? null) : null,
+            kmhStatementInterest: data.hasKmh ? (data.kmhStatementInterest ?? null) : null,
+            kmhMinimumPayment: data.hasKmh ? (data.kmhMinimumPayment ?? null) : null,
+            kmhNextCutOffDate: data.hasKmh ? (data.kmhNextCutOffDate ?? null) : null,
+            kmhNextPaymentDate: data.hasKmh ? (data.kmhNextPaymentDate ?? null) : null,
         },
     })
 }

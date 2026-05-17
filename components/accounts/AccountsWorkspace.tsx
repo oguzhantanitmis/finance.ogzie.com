@@ -347,45 +347,84 @@ function AccountForm({
                     {showKmhFields ? (
                         <>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input
+                                <AccountField
+                                    label="KMH limiti"
                                     name="kmhLimit"
                                     type="number"
                                     step="0.01"
                                     defaultValue={account?.kmhLimit ?? ''}
-                                    placeholder="KMH limiti"
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
-                                <input
+                                <AccountField
+                                    label="Aylık akdi faiz (%)"
                                     name="kmhInterestRate"
                                     type="number"
                                     step="0.01"
                                     defaultValue={account?.kmhInterestRate ?? 4.25}
-                                    placeholder="KMH faiz oranı (%)"
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <input
+                                <AccountField
+                                    label="Hesap kesim günü"
                                     name="kmhCutOffDay"
                                     type="number"
                                     min="1"
                                     max="31"
                                     defaultValue={account?.kmhCutOffDay ?? ''}
-                                    placeholder="Hesap kesim günü"
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
-                                <input
+                                <AccountField
+                                    label="Son ödeme günü"
                                     name="kmhPaymentDueDay"
                                     type="number"
                                     min="1"
                                     max="31"
                                     defaultValue={account?.kmhPaymentDueDay ?? ''}
-                                    placeholder="Son ödeme günü"
-                                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
                                 />
                             </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <AccountField
+                                    label="Hesap kesim tarihi"
+                                    name="kmhStatementDate"
+                                    type="date"
+                                    defaultValue={formatAccountDateInput(account?.kmhStatementDate)}
+                                />
+                                <AccountField
+                                    label="Son ödeme tarihi"
+                                    name="kmhNextPaymentDate"
+                                    type="date"
+                                    defaultValue={formatAccountDateInput(account?.kmhNextPaymentDate)}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <AccountField
+                                    label="Anapara borcu"
+                                    name="kmhStatementPrincipal"
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={account?.kmhStatementPrincipal ?? ''}
+                                />
+                                <AccountField
+                                    label="Dönem faizi + vergi"
+                                    name="kmhStatementInterest"
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={account?.kmhStatementInterest ?? ''}
+                                />
+                                <AccountField
+                                    label="Asgari ödeme"
+                                    name="kmhMinimumPayment"
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={account?.kmhMinimumPayment ?? ''}
+                                />
+                            </div>
+                            <AccountField
+                                label="Sonraki hesap kesim tarihi"
+                                name="kmhNextCutOffDate"
+                                type="date"
+                                defaultValue={formatAccountDateInput(account?.kmhNextCutOffDate)}
+                            />
                             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                KMH borcu hesaba eksi bakiyeye düştüğünde borç ekranına otomatik yansır. Garanti BBVA Avans Hesap örneğine göre yalnızca kullanılan tutar için faiz işletilir.
+                                Dönem borcu, anapara borcu ile dönem faizi + vergi toplamından oluşur.
                             </p>
                         </>
                     ) : null}
@@ -410,5 +449,45 @@ function AccountForm({
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label={mode === 'add' ? 'Hesabi Kaydet' : 'Guncelle'} pendingLabel={mode === 'add' ? 'Kaydediliyor...' : 'Guncelleniyor...'} />
         </form>
+    )
+}
+
+function formatAccountDateInput(value?: Date | string | null) {
+    if (!value) return ''
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    return date.toISOString().slice(0, 10)
+}
+
+function AccountField({
+    label,
+    name,
+    type,
+    defaultValue,
+    step,
+    min,
+    max,
+}: {
+    label: string
+    name: string
+    type: 'number' | 'date'
+    defaultValue?: string | number | null
+    step?: string
+    min?: string | number
+    max?: string | number
+}) {
+    return (
+        <label className="block">
+            <span className="form-label">{label}</span>
+            <input
+                name={name}
+                type={type}
+                step={step}
+                min={min}
+                max={max}
+                defaultValue={defaultValue ?? ''}
+                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+            />
+        </label>
     )
 }

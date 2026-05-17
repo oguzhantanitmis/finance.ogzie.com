@@ -32,9 +32,10 @@ function splitTaxAmount(taxAmount: number, kkdfRate: number, bsmvRate: number) {
 function buildLoanDisplayRows(debt: DebtView) {
     const kkdfRate = normalizeRate(debt.kkdfRate)
     const bsmvRate = normalizeRate(debt.bsmvRate)
-    let remainingPrincipal = debt.totalPrincipal ?? debt.paymentPlan?.reduce((total, item) => total + item.principalAmount, 0) ?? debt.remainingBalance
+    const paymentPlan = getCanonicalPaymentPlan(debt)
+    let remainingPrincipal = debt.totalPrincipal ?? paymentPlan.reduce((total, item) => total + item.principalAmount, 0) ?? debt.remainingBalance
 
-    return (debt.paymentPlan ?? []).map((item) => {
+    return paymentPlan.map((item) => {
         const taxes = splitTaxAmount(item.taxAmount, kkdfRate, bsmvRate)
         remainingPrincipal = roundMoney(Math.max(0, remainingPrincipal - item.principalAmount))
 
@@ -45,6 +46,34 @@ function buildLoanDisplayRows(debt: DebtView) {
             remainingPrincipal,
         }
     })
+}
+
+function getCanonicalPaymentPlan(debt: DebtView) {
+    const rows = debt.paymentPlan ?? []
+    if (debt.type !== 'LOAN' || rows.length <= 1) return rows
+
+    const preferredStart = debt.dueDate ? new Date(debt.dueDate).getTime() : null
+    const byInstallment = new Map<number, typeof rows[number]>()
+
+    rows.forEach((row) => {
+        const existing = byInstallment.get(row.installmentNo)
+        if (!existing) {
+            byInstallment.set(row.installmentNo, row)
+            return
+        }
+
+        const score = (item: typeof row) => {
+            const dateScore = new Date(item.dueDate).getTime()
+            const preferredScore = preferredStart && dateScore >= preferredStart ? 10_000_000_000_000 : 0
+            return preferredScore + dateScore
+        }
+
+        if (score(row) > score(existing)) {
+            byInstallment.set(row.installmentNo, row)
+        }
+    })
+
+    return Array.from(byInstallment.values()).sort((left, right) => left.installmentNo - right.installmentNo)
 }
 
 export default function DebtTable({
@@ -71,7 +100,10 @@ export default function DebtTable({
         if (filter === 'KMH') return debt.type === 'KMH'
         if (filter === 'INSTALLMENT') return Boolean(debt.paymentPlan?.length)
         if (filter === 'OVERDUE') return Boolean(debt.dueDate && new Date(debt.dueDate) < new Date())
-        if (filter === 'RISKY') return debt.interestRate >= 4 || (debt.limit ? (debt.remainingBalance / debt.limit) >= 0.8 : false)
+        if (filter === 'RISKY') {
+            const utilizationBalance = debt.type === 'KMH' ? (debt.totalPrincipal ?? debt.remainingBalance) : debt.remainingBalance
+            return debt.interestRate >= 4 || (debt.limit ? (utilizationBalance / debt.limit) >= 0.8 : false)
+        }
         if (filter === 'CLOSED') return debt.remainingBalance <= 0
         return debt.remainingBalance > 0
     })
@@ -112,21 +144,28 @@ export default function DebtTable({
                 const isCard = debt.type === 'CREDIT_CARD'
                 const isLoan = debt.type === 'LOAN'
                 const isKMH = debt.type === 'KMH'
-                const utilization = debt.limit ? (debt.remainingBalance / debt.limit) * 100 : 0
                 const minPayment = isCard ? calculateMinPayment(debt.limit || 0, debt.remainingBalance) : 0
                 const taxRates = { kkdfRate: normalizeRate(debt.kkdfRate), bsmvRate: normalizeRate(debt.bsmvRate) }
-                const monthlyInterest = calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 30, taxRates)
-                const dailyInterest = isKMH ? calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 1, taxRates) : null
+                const interestBase = isKMH ? (debt.totalPrincipal ?? debt.remainingBalance) : debt.remainingBalance
+                const monthlyInterest = calculateAccumulatedInterest(interestBase, debt.interestRate, 30, taxRates)
+                const dailyInterest = isKMH ? calculateAccumulatedInterest(interestBase, debt.interestRate, 1, taxRates) : null
+                const kmhPrincipal = isKMH ? (debt.totalPrincipal ?? Math.max(0, debt.remainingBalance - (debt.kmhStatementInterest ?? 0))) : 0
+                const utilization = debt.limit ? ((isKMH ? kmhPrincipal : debt.remainingBalance) / debt.limit) * 100 : 0
+                const kmhInterestWithTax = isKMH ? (debt.kmhStatementInterest ?? monthlyInterest.total) : 0
+                const kmhMinimumPayment = isKMH
+                    ? (debt.kmhMinimumPayment ?? roundMoney((kmhPrincipal * debt.minPaymentRate) + kmhInterestWithTax))
+                    : 0
+                const kmhPeriodDebt = isKMH ? roundMoney(kmhPrincipal + kmhInterestWithTax) : 0
                 const loanRows = isLoan ? buildLoanDisplayRows(debt) : []
                 const loanPaidCount = loanRows.filter((item) => item.isPaid).length
                 const loanRemainingRows = loanRows.filter((item) => !item.isPaid)
-                const loanMonthlyPayment = loanRows[0]?.amount ?? 0
+                const nextLoanRow = loanRemainingRows[0] ?? null
+                const loanMonthlyPayment = nextLoanRow?.amount ?? loanRows[0]?.amount ?? 0
                 const loanTotalInterest = roundMoney(loanRows.reduce((total, item) => total + item.interestAmount, 0))
                 const loanTotalTax = roundMoney(loanRows.reduce((total, item) => total + item.kkdf + item.bsmv, 0))
                 const loanRemainingPrincipal = loanPaidCount > 0
                     ? loanRows[loanPaidCount - 1]?.remainingPrincipal ?? 0
                     : debt.totalPrincipal ?? loanRows.reduce((total, item) => total + item.principalAmount, 0)
-                const nextLoanRow = loanRemainingRows[0] ?? null
                 const firstUnpaidInstallmentId = nextLoanRow?.id ?? null
                 const lastPaidInstallmentId = [...loanRows].reverse().find((item) => item.isPaid)?.id ?? null
 
@@ -228,10 +267,28 @@ export default function DebtTable({
                                                 <span className="font-mono" style={{ color: 'var(--text-primary)' }}>Her ayın {debt.paymentDueDay}. günü</span>
                                             </div>
                                         ) : null}
+                                        {isKMH && debt.kmhStatementDate ? (
+                                            <div className="flex justify-between text-sm">
+                                                <span style={{ color: 'var(--text-secondary)' }}>Dönem Kesimi</span>
+                                                <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{new Date(debt.kmhStatementDate).toLocaleDateString('tr-TR')}</span>
+                                            </div>
+                                        ) : null}
+                                        {isKMH && debt.totalPrincipal ? (
+                                            <div className="flex justify-between text-sm">
+                                                <span style={{ color: 'var(--text-secondary)' }}>Anapara Borcu</span>
+                                                <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(debt.totalPrincipal, 'TRY')}</span>
+                                            </div>
+                                        ) : null}
                                         {debt.dueDate ? (
                                             <div className="flex justify-between text-sm">
-                                                <span style={{ color: 'var(--text-secondary)' }}>Vade</span>
+                                                <span style={{ color: 'var(--text-secondary)' }}>{isKMH ? 'Son Ödeme' : 'Vade'}</span>
                                                 <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{new Date(debt.dueDate).toLocaleDateString('tr-TR')}</span>
+                                            </div>
+                                        ) : null}
+                                        {isKMH && debt.kmhNextCutOffDate ? (
+                                            <div className="flex justify-between text-sm">
+                                                <span style={{ color: 'var(--text-secondary)' }}>Sonraki Kesim</span>
+                                                <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{new Date(debt.kmhNextCutOffDate).toLocaleDateString('tr-TR')}</span>
                                             </div>
                                         ) : null}
                                     </div>
@@ -255,6 +312,25 @@ export default function DebtTable({
                                                 <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                                                     <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Kalan Anapara</span>
                                                     <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(loanRemainingPrincipal, 'TRY')}</span>
+                                                </div>
+                                            </>
+                                        ) : isKMH ? (
+                                            <>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Günlük Tahmini Yük</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{dailyInterest ? formatCurrency(dailyInterest.total, 'TRY') : '-'}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Dönem Faizi + Vergi</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhInterestWithTax, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Dönem Borcu</span>
+                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(kmhPeriodDebt, 'TRY')}</span>
                                                 </div>
                                             </>
                                         ) : (
@@ -290,12 +366,31 @@ export default function DebtTable({
                                                     <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{loanPaidCount} / {loanRemainingRows.length}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Toplam Vade</span>
+                                                    <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{loanRows.length}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Sıradaki Taksit</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{nextLoanRow ? formatCurrency(nextLoanRow.amount, 'TRY') : '-'}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Sıradaki Vade</span>
                                                     <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{nextLoanRow ? new Date(nextLoanRow.dueDate).toLocaleDateString('tr-TR') : '-'}</span>
+                                                </div>
+                                            </div>
+                                        ) : isKMH ? (
+                                            <div className="p-3 rounded-lg space-y-2" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Dönem Borcu</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhPeriodDebt, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Son Ödeme</span>
+                                                    <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{debt.dueDate ? new Date(debt.dueDate).toLocaleDateString('tr-TR') : '-'}</span>
                                                 </div>
                                             </div>
                                         ) : isCard ? (

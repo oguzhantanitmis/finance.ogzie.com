@@ -28,6 +28,9 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
     const Icon = meta.icon
     const isNegative = account.balance < 0
     const kmhUsage = account.hasKmh ? Math.max(account.balance * -1, 0) : 0
+    const kmhPrincipal = account.kmhStatementPrincipal ?? kmhUsage
+    const kmhInterest = account.kmhStatementInterest ?? 0
+    const kmhPeriodDebt = kmhPrincipal + kmhInterest
 
     return (
         <div className={cn(
@@ -124,9 +127,21 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
-                            <p className="text-zinc-500 mb-1">Kullanılan Tutar</p>
+                            <p className="text-zinc-500 mb-1">Anapara Borcu</p>
                             <p className={cn('font-semibold privacy-blur', kmhUsage > 0 ? 'text-red-300' : 'text-white')}>
-                                {formatCurrency(kmhUsage, account.currency)}
+                                {formatCurrency(kmhPrincipal, account.currency)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-zinc-500 mb-1">Dönem Borcu</p>
+                            <p className={cn('font-semibold privacy-blur', kmhPeriodDebt > 0 ? 'text-red-300' : 'text-white')}>
+                                {formatCurrency(kmhPeriodDebt, account.currency)}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-zinc-500 mb-1">Asgari Ödeme</p>
+                            <p className="font-semibold privacy-blur text-white">
+                                {account.kmhMinimumPayment != null ? formatCurrency(account.kmhMinimumPayment, account.currency) : '-'}
                             </p>
                         </div>
                         <div>

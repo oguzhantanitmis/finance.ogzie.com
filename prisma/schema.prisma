@@ -825,6 +825,12 @@ model Account {
   kmhInterestRate  Float?
   kmhCutOffDay     Int?
   kmhPaymentDueDay Int?
+  kmhStatementDate      DateTime?
+  kmhStatementPrincipal Float?
+  kmhStatementInterest  Float?
+  kmhMinimumPayment     Float?
+  kmhNextCutOffDate     DateTime?
+  kmhNextPaymentDate    DateTime?
   isDefault        Boolean     @default(false)
   isActive         Boolean     @default(true)
   notes            String?     @db.Text

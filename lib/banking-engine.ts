@@ -40,6 +40,29 @@ export function calculateAccumulatedInterest(principal: number, monthlyRate: num
     }
 }
 
+export function calculateKmhStatement(
+    principal: number,
+    monthlyRate: number,
+    days: number,
+    taxRates?: TaxRateInput,
+    statementInterestTotal?: number | null,
+    minPrincipalRate = 0.05,
+) {
+    const estimated = calculateAccumulatedInterest(principal, monthlyRate, days, taxRates)
+    const interestWithTax = roundCurrency(statementInterestTotal ?? estimated.total)
+    const minimumPrincipal = roundCurrency(principal * minPrincipalRate)
+
+    return {
+        principal: roundCurrency(principal),
+        estimatedInterest: estimated.interest,
+        estimatedTax: estimated.tax,
+        interestWithTax,
+        periodDebt: roundCurrency(principal + interestWithTax),
+        minimumPrincipal,
+        minimumPayment: roundCurrency(minimumPrincipal + interestWithTax),
+    }
+}
+
 // Kredi Kartı Asgari Ödeme Hesaplama
 export function calculateMinPayment(limit: number, totalDebt: number): number {
     const rate = limit > 50000 ? 0.40 : 0.20

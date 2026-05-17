@@ -11,6 +11,7 @@ import {
     transferBetweenAccounts,
 } from '@/lib/account-service'
 import {
+    ActionError,
     type ActionResult,
     createSuccessResult,
     getActionErrorResult,
@@ -35,6 +36,12 @@ type AccountField =
     | 'kmhInterestRate'
     | 'kmhCutOffDay'
     | 'kmhPaymentDueDay'
+    | 'kmhStatementDate'
+    | 'kmhStatementPrincipal'
+    | 'kmhStatementInterest'
+    | 'kmhMinimumPayment'
+    | 'kmhNextCutOffDate'
+    | 'kmhNextPaymentDate'
     | 'notes'
     | 'newBalance'
     | 'fromAccountId'
@@ -42,7 +49,7 @@ type AccountField =
     | 'amount'
 
 function revalidateAccountPaths() {
-    ;['/', '/accounts', '/budget', '/analytics'].forEach((p) => revalidatePath(p))
+    ;['/', '/accounts', '/debts', '/budget', '/analytics'].forEach((p) => revalidatePath(p))
 }
 
 function parseAccountType(value: FormDataEntryValue | null): AccountType {
@@ -55,6 +62,18 @@ function parseAccountType(value: FormDataEntryValue | null): AccountType {
 const DAY_OPTIONS = { min: 1, max: 31, integer: true } as const
 const NON_NEGATIVE_OPTIONS = { min: 0 } as const
 const RATE_PERCENT_OPTIONS = { min: 0, max: 100 } as const
+
+function toOptionalDate(value: FormDataEntryValue | null, field: AccountField, label: string) {
+    const raw = String(value ?? '').trim()
+    if (!raw) return null
+
+    const date = new Date(`${raw}T00:00:00`)
+    if (Number.isNaN(date.getTime())) {
+        throw new ActionError(`${label} gecersiz.`, { [field]: `${label} gecersiz.` })
+    }
+
+    return date
+}
 
 export async function createAccountAction(formData: FormData) {
     return createAccountActionState(formData)
@@ -81,6 +100,12 @@ export async function createAccountActionState(
             kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate'), 'kmhInterestRate', 'KMH faiz orani', RATE_PERCENT_OPTIONS) ?? null,
             kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay'), 'kmhCutOffDay', 'KMH hesap kesim gunu', DAY_OPTIONS) ?? null,
             kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay'), 'kmhPaymentDueDay', 'KMH son odeme gunu', DAY_OPTIONS) ?? null,
+            kmhStatementDate: toOptionalDate(data.get('kmhStatementDate'), 'kmhStatementDate', 'KMH hesap kesim tarihi'),
+            kmhStatementPrincipal: toOptionalNumber(data.get('kmhStatementPrincipal'), 'kmhStatementPrincipal', 'KMH anapara borcu', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhStatementInterest: toOptionalNumber(data.get('kmhStatementInterest'), 'kmhStatementInterest', 'KMH donem faizi', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhMinimumPayment: toOptionalNumber(data.get('kmhMinimumPayment'), 'kmhMinimumPayment', 'KMH asgari odeme', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhNextCutOffDate: toOptionalDate(data.get('kmhNextCutOffDate'), 'kmhNextCutOffDate', 'Sonraki hesap kesim tarihi'),
+            kmhNextPaymentDate: toOptionalDate(data.get('kmhNextPaymentDate'), 'kmhNextPaymentDate', 'KMH son odeme tarihi'),
             isDefault: data.get('isDefault') === 'on',
             notes: toOptionalString(data.get('notes')),
         })
@@ -112,6 +137,12 @@ export async function updateAccountAction(
             kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate'), 'kmhInterestRate', 'KMH faiz orani', RATE_PERCENT_OPTIONS) ?? null,
             kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay'), 'kmhCutOffDay', 'KMH hesap kesim gunu', DAY_OPTIONS) ?? null,
             kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay'), 'kmhPaymentDueDay', 'KMH son odeme gunu', DAY_OPTIONS) ?? null,
+            kmhStatementDate: toOptionalDate(data.get('kmhStatementDate'), 'kmhStatementDate', 'KMH hesap kesim tarihi'),
+            kmhStatementPrincipal: toOptionalNumber(data.get('kmhStatementPrincipal'), 'kmhStatementPrincipal', 'KMH anapara borcu', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhStatementInterest: toOptionalNumber(data.get('kmhStatementInterest'), 'kmhStatementInterest', 'KMH donem faizi', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhMinimumPayment: toOptionalNumber(data.get('kmhMinimumPayment'), 'kmhMinimumPayment', 'KMH asgari odeme', NON_NEGATIVE_OPTIONS) ?? null,
+            kmhNextCutOffDate: toOptionalDate(data.get('kmhNextCutOffDate'), 'kmhNextCutOffDate', 'Sonraki hesap kesim tarihi'),
+            kmhNextPaymentDate: toOptionalDate(data.get('kmhNextPaymentDate'), 'kmhNextPaymentDate', 'KMH son odeme tarihi'),
             isDefault: data.get('isDefault') === 'on',
             notes: toOptionalString(data.get('notes')) ?? null,
         })
