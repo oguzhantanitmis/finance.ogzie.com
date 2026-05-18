@@ -5,8 +5,10 @@ import {
     BillingCycle,
     BudgetAlertState,
     DebtType,
+    InterestType,
     RecordStatus,
     StatementStatus,
+    TransactionType,
 } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -23,7 +25,7 @@ import {
     toRequiredNumber,
     toRequiredString,
 } from '@/lib/action-result'
-import { calculateKmhLateCost, calculateKmhStatement, calculateLoanSchedule } from '@/lib/banking-engine'
+import { calculateAccumulatedInterest, calculateKmhLateCost, calculateKmhStatement, calculateLoanSchedule } from '@/lib/banking-engine'
 import type { DebtPaymentObligationType } from '@/lib/debt-views'
 import { type SubscriptionEnrichment } from '@/lib/finance-os-types'
 import { getMonthlyBudgetSummary, normalizeMonthlyAmount } from '@/lib/monthly-planner'
@@ -536,19 +538,57 @@ export async function payDebtObligation(input: DebtObligationPaymentInput): Prom
             if (amount <= 0) {
                 throw new ActionError('Bu kart ekstresi icin odenecek asgari tutar kalmadi.')
             }
+            const lateCost = calculateAccumulatedInterest(
+                roundMoney(Math.max(0, statement.statementBalance - statement.paymentsReceived)),
+                statement.creditCard.defaultRate,
+                daysOverdue(statement.dueDate),
+                { kkdfRate: statement.creditCard.kkdfRate, bsmvRate: statement.creditCard.bsmvRate },
+            )
+            const paymentAmount = roundMoney(amount + lateCost.total)
             const totalReceived = roundMoney(statement.paymentsReceived + amount)
             const status = totalReceived >= statement.statementBalance
                 ? StatementStatus.PAID
                 : StatementStatus.OPEN
 
             await prisma.$transaction([
+                ...(lateCost.total > 0 ? [
+                    prisma.cardTransaction.create({
+                        data: {
+                            creditCardId: statement.creditCardId,
+                            statementId: statement.id,
+                            type: TransactionType.INTEREST_CHARGE,
+                            description: 'Gecikme faizi ve vergileri',
+                            amount: lateCost.total,
+                            remainingAmount: lateCost.total,
+                            transactionDate: new Date(),
+                        },
+                    }),
+                    prisma.interestAccrual.create({
+                        data: {
+                            creditCardId: statement.creditCardId,
+                            statementId: statement.id,
+                            type: InterestType.DEFAULT_INTEREST,
+                            baseAmount: roundMoney(Math.max(0, statement.statementBalance - statement.paymentsReceived)),
+                            rate: statement.creditCard.defaultRate,
+                            dayCount: daysOverdue(statement.dueDate),
+                            interest: lateCost.interest,
+                            kkdf: roundMoney(lateCost.tax / 2),
+                            bsmv: roundMoney(lateCost.tax / 2),
+                            totalCost: lateCost.total,
+                        },
+                    }),
+                ] : []),
                 prisma.cardPayment.create({
                     data: {
                         creditCardId: statement.creditCardId,
                         statementId: statement.id,
-                        amount,
+                        amount: paymentAmount,
                         description: 'Asgari odeme',
-                        allocationDetail: { source: 'debt_obligation' },
+                        allocationDetail: {
+                            source: 'debt_obligation',
+                            minimumPayment: amount,
+                            overdueCost: lateCost.total,
+                        },
                     },
                 }),
                 prisma.cardStatement.update({
