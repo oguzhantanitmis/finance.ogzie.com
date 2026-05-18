@@ -270,7 +270,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
                 note: expense.isEssential ? 'Sabit gider' : 'Duzenli gider',
             })),
         ...debtObligations.filter((obligation) =>
-            isWithinInterval(obligation.dueDate, { start: new Date(), end: upcomingEnd }),
+            obligation.dueDate < new Date() || isWithinInterval(obligation.dueDate, { start: new Date(), end: upcomingEnd }),
         ),
         ...rpObligations.filter((obligation) =>
             obligation.dueDate < new Date() || isWithinInterval(obligation.dueDate, { start: new Date(), end: upcomingEnd }),

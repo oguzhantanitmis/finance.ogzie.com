@@ -3,6 +3,7 @@
 ## 2026-05-18
 
 - Bütçe özeti borç baskısı eski borç tahmininden çıkarıldı; artık Borçlar sayfasındaki kredi taksidi/KMH/kart ödeme yükümlülükleriyle aynı kaynaktan hesaplanır.
+- Gecikmiş borç ödeme yükümlülükleri bütçe yaklaşan ödemeler listesinde de görünür hale getirildi.
 - KMH ekranında ekstredeki asgari ödeme ile 30 günlük normal faiz+vergi üzerinden tahmini asgari ödeme ayrı gösterilir; Yapı Kredi PDF tutarı ile bankacılık ekranındaki yaklaşık 26 bin TL hesabın farkı görünür hale getirildi.
 - Borçlar sayfasına "Ödemen gereken borçlar" paneli eklendi; kredi taksidi, KMH asgari ödemesi ve kredi kartı asgari ödemesi tek yerden ödendi olarak işaretlenebilir.
 - KMH için aylık gecikme faizi alanı eklendi; asgari ödeme vadesi geçerse gecikme günü ve gecikme maliyeti otomatik hesaplanır.
