@@ -362,6 +362,13 @@ function AccountForm({
                                     defaultValue={account?.kmhInterestRate ?? 4.25}
                                 />
                             </div>
+                            <AccountField
+                                label="Aylık gecikme faizi (%)"
+                                name="kmhLateInterestRate"
+                                type="number"
+                                step="0.01"
+                                defaultValue={account?.kmhLateInterestRate ?? 4.55}
+                            />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <AccountField
                                     label="Hesap kesim günü"

@@ -34,6 +34,7 @@ type AccountField =
     | 'hasKmh'
     | 'kmhLimit'
     | 'kmhInterestRate'
+    | 'kmhLateInterestRate'
     | 'kmhCutOffDay'
     | 'kmhPaymentDueDay'
     | 'kmhStatementDate'
@@ -98,6 +99,7 @@ export async function createAccountActionState(
             hasKmh: data.get('hasKmh') === 'on',
             kmhLimit: toOptionalNumber(data.get('kmhLimit'), 'kmhLimit', 'KMH limiti', NON_NEGATIVE_OPTIONS) ?? null,
             kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate'), 'kmhInterestRate', 'KMH faiz orani', RATE_PERCENT_OPTIONS) ?? null,
+            kmhLateInterestRate: toOptionalNumber(data.get('kmhLateInterestRate'), 'kmhLateInterestRate', 'KMH gecikme faiz orani', RATE_PERCENT_OPTIONS) ?? null,
             kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay'), 'kmhCutOffDay', 'KMH hesap kesim gunu', DAY_OPTIONS) ?? null,
             kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay'), 'kmhPaymentDueDay', 'KMH son odeme gunu', DAY_OPTIONS) ?? null,
             kmhStatementDate: toOptionalDate(data.get('kmhStatementDate'), 'kmhStatementDate', 'KMH hesap kesim tarihi'),
@@ -135,6 +137,7 @@ export async function updateAccountAction(
             hasKmh: data.get('hasKmh') === 'on',
             kmhLimit: toOptionalNumber(data.get('kmhLimit'), 'kmhLimit', 'KMH limiti', NON_NEGATIVE_OPTIONS) ?? null,
             kmhInterestRate: toOptionalNumber(data.get('kmhInterestRate'), 'kmhInterestRate', 'KMH faiz orani', RATE_PERCENT_OPTIONS) ?? null,
+            kmhLateInterestRate: toOptionalNumber(data.get('kmhLateInterestRate'), 'kmhLateInterestRate', 'KMH gecikme faiz orani', RATE_PERCENT_OPTIONS) ?? null,
             kmhCutOffDay: toOptionalNumber(data.get('kmhCutOffDay'), 'kmhCutOffDay', 'KMH hesap kesim gunu', DAY_OPTIONS) ?? null,
             kmhPaymentDueDay: toOptionalNumber(data.get('kmhPaymentDueDay'), 'kmhPaymentDueDay', 'KMH son odeme gunu', DAY_OPTIONS) ?? null,
             kmhStatementDate: toOptionalDate(data.get('kmhStatementDate'), 'kmhStatementDate', 'KMH hesap kesim tarihi'),

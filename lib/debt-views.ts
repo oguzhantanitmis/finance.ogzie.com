@@ -1,6 +1,6 @@
 import type { DebtType } from '@prisma/client'
 
-import { calculateKmhStatement } from '@/lib/banking-engine'
+import { calculateAccumulatedInterest, calculateKmhLateCost, calculateKmhStatement } from '@/lib/banking-engine'
 import { calculateCurrentCardDebt } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 
@@ -35,6 +35,7 @@ export interface DebtView {
     kmhMinimumPayment?: number | null
     kmhNextCutOffDate?: string | null
     kmhNextPaymentDate?: string | null
+    kmhLateInterestRate?: number | null
     dueDate?: string | null
     paymentPlan?: Array<{
         id: string
@@ -57,6 +58,31 @@ function roundMoney(value: number) {
 export interface DebtPersonOption {
     id: string
     name: string
+}
+
+export type DebtPaymentObligationType = 'LOAN_INSTALLMENT' | 'KMH_MINIMUM' | 'CARD_MINIMUM'
+
+export interface DebtPaymentObligation {
+    id: string
+    type: DebtPaymentObligationType
+    sourceId: string
+    name: string
+    sourceLabel: string
+    amount: number
+    baseAmount: number
+    overdueCost: number
+    overdueDays: number
+    dueDate: string
+    balanceAfterPayment: number
+    note: string
+}
+
+function daysOverdue(dueDate: Date | null | undefined, now = new Date()) {
+    if (!dueDate) return 0
+    const dayMs = 24 * 60 * 60 * 1000
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime()
+    return Math.max(0, Math.floor((today - due) / dayMs))
 }
 
 function toNextMonthlyDate(day: number | null | undefined) {
@@ -107,6 +133,7 @@ function normalizeLoanPaymentPlan<TDebt extends {
 export async function getDebtWorkspaceData(userId: string): Promise<{
     debts: DebtView[]
     people: DebtPersonOption[]
+    paymentObligations: DebtPaymentObligation[]
 }> {
     const [manualDebts, creditCards, payables, receivables, kmhAccounts, people] = await Promise.all([
         prisma.debt.findMany({
@@ -131,9 +158,11 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
                     orderBy: { statementDate: 'desc' },
                     take: 1,
                     select: {
+                        id: true,
                         dueDate: true,
                         statementBalance: true,
                         minimumPayment: true,
+                        paymentsReceived: true,
                         status: true,
                     },
                 },
@@ -247,6 +276,42 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
             } satisfies DebtView]
         })
 
+    const cardPaymentObligations: DebtPaymentObligation[] = creditCards.flatMap((card) => {
+        const currentDebt = calculateCurrentCardDebt(card)
+        const latestStatement = card.statements[0] ?? null
+        if (!latestStatement || currentDebt <= 0) return []
+
+        const paidMinimum = latestStatement.paymentsReceived ?? 0
+        const minimumDue = roundMoney(Math.max(0, latestStatement.minimumPayment - paidMinimum))
+        if (minimumDue <= 0) return []
+
+        const overdueDays = daysOverdue(latestStatement.dueDate)
+        const unpaidStatement = roundMoney(Math.max(0, latestStatement.statementBalance - paidMinimum))
+        const lateCost = overdueDays > 0
+            ? calculateAccumulatedInterest(
+                unpaidStatement,
+                card.defaultRate,
+                overdueDays,
+                { kkdfRate: card.kkdfRate, bsmvRate: card.bsmvRate },
+            )
+            : { total: 0 }
+
+        return [{
+            id: `card-minimum:${latestStatement.id}`,
+            type: 'CARD_MINIMUM',
+            sourceId: latestStatement.id,
+            name: card.cardName,
+            sourceLabel: 'Kredi kartı',
+            amount: roundMoney(minimumDue + lateCost.total),
+            baseAmount: minimumDue,
+            overdueCost: roundMoney(lateCost.total),
+            overdueDays,
+            dueDate: latestStatement.dueDate.toISOString(),
+            balanceAfterPayment: roundMoney(Math.max(0, currentDebt - minimumDue)),
+            note: overdueDays > 0 ? 'Asgari ödeme gecikmiş' : 'Asgari ödeme',
+        }]
+    })
+
     const personalDebtViews: DebtView[] = payables.map((payable) => ({
         id: `payable-${payable.id}`,
         entityId: payable.id,
@@ -344,11 +409,77 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
                 kmhMinimumPayment: account.kmhMinimumPayment ?? (hasStatement ? statement.minimumPayment : null),
                 kmhNextCutOffDate: account.kmhNextCutOffDate?.toISOString() ?? null,
                 kmhNextPaymentDate: account.kmhNextPaymentDate?.toISOString() ?? null,
+                kmhLateInterestRate: account.kmhLateInterestRate ?? 4.55,
                 dueDate: dueDate?.toISOString() ?? null,
                 paymentPlan: [],
                 accountId: account.id,
             } satisfies DebtView]
         })
+
+    const loanPaymentObligations: DebtPaymentObligation[] = manualDebtViews.flatMap((debt) => {
+        if (debt.type !== 'LOAN') return []
+        const nextInstallment = debt.paymentPlan?.find((plan) => !plan.isPaid)
+        if (!nextInstallment) return []
+
+        const dueDate = new Date(nextInstallment.dueDate)
+        const overdueDays = daysOverdue(dueDate)
+
+        return [{
+            id: `loan-installment:${nextInstallment.id}`,
+            type: 'LOAN_INSTALLMENT',
+            sourceId: nextInstallment.id,
+            name: debt.name,
+            sourceLabel: 'Kredi taksidi',
+            amount: nextInstallment.amount,
+            baseAmount: nextInstallment.amount,
+            overdueCost: 0,
+            overdueDays,
+            dueDate: nextInstallment.dueDate,
+            balanceAfterPayment: roundMoney(Math.max(0, debt.remainingBalance - nextInstallment.amount)),
+            note: `${nextInstallment.installmentNo}. taksit`,
+        }]
+    })
+
+    const kmhPaymentObligations: DebtPaymentObligation[] = kmhAccounts.flatMap((account) => {
+        const usedAmount = roundMoney(Math.max(account.balance * -1, 0))
+        const principal = roundMoney(account.kmhStatementPrincipal ?? usedAmount)
+        if (principal <= 0) return []
+
+        const dueDate = account.kmhNextPaymentDate ?? toNextMonthlyDate(account.kmhPaymentDueDay)
+        if (!dueDate) return []
+
+        const statement = calculateKmhStatement(
+            principal,
+            account.kmhInterestRate ?? 4.25,
+            30,
+            { kkdfRate: 0.15, bsmvRate: 0.15 },
+            account.kmhStatementInterest,
+        )
+        const minimumDue = roundMoney(account.kmhMinimumPayment ?? statement.minimumPayment)
+        if (minimumDue <= 0) return []
+
+        const lateCost = calculateKmhLateCost(
+            principal,
+            account.kmhLateInterestRate ?? 4.55,
+            daysOverdue(dueDate),
+            { kkdfRate: 0.15, bsmvRate: 0.15 },
+        )
+
+        return [{
+            id: `kmh-minimum:${account.id}`,
+            type: 'KMH_MINIMUM',
+            sourceId: account.id,
+            name: `${account.name} KMH`,
+            sourceLabel: 'KMH asgari',
+            amount: roundMoney(minimumDue + lateCost.total),
+            baseAmount: minimumDue,
+            overdueCost: lateCost.total,
+            overdueDays: lateCost.overdueDays,
+            dueDate: dueDate.toISOString(),
+            balanceAfterPayment: roundMoney(Math.max(0, statement.periodDebt - minimumDue)),
+            note: lateCost.overdueDays > 0 ? 'Asgari ödeme gecikmiş' : 'Asgari ödeme',
+        }]
+    })
 
     const debts = [
         ...creditCardDebtViews,
@@ -361,5 +492,10 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
     return {
         debts,
         people,
+        paymentObligations: [
+            ...cardPaymentObligations,
+            ...kmhPaymentObligations,
+            ...loanPaymentObligations,
+        ].sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime()),
     }
 }

@@ -130,6 +130,7 @@ async function upsertYapiKrediKmh(userId) {
         hasKmh: true,
         kmhLimit: 250_000,
         kmhInterestRate: 4.25,
+        kmhLateInterestRate: 4.55,
         kmhCutOffDay: 5,
         kmhPaymentDueDay: 20,
         kmhStatementDate: new Date(Date.UTC(2026, 4, 5)),

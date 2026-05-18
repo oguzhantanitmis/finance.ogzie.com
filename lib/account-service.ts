@@ -72,6 +72,7 @@ export async function createAccount(
         hasKmh?: boolean
         kmhLimit?: number | null
         kmhInterestRate?: number | null
+        kmhLateInterestRate?: number | null
         kmhCutOffDay?: number | null
         kmhPaymentDueDay?: number | null
         kmhStatementDate?: Date | null
@@ -88,6 +89,7 @@ export async function createAccount(
     if (data.hasKmh) {
         assertOptionalRange(data.kmhLimit, 'KMH limiti', 0)
         assertOptionalRange(data.kmhInterestRate, 'KMH faiz orani', 0, 100)
+        assertOptionalRange(data.kmhLateInterestRate, 'KMH gecikme faiz orani', 0, 100)
         assertOptionalDay(data.kmhCutOffDay, 'KMH hesap kesim gunu')
         assertOptionalDay(data.kmhPaymentDueDay, 'KMH son odeme gunu')
         assertOptionalRange(data.kmhStatementPrincipal, 'KMH anapara borcu', 0)
@@ -115,6 +117,7 @@ export async function createAccount(
             hasKmh: data.hasKmh ?? false,
             kmhLimit: data.hasKmh ? (data.kmhLimit ?? null) : null,
             kmhInterestRate: data.hasKmh ? (data.kmhInterestRate ?? null) : null,
+            kmhLateInterestRate: data.hasKmh ? (data.kmhLateInterestRate ?? null) : null,
             kmhCutOffDay: data.hasKmh ? (data.kmhCutOffDay ?? null) : null,
             kmhPaymentDueDay: data.hasKmh ? (data.kmhPaymentDueDay ?? null) : null,
             kmhStatementDate: data.hasKmh ? (data.kmhStatementDate ?? null) : null,
@@ -140,6 +143,7 @@ export async function updateAccount(
         hasKmh?: boolean
         kmhLimit?: number | null
         kmhInterestRate?: number | null
+        kmhLateInterestRate?: number | null
         kmhCutOffDay?: number | null
         kmhPaymentDueDay?: number | null
         kmhStatementDate?: Date | null
@@ -155,6 +159,7 @@ export async function updateAccount(
     if (data.hasKmh) {
         assertOptionalRange(data.kmhLimit, 'KMH limiti', 0)
         assertOptionalRange(data.kmhInterestRate, 'KMH faiz orani', 0, 100)
+        assertOptionalRange(data.kmhLateInterestRate, 'KMH gecikme faiz orani', 0, 100)
         assertOptionalDay(data.kmhCutOffDay, 'KMH hesap kesim gunu')
         assertOptionalDay(data.kmhPaymentDueDay, 'KMH son odeme gunu')
         assertOptionalRange(data.kmhStatementPrincipal, 'KMH anapara borcu', 0)
@@ -180,6 +185,7 @@ export async function updateAccount(
             ...data,
             kmhLimit: data.hasKmh ? (data.kmhLimit ?? null) : null,
             kmhInterestRate: data.hasKmh ? (data.kmhInterestRate ?? null) : null,
+            kmhLateInterestRate: data.hasKmh ? (data.kmhLateInterestRate ?? null) : null,
             kmhCutOffDay: data.hasKmh ? (data.kmhCutOffDay ?? null) : null,
             kmhPaymentDueDay: data.hasKmh ? (data.kmhPaymentDueDay ?? null) : null,
             kmhStatementDate: data.hasKmh ? (data.kmhStatementDate ?? null) : null,

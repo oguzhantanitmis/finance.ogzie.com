@@ -823,6 +823,7 @@ model Account {
   hasKmh           Boolean     @default(false)
   kmhLimit         Float?
   kmhInterestRate  Float?
+  kmhLateInterestRate Float?
   kmhCutOffDay     Int?
   kmhPaymentDueDay Int?
   kmhStatementDate      DateTime?

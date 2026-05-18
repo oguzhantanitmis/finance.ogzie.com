@@ -63,6 +63,29 @@ export function calculateKmhStatement(
     }
 }
 
+export function calculateKmhLateCost(
+    principal: number,
+    monthlyLateRate: number,
+    overdueDays: number,
+    taxRates?: TaxRateInput,
+) {
+    if (principal <= 0 || monthlyLateRate <= 0 || overdueDays <= 0) {
+        return {
+            overdueDays: Math.max(0, overdueDays),
+            interest: 0,
+            tax: 0,
+            total: 0,
+        }
+    }
+
+    const lateCost = calculateAccumulatedInterest(principal, monthlyLateRate, overdueDays, taxRates)
+
+    return {
+        overdueDays,
+        ...lateCost,
+    }
+}
+
 // Kredi Kartı Asgari Ödeme Hesaplama
 export function calculateMinPayment(limit: number, totalDebt: number): number {
     const rate = limit > 50000 ? 0.40 : 0.20

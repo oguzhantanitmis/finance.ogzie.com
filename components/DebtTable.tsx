@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { AlertCircle, Banknote, Calendar, CheckCircle2, ChevronDown, ChevronUp, CreditCard, Landmark, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import { calculateAccumulatedInterest, calculateMinPayment } from '@/lib/banking-engine'
+import { calculateAccumulatedInterest, calculateKmhLateCost, calculateMinPayment } from '@/lib/banking-engine'
 import { formatCategoryLabel } from '@/lib/ui-text'
 import type { DebtView } from '@/lib/debt-views'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -16,6 +16,18 @@ function normalizeRate(value: number | null | undefined) {
 
 function roundMoney(value: number) {
     return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function daysOverdue(dateInput?: string | null) {
+    if (!dateInput) return 0
+    const dueDate = new Date(dateInput)
+    if (Number.isNaN(dueDate.getTime())) return 0
+
+    const dayMs = 24 * 60 * 60 * 1000
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime()
+    return Math.max(0, Math.floor((today - due) / dayMs))
 }
 
 function splitTaxAmount(taxAmount: number, kkdfRate: number, bsmvRate: number) {
@@ -155,6 +167,14 @@ export default function DebtTable({
                 const kmhMinimumPayment = isKMH
                     ? (debt.kmhMinimumPayment ?? roundMoney((kmhPrincipal * debt.minPaymentRate) + kmhInterestWithTax))
                     : 0
+                const kmhLateCost = isKMH
+                    ? calculateKmhLateCost(
+                        kmhPrincipal,
+                        debt.kmhLateInterestRate ?? 4.55,
+                        daysOverdue(debt.dueDate),
+                        taxRates,
+                    )
+                    : { overdueDays: 0, total: 0 }
                 const kmhPeriodDebt = isKMH ? roundMoney(kmhPrincipal + kmhInterestWithTax) : 0
                 const loanRows = isLoan ? buildLoanDisplayRows(debt) : []
                 const loanPaidCount = loanRows.filter((item) => item.isPaid).length
@@ -328,9 +348,15 @@ export default function DebtTable({
                                                     <span style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
                                                 </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Gecikme Artışı</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: kmhLateCost.total > 0 ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
+                                                        {kmhLateCost.overdueDays > 0 ? `${formatCurrency(kmhLateCost.total, 'TRY')} / ${kmhLateCost.overdueDays} gün` : formatCurrency(0, 'TRY')}
+                                                    </span>
+                                                </div>
                                                 <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
                                                     <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Dönem Borcu</span>
-                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(kmhPeriodDebt, 'TRY')}</span>
+                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(kmhPeriodDebt + kmhLateCost.total, 'TRY')}</span>
                                                 </div>
                                             </>
                                         ) : (
@@ -387,6 +413,10 @@ export default function DebtTable({
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Gecikme Artışı</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: kmhLateCost.total > 0 ? 'var(--accent-danger)' : 'var(--text-primary)' }}>{formatCurrency(kmhLateCost.total, 'TRY')}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Son Ödeme</span>

@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
-import { CreditCard, Landmark, Plus, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CreditCard, Landmark, Plus, Users } from 'lucide-react'
 import type { DebtType } from '@prisma/client'
 
-import { addDebt, deleteDebt, setDebtInstallmentPaid, updateDebt } from '@/app/actions'
+import { addDebt, deleteDebt, payDebtObligation, setDebtInstallmentPaid, updateDebt } from '@/app/actions'
 import { createRPAction, deleteRPAction, updateRPAction } from '@/app/people/actions'
 import DebtTable from '@/components/DebtTable'
 import FormMessage from '@/components/ui/FormMessage'
@@ -13,7 +13,7 @@ import Modal from '@/components/ui/Modal'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
 import { calculateLoanSchedule } from '@/lib/banking-engine'
-import type { DebtPersonOption, DebtView } from '@/lib/debt-views'
+import type { DebtPaymentObligation, DebtPersonOption, DebtView } from '@/lib/debt-views'
 import { formatCurrency } from '@/lib/utils'
 
 type CreateDebtType = 'LOAN' | 'PERSONAL' | 'MANUAL'
@@ -96,17 +96,21 @@ function splitTaxAmount(taxAmount: number, kkdfRate: number, bsmvRate: number) {
 export default function DebtsWorkspace({
     debts,
     people,
+    paymentObligations,
 }: {
     debts: DebtView[]
     people: DebtPersonOption[]
+    paymentObligations: DebtPaymentObligation[]
 }) {
     const [showAdd, setShowAdd] = useState(false)
     const [createType, setCreateType] = useState<CreateDebtType>('LOAN')
     const [editingDebt, setEditingDebt] = useState<DebtView | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [pendingInstallmentId, setPendingInstallmentId] = useState<string | null>(null)
+    const [pendingObligationId, setPendingObligationId] = useState<string | null>(null)
     const [, startDeleteTransition] = useTransition()
     const [, startInstallmentTransition] = useTransition()
+    const [, startObligationTransition] = useTransition()
 
     const syncedCount = useMemo(
         () => debts.filter((debt) => debt.sourceKind === 'CREDIT_CARD' || debt.sourceKind === 'KMH_ACCOUNT').length,
@@ -138,6 +142,18 @@ export default function DebtsWorkspace({
         })
     }
 
+    function handlePayObligation(obligation: DebtPaymentObligation) {
+        setPendingObligationId(obligation.id)
+        startObligationTransition(async () => {
+            const result = await payDebtObligation({
+                type: obligation.type,
+                sourceId: obligation.sourceId,
+            })
+            setPendingObligationId(null)
+            setFeedback(result)
+        })
+    }
+
     return (
         <div>
             <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-6 mb-8">
@@ -159,6 +175,12 @@ export default function DebtsWorkspace({
             </div>
 
             <FormMessage success={feedback?.success} message={feedback?.message} />
+
+            <DueDebtPanel
+                obligations={paymentObligations}
+                pendingId={pendingObligationId}
+                onPay={handlePayObligation}
+            />
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-8 stagger-children">
                 <div className="kpi-card kpi-card-info">
@@ -266,6 +288,116 @@ export default function DebtsWorkspace({
                     )}
                 </Modal>
             ) : null}
+        </div>
+    )
+}
+
+function DueDebtPanel({
+    obligations,
+    pendingId,
+    onPay,
+}: {
+    obligations: DebtPaymentObligation[]
+    pendingId: string | null
+    onPay: (obligation: DebtPaymentObligation) => void
+}) {
+    const totalDue = roundMoney(obligations.reduce((total, item) => total + item.amount, 0))
+    const overdueTotal = roundMoney(obligations.reduce((total, item) => total + item.overdueCost, 0))
+
+    return (
+        <section className="fintech-card p-5 mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 mb-5">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Ödemen gereken borçlar</p>
+                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Tek tıkla ödeme işaretle</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-3 min-w-full lg:min-w-[340px]">
+                    <LoanMetric label="Toplam ödenecek" value={totalDue} />
+                    <LoanMetric label="Gecikme maliyeti" value={overdueTotal} />
+                </div>
+            </div>
+
+            {obligations.length === 0 ? (
+                <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Şu anda işaretlenecek kredi taksidi, KMH asgari ödemesi veya kart asgari ödemesi yok.
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {obligations.map((obligation) => {
+                        const isPending = pendingId === obligation.id
+                        const isOverdue = obligation.overdueDays > 0
+
+                        return (
+                            <div
+                                key={obligation.id}
+                                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4"
+                            >
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                        <span className="status-badge status-badge-neutral">{obligation.sourceLabel}</span>
+                                        {isOverdue ? (
+                                            <span className="status-badge status-badge-danger">
+                                                <AlertTriangle className="w-3 h-3" /> {obligation.overdueDays} gün gecikti
+                                            </span>
+                                        ) : (
+                                            <span className="status-badge status-badge-success">Zamanında</span>
+                                        )}
+                                    </div>
+                                    <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{obligation.name}</h3>
+                                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                        {obligation.note} · Vade {new Date(obligation.dueDate).toLocaleDateString('tr-TR')}
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 xl:min-w-[620px]">
+                                    <MiniAmount label="Ana ödeme" value={obligation.baseAmount} />
+                                    <MiniAmount label="Gecikme artışı" value={obligation.overdueCost} tone={obligation.overdueCost > 0 ? 'danger' : 'muted'} />
+                                    <MiniAmount label="Ödenecek" value={obligation.amount} tone="primary" />
+                                    <MiniAmount label="Ödeme sonrası" value={obligation.balanceAfterPayment} />
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => onPay(obligation)}
+                                    disabled={Boolean(pendingId)}
+                                    title="Ödendi olarak işaretle"
+                                    aria-label="Ödendi olarak işaretle"
+                                    className="btn-primary shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <CheckCircle2 className={isPending ? 'w-4 h-4 animate-pulse' : 'w-4 h-4'} />
+                                    Ödedim
+                                </button>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+        </section>
+    )
+}
+
+function MiniAmount({
+    label,
+    value,
+    tone = 'normal',
+}: {
+    label: string
+    value: number
+    tone?: 'normal' | 'primary' | 'danger' | 'muted'
+}) {
+    const color =
+        tone === 'primary'
+            ? 'var(--text-primary)'
+            : tone === 'danger'
+                ? 'var(--accent-danger)'
+                : tone === 'muted'
+                    ? 'var(--text-muted)'
+                    : 'var(--text-secondary)'
+
+    return (
+        <div>
+            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
+            <p className="font-mono text-sm font-semibold privacy-blur tabular-nums" style={{ color }}>{formatCurrency(value, 'TRY')}</p>
         </div>
     )
 }

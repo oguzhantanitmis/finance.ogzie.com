@@ -13,11 +13,11 @@ export default async function DebtsPage() {
         redirect('/login')
     }
 
-    const { debts, people } = await getDebtWorkspaceData(user.id)
+    const { debts, people, paymentObligations } = await getDebtWorkspaceData(user.id)
 
     return (
         <PageShell width="genis">
-            <DebtsWorkspace debts={debts} people={people} />
+            <DebtsWorkspace debts={debts} people={people} paymentObligations={paymentObligations} />
         </PageShell>
     )
 }

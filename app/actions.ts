@@ -6,6 +6,7 @@ import {
     BudgetAlertState,
     DebtType,
     RecordStatus,
+    StatementStatus,
 } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -22,7 +23,8 @@ import {
     toRequiredNumber,
     toRequiredString,
 } from '@/lib/action-result'
-import { calculateLoanSchedule } from '@/lib/banking-engine'
+import { calculateKmhLateCost, calculateKmhStatement, calculateLoanSchedule } from '@/lib/banking-engine'
+import type { DebtPaymentObligationType } from '@/lib/debt-views'
 import { type SubscriptionEnrichment } from '@/lib/finance-os-types'
 import { getMonthlyBudgetSummary, normalizeMonthlyAmount } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
@@ -75,6 +77,11 @@ type BudgetField =
     | 'freeCash'
     | 'bufferTarget'
     | 'notes'
+
+type DebtObligationPaymentInput = {
+    type: DebtPaymentObligationType
+    sourceId: string
+}
 
 function revalidateFinancePaths(extraPaths: string[] = []) {
     new Set([...REVALIDATE_PATHS, ...extraPaths]).forEach((path) => revalidatePath(path))
@@ -164,6 +171,14 @@ function roundMoney(value: number) {
 
 function sumMoney(items: number[]) {
     return roundMoney(items.reduce((total, value) => total + value, 0))
+}
+
+function daysOverdue(dueDate: Date | null | undefined, now = new Date()) {
+    if (!dueDate) return 0
+    const dayMs = 24 * 60 * 60 * 1000
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+    const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime()
+    return Math.max(0, Math.floor((today - due) / dayMs))
 }
 
 function readLoanState(formData: FormData) {
@@ -498,6 +513,128 @@ export async function setDebtInstallmentPaid(paymentPlanId: string, paid: boolea
         return createSuccessResult(paid ? 'Taksit odendi olarak isaretlendi.' : 'Taksit odemesi geri alindi.', target.debtId)
     } catch (error) {
         return getActionErrorResult(error, 'Taksit durumu guncellenemedi.')
+    }
+}
+
+export async function payDebtObligation(input: DebtObligationPaymentInput): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+
+        if (input.type === 'LOAN_INSTALLMENT') {
+            return setDebtInstallmentPaid(input.sourceId, true)
+        }
+
+        if (input.type === 'CARD_MINIMUM') {
+            const statement = await prisma.cardStatement.findFirstOrThrow({
+                where: {
+                    id: input.sourceId,
+                    creditCard: { userId: user.id },
+                },
+                include: { creditCard: true },
+            })
+            const amount = roundMoney(Math.max(0, statement.minimumPayment - statement.paymentsReceived))
+            if (amount <= 0) {
+                throw new ActionError('Bu kart ekstresi icin odenecek asgari tutar kalmadi.')
+            }
+            const totalReceived = roundMoney(statement.paymentsReceived + amount)
+            const status = totalReceived >= statement.statementBalance
+                ? StatementStatus.PAID
+                : StatementStatus.OPEN
+
+            await prisma.$transaction([
+                prisma.cardPayment.create({
+                    data: {
+                        creditCardId: statement.creditCardId,
+                        statementId: statement.id,
+                        amount,
+                        description: 'Asgari odeme',
+                        allocationDetail: { source: 'debt_obligation' },
+                    },
+                }),
+                prisma.cardStatement.update({
+                    where: { id: statement.id },
+                    data: {
+                        paymentsReceived: totalReceived,
+                        status,
+                    },
+                }),
+            ])
+
+            await refreshFinanceState(user.id)
+            revalidateFinancePaths(['/debts', '/cards', `/cards/${statement.creditCardId}`, '/payment-plan'])
+            return createSuccessResult('Kart asgari odemesi kaydedildi.', statement.creditCardId)
+        }
+
+        if (input.type === 'KMH_MINIMUM') {
+            const account = await prisma.account.findFirstOrThrow({
+                where: {
+                    id: input.sourceId,
+                    userId: user.id,
+                    hasKmh: true,
+                },
+            })
+            const principal = roundMoney(account.kmhStatementPrincipal ?? Math.max(account.balance * -1, 0))
+            if (principal <= 0) {
+                throw new ActionError('Bu KMH icin aktif borc bulunmuyor.')
+            }
+
+            const statement = calculateKmhStatement(
+                principal,
+                account.kmhInterestRate ?? 4.25,
+                30,
+                { kkdfRate: 0.15, bsmvRate: 0.15 },
+                account.kmhStatementInterest,
+            )
+            const dueDate = account.kmhNextPaymentDate
+            const lateCost = calculateKmhLateCost(
+                principal,
+                account.kmhLateInterestRate ?? 4.55,
+                daysOverdue(dueDate),
+                { kkdfRate: 0.15, bsmvRate: 0.15 },
+            )
+            const minimumPayment = roundMoney(account.kmhMinimumPayment ?? statement.minimumPayment)
+            const interestDue = roundMoney(account.kmhStatementInterest ?? statement.interestWithTax)
+            const paymentAmount = roundMoney(minimumPayment + lateCost.total)
+            const principalPaid = roundMoney(Math.max(0, paymentAmount - interestDue - lateCost.total))
+            const remainingPrincipal = roundMoney(Math.max(0, principal - principalPaid))
+
+            await prisma.$transaction([
+                prisma.account.update({
+                    where: { id: account.id },
+                    data: {
+                        balance: roundMoney(account.balance + principalPaid),
+                        kmhStatementPrincipal: remainingPrincipal > 0 ? remainingPrincipal : null,
+                        kmhStatementInterest: 0,
+                        kmhMinimumPayment: 0,
+                    },
+                }),
+                prisma.ledgerEntry.create({
+                    data: {
+                        userId: user.id,
+                        type: 'DEBT_PAYMENT',
+                        amount: -paymentAmount,
+                        currency: account.currency,
+                        description: `${account.name} KMH asgari odeme`,
+                        accountId: account.id,
+                        date: new Date(),
+                        metadata: {
+                            source: 'KMH_MINIMUM',
+                            principalPaid,
+                            interestPaid: interestDue,
+                            overdueCost: lateCost.total,
+                        },
+                    },
+                }),
+            ])
+
+            await refreshFinanceState(user.id)
+            revalidateFinancePaths(['/debts', '/accounts', '/payment-plan'])
+            return createSuccessResult('KMH asgari odemesi kaydedildi.', account.id)
+        }
+
+        throw new ActionError('Odeme tipi gecersiz.')
+    } catch (error) {
+        return getActionErrorResult(error, 'Borc odemesi kaydedilemedi.')
     }
 }
 

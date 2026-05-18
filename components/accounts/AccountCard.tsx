@@ -58,6 +58,9 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                                         Limit {formatCurrency(account.kmhLimit, account.currency)}
                                     </span>
                                 ) : null}
+                                <span className="text-[10px] text-zinc-500">
+                                    Akdi %{account.kmhInterestRate ?? 4.25} / Gecikme %{account.kmhLateInterestRate ?? 4.55}
+                                </span>
                             </div>
                         ) : null}
                     </div>
