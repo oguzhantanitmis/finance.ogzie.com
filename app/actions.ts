@@ -183,6 +183,33 @@ function daysOverdue(dueDate: Date | null | undefined, now = new Date()) {
     return Math.max(0, Math.floor((today - due) / dayMs))
 }
 
+function lastDayOfMonth(year: number, monthIndex: number) {
+    return new Date(year, monthIndex + 1, 0).getDate()
+}
+
+function moveToNextBusinessDay(date: Date) {
+    const next = new Date(date)
+    while (next.getDay() === 0 || next.getDay() === 6) {
+        next.setDate(next.getDate() + 1)
+    }
+    return next
+}
+
+function getDueDateAfterCutOff(cutOffDate: Date, paymentDueDay: number | null) {
+    if (!paymentDueDay) return addMonths(cutOffDate, 1)
+
+    const monthOffset = paymentDueDay > cutOffDate.getDate() ? 0 : 1
+    const dueMonth = cutOffDate.getMonth() + monthOffset
+    const dueYear = cutOffDate.getFullYear()
+    const dueDate = new Date(
+        dueYear,
+        dueMonth,
+        Math.min(paymentDueDay, lastDayOfMonth(dueYear, dueMonth)),
+    )
+
+    return moveToNextBusinessDay(dueDate)
+}
+
 function readLoanState(formData: FormData) {
     const totalPrincipal = toRequiredNumber(formData.get('totalPrincipal'), 'totalPrincipal', 'Cekilen kredi', { min: 0.01 })
     const installments = toRequiredNumber(formData.get('installments'), 'installments', 'Taksit sayisi', INSTALLMENT_OPTIONS)
@@ -633,10 +660,16 @@ export async function payDebtObligation(input: DebtObligationPaymentInput): Prom
                 { kkdfRate: 0.15, bsmvRate: 0.15 },
             )
             const minimumPayment = roundMoney(account.kmhMinimumPayment ?? statement.minimumPayment)
+            if (minimumPayment <= 0) {
+                throw new ActionError('Bu KMH icin odenecek asgari tutar kalmadi.')
+            }
             const interestDue = roundMoney(account.kmhStatementInterest ?? statement.interestWithTax)
             const paymentAmount = roundMoney(minimumPayment + lateCost.total)
             const principalPaid = roundMoney(Math.max(0, paymentAmount - interestDue - lateCost.total))
             const remainingPrincipal = roundMoney(Math.max(0, principal - principalPaid))
+            const currentNextCutOffDate = account.kmhNextCutOffDate ?? addMonths(new Date(), 1)
+            const nextCutOffDate = addMonths(currentNextCutOffDate, 1)
+            const nextPaymentDate = getDueDateAfterCutOff(currentNextCutOffDate, account.kmhPaymentDueDay)
 
             await prisma.$transaction([
                 prisma.account.update({
@@ -644,8 +677,11 @@ export async function payDebtObligation(input: DebtObligationPaymentInput): Prom
                     data: {
                         balance: roundMoney(account.balance + principalPaid),
                         kmhStatementPrincipal: remainingPrincipal > 0 ? remainingPrincipal : null,
+                        kmhStatementDate: currentNextCutOffDate,
                         kmhStatementInterest: 0,
                         kmhMinimumPayment: 0,
+                        kmhNextCutOffDate: nextCutOffDate,
+                        kmhNextPaymentDate: nextPaymentDate,
                     },
                 }),
                 prisma.ledgerEntry.create({
