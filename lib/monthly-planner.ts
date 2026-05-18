@@ -15,6 +15,7 @@ import type {
     MonthlyBudgetSummary,
     UpcomingObligation,
 } from '@/lib/finance-os-types'
+import { getDebtPaymentObligations } from '@/lib/debt-views'
 import { getMarketRates, calculateAssetValue } from '@/lib/market-data'
 import { prisma } from '@/lib/prisma'
 
@@ -99,6 +100,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         budgetMonth,
         alerts,
         rpInstallments,
+        debtPaymentObligations,
     ] = await Promise.all([
         prisma.asset.findMany({ where: { userId } }),
         prisma.debt.findMany({
@@ -137,6 +139,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
             include: { receivablePayable: { include: { person: { select: { name: true } } } } },
             orderBy: { dueDate: 'asc' },
         }).catch(() => []),
+        getDebtPaymentObligations(userId),
     ])
 
     const marketRates = await getMarketRates(userId)
@@ -199,7 +202,22 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         ? budgetMonth.plannedIncome
         : incomeViews.reduce((sum, income) => sum + normalizeMonthlyAmount(income.amount, income.billingCycle), 0)
 
-    const debtObligations = debts.flatMap((debt) => buildDebtCommitment(debt, month, monthEnd))
+    const sourceDebtObligations: UpcomingObligation[] = debtPaymentObligations
+        .filter((obligation) => isWithinInterval(new Date(obligation.dueDate), { start: month, end: monthEnd }) || obligation.overdueDays > 0)
+        .map((obligation) => ({
+            id: obligation.id,
+            source: 'debt' as const,
+            name: obligation.name,
+            amount: obligation.amount,
+            currency: 'TRY',
+            dueDate: new Date(obligation.dueDate),
+            category: obligation.sourceLabel,
+            note: obligation.overdueDays > 0 ? `${obligation.note} - ${obligation.overdueDays} gün gecikti` : obligation.note,
+        }))
+    const manualDebtObligations = debts
+        .filter((debt) => !['LOAN', 'CREDIT_CARD', 'KMH'].includes(debt.type))
+        .flatMap((debt) => buildDebtCommitment(debt, month, monthEnd))
+    const debtObligations = [...sourceDebtObligations, ...manualDebtObligations]
     const rpObligations: UpcomingObligation[] = rpInstallments
         .filter((installment) => isWithinInterval(installment.dueDate, { start: month, end: monthEnd }) || installment.status === 'OVERDUE')
         .map((installment) => ({

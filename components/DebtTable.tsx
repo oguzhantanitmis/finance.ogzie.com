@@ -167,6 +167,10 @@ export default function DebtTable({
                 const kmhMinimumPayment = isKMH
                     ? (debt.kmhMinimumPayment ?? roundMoney((kmhPrincipal * debt.minPaymentRate) + kmhInterestWithTax))
                     : 0
+                const kmhCalculatedMinimumPayment = isKMH
+                    ? (debt.kmhCalculatedMinimumPayment ?? roundMoney((kmhPrincipal * debt.minPaymentRate) + monthlyInterest.total))
+                    : 0
+                const showKmhEstimatedMinimum = isKMH && Math.abs(kmhMinimumPayment - kmhCalculatedMinimumPayment) >= 1
                 const kmhLateCost = isKMH
                     ? calculateKmhLateCost(
                         kmhPrincipal,
@@ -344,10 +348,22 @@ export default function DebtTable({
                                                     <span style={{ color: 'var(--text-secondary)' }}>Dönem Faizi + Vergi</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhInterestWithTax, 'TRY')}</span>
                                                 </div>
+                                                {showKmhEstimatedMinimum ? (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span style={{ color: 'var(--text-secondary)' }}>30 Günlük Faiz + Vergi</span>
+                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(monthlyInterest.total, 'TRY')}</span>
+                                                    </div>
+                                                ) : null}
                                                 <div className="flex justify-between text-sm">
-                                                    <span style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>{showKmhEstimatedMinimum ? 'Ekstre Asgari' : 'Asgari Ödeme'}</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
                                                 </div>
+                                                {showKmhEstimatedMinimum ? (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span style={{ color: 'var(--text-secondary)' }}>Tahmini Normal Asgari</span>
+                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhCalculatedMinimumPayment, 'TRY')}</span>
+                                                    </div>
+                                                ) : null}
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Gecikme Artışı</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: kmhLateCost.total > 0 ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
@@ -411,9 +427,15 @@ export default function DebtTable({
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhPeriodDebt, 'TRY')}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
-                                                    <span style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>{showKmhEstimatedMinimum ? 'Ekstre Asgari' : 'Asgari Ödeme'}</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
                                                 </div>
+                                                {showKmhEstimatedMinimum ? (
+                                                    <div className="flex justify-between text-sm">
+                                                        <span style={{ color: 'var(--text-secondary)' }}>Tahmini Asgari</span>
+                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhCalculatedMinimumPayment, 'TRY')}</span>
+                                                    </div>
+                                                ) : null}
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Gecikme Artışı</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: kmhLateCost.total > 0 ? 'var(--accent-danger)' : 'var(--text-primary)' }}>{formatCurrency(kmhLateCost.total, 'TRY')}</span>

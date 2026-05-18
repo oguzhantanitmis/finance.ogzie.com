@@ -33,6 +33,8 @@ export interface DebtView {
     kmhStatementDate?: string | null
     kmhStatementInterest?: number | null
     kmhMinimumPayment?: number | null
+    kmhStatementMinimumPayment?: number | null
+    kmhCalculatedMinimumPayment?: number | null
     kmhNextCutOffDate?: string | null
     kmhNextPaymentDate?: string | null
     kmhLateInterestRate?: number | null
@@ -407,6 +409,8 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
                 kmhStatementDate: account.kmhStatementDate?.toISOString() ?? null,
                 kmhStatementInterest: hasStatement ? statement.interestWithTax : null,
                 kmhMinimumPayment: account.kmhMinimumPayment ?? (hasStatement ? statement.minimumPayment : null),
+                kmhStatementMinimumPayment: account.kmhMinimumPayment ?? (hasStatement ? statement.minimumPayment : null),
+                kmhCalculatedMinimumPayment: statement.calculatedMinimumPayment,
                 kmhNextCutOffDate: account.kmhNextCutOffDate?.toISOString() ?? null,
                 kmhNextPaymentDate: account.kmhNextPaymentDate?.toISOString() ?? null,
                 kmhLateInterestRate: account.kmhLateInterestRate ?? 4.55,
@@ -498,4 +502,9 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
             ...loanPaymentObligations,
         ].sort((left, right) => new Date(left.dueDate).getTime() - new Date(right.dueDate).getTime()),
     }
+}
+
+export async function getDebtPaymentObligations(userId: string): Promise<DebtPaymentObligation[]> {
+    const workspaceData = await getDebtWorkspaceData(userId)
+    return workspaceData.paymentObligations
 }
