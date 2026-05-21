@@ -2,6 +2,7 @@ import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { notFound } from 'next/navigation'
 import CardDetailView from '@/components/cards/CardDetailView'
+import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -11,6 +12,7 @@ async function getCardDetail(id: string) {
     if (!user) return null
 
     try {
+        await syncCanonicalDebtsForUser(user.id)
         const card = await prisma.creditCard.findFirst({
             where: { id, userId: user.id },
             include: {
@@ -33,7 +35,28 @@ async function getCardDetail(id: string) {
             },
         })
 
-        return card
+        if (!card) return null
+
+        const debtAccount = await prisma.debtAccount.findFirst({
+            where: {
+                userId: user.id,
+                sourceType: 'CREDIT_CARD',
+                sourceEntityId: card.id,
+            },
+            include: {
+                obligations: {
+                    where: { remainingAmount: { gt: 0 }, status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] } },
+                    orderBy: { dueDate: 'asc' },
+                },
+            },
+        })
+
+        return {
+            ...card,
+            currentDebt: debtAccount?.currentBalance ?? card.currentDebt,
+            statementBalance: debtAccount?.statementBalance ?? undefined,
+            minimumPayment: debtAccount?.obligations[0]?.remainingAmount ?? undefined,
+        }
     } catch (error) {
         console.error('Error fetching card detail:', error)
         return null
@@ -62,8 +85,8 @@ export default async function CardDetailPage({ params }: { params: Promise<{ id:
 
     // Son ekstre
     const latestStatement = card.statements[0] || null
-    const statementBalance = latestStatement?.statementBalance || 0
-    const minimumPayment = latestStatement?.minimumPayment || 0
+    const statementBalance = card.statementBalance ?? latestStatement?.statementBalance ?? 0
+    const minimumPayment = card.minimumPayment ?? latestStatement?.minimumPayment ?? 0
 
     const serializedCard = {
         ...card,

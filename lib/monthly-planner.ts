@@ -29,63 +29,6 @@ export function normalizeMonthlyAmount(amount: number, billingCycle: BillingCycl
     return amount
 }
 
-function buildDebtCommitment(debt: {
-    id: string
-    name: string
-    remainingBalance: number
-    type: string
-    paymentDueDay: number | null
-    dueDate: Date | null
-    minPaymentRate: number
-    paymentPlan: Array<{ id: string, amount: number, dueDate: Date, isPaid: boolean }>
-}, monthStart: Date, monthEnd: Date): UpcomingObligation[] {
-    const obligations: UpcomingObligation[] = []
-    const monthlyPlans = debt.paymentPlan.filter((plan) =>
-        !plan.isPaid && isWithinInterval(plan.dueDate, { start: monthStart, end: monthEnd }),
-    )
-
-    monthlyPlans.forEach((plan) => {
-        obligations.push({
-            id: plan.id,
-            source: 'debt',
-            name: debt.name,
-            amount: plan.amount,
-            currency: 'TRY',
-            dueDate: plan.dueDate,
-            category: debt.type,
-            note: 'Taksit',
-        })
-    })
-
-    if (monthlyPlans.length === 0 && debt.paymentDueDay) {
-        const dueDate = new Date(monthStart)
-        dueDate.setDate(Math.min(debt.paymentDueDay, 28))
-        obligations.push({
-            id: debt.id,
-            source: 'debt',
-            name: debt.name,
-            amount: Math.max(debt.remainingBalance * debt.minPaymentRate, 0),
-            currency: 'TRY',
-            dueDate,
-            category: debt.type,
-            note: 'Tahmini asgari odeme',
-        })
-    } else if (monthlyPlans.length === 0 && debt.dueDate && isWithinInterval(debt.dueDate, { start: monthStart, end: monthEnd })) {
-        obligations.push({
-            id: debt.id,
-            source: 'debt',
-            name: debt.name,
-            amount: debt.remainingBalance,
-            currency: 'TRY',
-            dueDate: debt.dueDate,
-            category: debt.type,
-            note: 'Borclu odeme',
-        })
-    }
-
-    return obligations
-}
-
 export async function getMonthlyBudgetSummary(userId: string, monthDate = new Date()): Promise<MonthlyBudgetSummary> {
     const month = startOfMonth(monthDate)
     const monthEnd = endOfMonth(monthDate)
@@ -93,7 +36,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
 
     const [
         assets,
-        debts,
+        debtAccounts,
         subscriptions,
         recurringExpenses,
         incomeSources,
@@ -103,13 +46,12 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         debtPaymentObligations,
     ] = await Promise.all([
         prisma.asset.findMany({ where: { userId } }),
-        prisma.debt.findMany({
-            where: { userId },
-            include: {
-                paymentPlan: {
-                    where: { isPaid: false },
-                },
+        prisma.debtAccount.findMany({
+            where: {
+                userId,
+                status: { not: 'CLOSED' },
             },
+            select: { currentBalance: true },
         }),
         prisma.subscription.findMany({
             where: { userId, status: { in: ACTIVE_STATUSES }, isActive: true },
@@ -133,7 +75,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         }),
         prisma.rPInstallment.findMany({
             where: {
-                receivablePayable: { userId },
+                receivablePayable: { userId, type: 'RECEIVABLE' },
                 status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] },
             },
             include: { receivablePayable: { include: { person: { select: { name: true } } } } },
@@ -147,7 +89,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         (sum, asset) => sum + calculateAssetValue(asset.amount, asset.type, asset.currency, marketRates),
         0,
     )
-    const totalDebts = debts.reduce((sum, debt) => sum + debt.remainingBalance, 0)
+    const totalDebts = debtAccounts.reduce((sum, debt) => sum + debt.currentBalance, 0)
     const netWorth = totalAssets - totalDebts
 
     const subscriptionViews = subscriptions.map((subscription) => ({
@@ -214,10 +156,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
             category: obligation.sourceLabel,
             note: obligation.overdueDays > 0 ? `${obligation.note} - ${obligation.overdueDays} gün gecikti` : obligation.note,
         }))
-    const manualDebtObligations = debts
-        .filter((debt) => !['LOAN', 'CREDIT_CARD', 'KMH'].includes(debt.type))
-        .flatMap((debt) => buildDebtCommitment(debt, month, monthEnd))
-    const debtObligations = [...sourceDebtObligations, ...manualDebtObligations]
+    const debtObligations = sourceDebtObligations
     const rpObligations: UpcomingObligation[] = rpInstallments
         .filter((installment) => isWithinInterval(installment.dueDate, { start: month, end: monthEnd }) || installment.status === 'OVERDUE')
         .map((installment) => ({
@@ -232,7 +171,7 @@ export async function getMonthlyBudgetSummary(userId: string, monthDate = new Da
         }))
     const debtCommitments = budgetMonth?.debtCommitments && budgetMonth.debtCommitments > 0
         ? budgetMonth.debtCommitments
-        : debtObligations.reduce((sum, debt) => sum + debt.amount, 0) + rpObligations.filter((item) => item.category === 'Yapılacak ödeme').reduce((sum, item) => sum + item.amount, 0)
+        : debtObligations.reduce((sum, debt) => sum + debt.amount, 0)
 
     const fixedCommitments = budgetMonth?.fixedCommitments && budgetMonth.fixedCommitments > 0
         ? budgetMonth.fixedCommitments

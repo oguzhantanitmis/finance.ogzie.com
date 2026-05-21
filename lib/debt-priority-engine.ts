@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getEffectiveRates } from '@/lib/card-finance-settings-service'
+import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
 
 export type Strategy = 'SAFE' | 'AVALANCHE' | 'SNOWBALL' | 'CASHFLOW' | 'RISK' | 'GOAL'
 
@@ -32,85 +32,48 @@ export interface PaymentPlan {
     cons: string[]
 }
 
-/**
- * Tüm borçları toplar: kredi kartları + borçlar + verecekler
- */
 async function collectAllDebts(userId: string): Promise<DebtItem[]> {
-    const [cards, debts, payables] = await Promise.all([
-        prisma.creditCard.findMany({
-            where: { userId, status: 'ACTIVE' },
-            include: {
-                transactions: { select: { type: true, amount: true } },
-                payments: { select: { amount: true } },
-                statements: { orderBy: { periodEnd: 'desc' }, take: 1 },
+    await syncCanonicalDebtsForUser(userId)
+
+    const debtAccounts = await prisma.debtAccount.findMany({
+        where: {
+            userId,
+            status: { not: 'CLOSED' },
+            OR: [
+                { currentBalance: { gt: 0 } },
+                { obligations: { some: { remainingAmount: { gt: 0 }, status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] } } } },
+            ],
+        },
+        include: {
+            obligations: {
+                where: { remainingAmount: { gt: 0 }, status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] } },
+                orderBy: { dueDate: 'asc' },
             },
-        }),
-        prisma.debt.findMany({
-            where: { userId },
-            select: { id: true, name: true, remainingBalance: true, interestRate: true },
-        }),
-        prisma.receivablePayable.findMany({
-            where: { userId, type: 'PAYABLE', status: { not: 'CLOSED' } },
-            include: { person: { select: { name: true } } },
-        }),
-    ])
+        },
+    })
 
-    const items: DebtItem[] = []
+    return debtAccounts.map((debtAccount) => {
+        const minPayment = debtAccount.obligations.reduce((sum, obligation) => sum + obligation.remainingAmount, 0)
+        const dueDate = debtAccount.obligations[0]?.dueDate ?? debtAccount.nextDueDate ?? null
+        const type =
+            debtAccount.sourceType === 'CREDIT_CARD'
+                ? 'credit_card'
+                : debtAccount.sourceType === 'PERSONAL_PAYABLE'
+                    ? 'receivable_payable'
+                    : 'debt'
 
-    for (const card of cards) {
-        const stmt = card.statements[0]
-        const charges = card.transactions.filter((tx) => tx.type !== 'REFUND').reduce((sum, tx) => sum + tx.amount, 0)
-        const refunds = card.transactions.filter((tx) => tx.type === 'REFUND').reduce((sum, tx) => sum + tx.amount, 0)
-        const payments = card.payments.reduce((sum, payment) => sum + payment.amount, 0)
-        const balance = card.currentDebt && card.currentDebt > 0 ? card.currentDebt : (stmt?.statementBalance ?? Math.max(charges - refunds - payments, 0))
-        if (balance <= 0) continue
-
-        const rates = await getEffectiveRates(userId, card.id)
-        const minPayment = +(balance * rates.minPaymentRate).toFixed(2)
-
-        items.push({
-            id: card.id,
-            name: card.cardName,
-            type: 'credit_card',
-            balance,
-            minPayment: Math.max(minPayment, 1),
-            interestRate: rates.contractualRate,
-            dueDate: card.dueDate ?? stmt?.dueDate ?? null,
-            suggestedPayment: minPayment,
+        return {
+            id: debtAccount.id,
+            name: debtAccount.counterpartyName ? `${debtAccount.name} (${debtAccount.counterpartyName})` : debtAccount.name,
+            type,
+            balance: debtAccount.currentBalance,
+            minPayment: +minPayment.toFixed(2),
+            interestRate: debtAccount.interestRate ?? 0,
+            dueDate,
+            suggestedPayment: +minPayment.toFixed(2),
             priority: 0,
-        })
-    }
-
-    for (const debt of debts) {
-        if (debt.remainingBalance <= 0) continue
-        items.push({
-            id: debt.id,
-            name: debt.name,
-            type: 'debt',
-            balance: debt.remainingBalance,
-            minPayment: 0,
-            interestRate: debt.interestRate ?? 0,
-            dueDate: null,
-            suggestedPayment: 0,
-            priority: 0,
-        })
-    }
-
-    for (const rp of payables) {
-        items.push({
-            id: rp.id,
-            name: `${rp.person.name}: ${rp.description}`,
-            type: 'receivable_payable',
-            balance: rp.remainingAmount,
-            minPayment: 0,
-            interestRate: 0,
-            dueDate: rp.dueDate,
-            suggestedPayment: 0,
-            priority: 0,
-        })
-    }
-
-    return items
+        }
+    })
 }
 
 /**

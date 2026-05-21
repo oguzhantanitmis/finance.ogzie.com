@@ -1,6 +1,6 @@
 'use server'
 
-import { AccountType } from '@prisma/client'
+import { AccountType, DebtSourceType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 import {
@@ -22,6 +22,7 @@ import {
     toRequiredNumber,
     toRequiredString,
 } from '@/lib/action-result'
+import { deleteCanonicalDebtForSource, rebuildCanonicalDebtForAccount } from '@/lib/canonical-debt-service'
 import { requireCurrentUser } from '@/lib/server-auth'
 
 type AccountField =
@@ -112,6 +113,7 @@ export async function createAccountActionState(
             notes: toOptionalString(data.get('notes')),
         })
 
+        await rebuildCanonicalDebtForAccount(user.id, account.id)
         revalidateAccountPaths()
         return createSuccessResult('Hesap kaydedildi.', account.id)
     } catch (error) {
@@ -150,6 +152,7 @@ export async function updateAccountAction(
             notes: toOptionalString(data.get('notes')) ?? null,
         })
 
+        await rebuildCanonicalDebtForAccount(user.id, account.id)
         revalidateAccountPaths()
         return createSuccessResult('Hesap guncellendi.', account.id)
     } catch (error) {
@@ -160,6 +163,7 @@ export async function updateAccountAction(
 export async function deleteAccountAction(accountId: string): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        await deleteCanonicalDebtForSource(user.id, DebtSourceType.KMH, accountId)
         await deleteAccount(accountId, user.id)
         revalidateAccountPaths()
         return createSuccessResult('Hesap silindi.', accountId)
@@ -181,6 +185,7 @@ export async function adjustBalanceAction(
         const description = toOptionalString(data.get('description'))
 
         await adjustBalance(accountId, user.id, newBalance, description)
+        await rebuildCanonicalDebtForAccount(user.id, accountId)
         revalidateAccountPaths()
         return createSuccessResult('Bakiye guncellendi.', accountId)
     } catch (error) {
@@ -202,6 +207,10 @@ export async function transferAction(
         const description = toOptionalString(data.get('description'))
 
         await transferBetweenAccounts(user.id, fromAccountId, toAccountId, amount, description)
+        await Promise.all([
+            rebuildCanonicalDebtForAccount(user.id, fromAccountId),
+            rebuildCanonicalDebtForAccount(user.id, toAccountId),
+        ])
         revalidateAccountPaths()
         return createSuccessResult('Transfer kaydedildi.')
     } catch (error) {

@@ -2,6 +2,13 @@
 
 ## 2026-05-21
 
+- Canonical borç refaktörü başlatıldı; `DebtAccount`, `DebtObligation`, `DebtPayment` modelleri ve ilgili enumlar Prisma şemasına eklendi.
+- Canonical borç tabloları için veri kaybı yaratmayan migration oluşturuldu; eski `Debt`, `PaymentPlan`, `CreditCard`, `Account/KMH` ve `ReceivablePayable` tabloları uyumluluk için korunuyor.
+- Eski kredi, kredi kartı, KMH ve kişisel borç kayıtlarını `DebtAccount/DebtObligation` kaynağına dönüştüren canonical sync/ödeme servisi eklendi.
+- `/debts`, `/payment-plan` ve bütçe borç baskısı hesapları canonical `DebtObligation.remainingAmount` kaynağına taşındı.
+- Kredi, kart, KMH hesap ve kişisel borç mutasyonlarında canonical borç hesabını güncelleyen bağlantılar eklendi.
+- Canonical borç ödeme akışında `obligationId` ve opsiyonel ödeme hesabı `userId` ile doğrulanarak IDOR riski kapatıldı.
+- Idempotent backfill için `scripts/migrate-canonical-debts.mjs` eklendi.
 - Root README internal teknik/handoff dokümanı olarak yeniden yazıldı; mimari, veri modeli, finans motorları, güvenlik, entegrasyon ve operasyon akışları tek dosyada toplandı.
 - KMH borç görünümü Yapı Kredi hesap özeti açıklamalarına göre netleştirildi; tahmini asgari satırı kaldırıldı, zorunlu asgari yalnızca ekstre formülüyle gösterilir.
 - KMH maliyet analizinde asgari anapara (%5), dönem faizi/vergi, zorunlu asgari, gecikme artışı ve güncel borç ayrı satırlara bölündü.

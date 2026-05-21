@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 
 import PageShell from '@/components/PageShell'
 import AccountsWorkspace from '@/components/accounts/AccountsWorkspace'
+import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
 import { getAccounts, getTotalBalance, getAvailableCash } from '@/lib/account-service'
+import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -19,11 +21,37 @@ export default async function AccountsPage() {
     let availableCash = 0
 
     try {
+        await syncCanonicalDebtsForUser(user.id)
         ;[accounts, totalBalance, availableCash] = await Promise.all([
             getAccounts(user.id),
             getTotalBalance(user.id),
             getAvailableCash(user.id),
         ])
+        const kmhDebts = await prisma.debtAccount.findMany({
+            where: {
+                userId: user.id,
+                sourceType: 'KMH',
+                sourceEntityId: { in: accounts.map((account) => account.id) },
+            },
+            include: {
+                obligations: {
+                    where: { remainingAmount: { gt: 0 }, status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] } },
+                    orderBy: { dueDate: 'asc' },
+                },
+            },
+        })
+        const kmhByAccountId = new Map(kmhDebts.map((debt) => [debt.sourceEntityId, debt]))
+        accounts = accounts.map((account) => {
+            const debt = kmhByAccountId.get(account.id)
+            if (!debt) return account
+            return {
+                ...account,
+                kmhStatementPrincipal: debt.principalBalance,
+                kmhStatementInterest: Math.max(debt.statementBalance - debt.principalBalance, 0),
+                kmhMinimumPayment: debt.obligations[0]?.remainingAmount ?? account.kmhMinimumPayment,
+                kmhNextPaymentDate: debt.nextDueDate,
+            }
+        })
     } catch (e) {
         console.error('AccountsPage data fetch error:', e)
     }

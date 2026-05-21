@@ -146,8 +146,7 @@ export default function DebtsWorkspace({
         setPendingObligationId(obligation.id)
         startObligationTransition(async () => {
             const result = await payDebtObligation({
-                type: obligation.type,
-                sourceId: obligation.sourceId,
+                obligationId: obligation.obligationId,
             })
             setPendingObligationId(null)
             setFeedback(result)

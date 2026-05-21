@@ -4,11 +4,11 @@ import {
     AssetType,
     BillingCycle,
     BudgetAlertState,
+    DebtObligationStatus,
+    DebtSourceType,
+    DebtStatus,
     DebtType,
-    InterestType,
     RecordStatus,
-    StatementStatus,
-    TransactionType,
 } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { addMonths, startOfMonth } from 'date-fns'
@@ -25,8 +25,12 @@ import {
     toRequiredNumber,
     toRequiredString,
 } from '@/lib/action-result'
-import { calculateAccumulatedInterest, calculateKmhLateCost, calculateKmhStatement, calculateLoanSchedule } from '@/lib/banking-engine'
-import type { DebtPaymentObligationType } from '@/lib/debt-views'
+import { calculateLoanSchedule } from '@/lib/banking-engine'
+import {
+    deleteCanonicalDebtForSource,
+    payCanonicalDebtObligation,
+    rebuildCanonicalDebtForLegacyDebt,
+} from '@/lib/canonical-debt-service'
 import { type SubscriptionEnrichment } from '@/lib/finance-os-types'
 import { getMonthlyBudgetSummary, normalizeMonthlyAmount } from '@/lib/monthly-planner'
 import { prisma } from '@/lib/prisma'
@@ -81,8 +85,9 @@ type BudgetField =
     | 'notes'
 
 type DebtObligationPaymentInput = {
-    type: DebtPaymentObligationType
-    sourceId: string
+    obligationId: string
+    amount?: number
+    accountId?: string | null
 }
 
 function revalidateFinancePaths(extraPaths: string[] = []) {
@@ -173,41 +178,6 @@ function roundMoney(value: number) {
 
 function sumMoney(items: number[]) {
     return roundMoney(items.reduce((total, value) => total + value, 0))
-}
-
-function daysOverdue(dueDate: Date | null | undefined, now = new Date()) {
-    if (!dueDate) return 0
-    const dayMs = 24 * 60 * 60 * 1000
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    const due = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate()).getTime()
-    return Math.max(0, Math.floor((today - due) / dayMs))
-}
-
-function lastDayOfMonth(year: number, monthIndex: number) {
-    return new Date(year, monthIndex + 1, 0).getDate()
-}
-
-function moveToNextBusinessDay(date: Date) {
-    const next = new Date(date)
-    while (next.getDay() === 0 || next.getDay() === 6) {
-        next.setDate(next.getDate() + 1)
-    }
-    return next
-}
-
-function getDueDateAfterCutOff(cutOffDate: Date, paymentDueDay: number | null) {
-    if (!paymentDueDay) return addMonths(cutOffDate, 1)
-
-    const monthOffset = paymentDueDay > cutOffDate.getDate() ? 0 : 1
-    const dueMonth = cutOffDate.getMonth() + monthOffset
-    const dueYear = cutOffDate.getFullYear()
-    const dueDate = new Date(
-        dueYear,
-        dueMonth,
-        Math.min(paymentDueDay, lastDayOfMonth(dueYear, dueMonth)),
-    )
-
-    return moveToNextBusinessDay(dueDate)
 }
 
 function readLoanState(formData: FormData) {
@@ -386,6 +356,7 @@ export async function addDebt(
             await prisma.paymentPlan.createMany({ data: buildLoanPaymentPlanRows(debt.id, loanState) })
         }
 
+        await rebuildCanonicalDebtForLegacyDebt(user.id, debt.id)
         await refreshFinanceState(user.id)
         revalidateFinancePaths(['/debts'])
         return createSuccessResult('Borc kaydedildi.', debt.id)
@@ -454,6 +425,7 @@ export async function updateDebt(
             await prisma.paymentPlan.deleteMany({ where: { debtId } })
         }
 
+        await rebuildCanonicalDebtForLegacyDebt(user.id, debt.id)
         await refreshFinanceState(user.id)
         revalidateFinancePaths(['/debts'])
         return createSuccessResult('Borc guncellendi.', debt.id)
@@ -465,7 +437,18 @@ export async function updateDebt(
 export async function deleteDebt(debtId: string): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
-        await findUserDebt(debtId, user.id)
+        const debt = await findUserDebt(debtId, user.id)
+        const sourceType =
+            debt.type === DebtType.LOAN
+                ? DebtSourceType.LOAN
+                : debt.type === DebtType.CREDIT_CARD
+                    ? DebtSourceType.CREDIT_CARD
+                    : debt.type === DebtType.KMH
+                        ? DebtSourceType.KMH
+                        : debt.type === DebtType.PERSONAL
+                            ? DebtSourceType.PERSONAL_PAYABLE
+                            : DebtSourceType.MANUAL
+        await deleteCanonicalDebtForSource(user.id, sourceType, debtId)
         await prisma.debt.delete({ where: { id: debtId } })
         await refreshFinanceState(user.id)
         revalidateFinancePaths(['/debts'])
@@ -478,6 +461,68 @@ export async function deleteDebt(debtId: string): Promise<ActionResult> {
 export async function setDebtInstallmentPaid(paymentPlanId: string, paid: boolean): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        const canonicalObligation = await prisma.debtObligation.findFirst({
+            where: { id: paymentPlanId, userId: user.id },
+            include: { debtAccount: true },
+        })
+
+        if (canonicalObligation) {
+            if (paid) {
+                await payCanonicalDebtObligation({ userId: user.id, obligationId: paymentPlanId })
+                await refreshFinanceState(user.id)
+                revalidateFinancePaths(['/debts', '/budget', '/payment-plan'])
+                return createSuccessResult('Taksit odendi olarak isaretlendi.', canonicalObligation.debtAccountId)
+            }
+
+            const restoreAmount = roundMoney(canonicalObligation.paidAmount)
+            if (restoreAmount <= 0) {
+                return createSuccessResult('Taksit zaten odeme bekliyor.', canonicalObligation.debtAccountId)
+            }
+
+            await prisma.$transaction([
+                prisma.debtObligation.update({
+                    where: { id: canonicalObligation.id },
+                    data: {
+                        paidAmount: 0,
+                        remainingAmount: canonicalObligation.totalAmount,
+                        status: canonicalObligation.dueDate < new Date()
+                            ? DebtObligationStatus.OVERDUE
+                            : DebtObligationStatus.PENDING,
+                    },
+                }),
+                prisma.debtAccount.update({
+                    where: { id: canonicalObligation.debtAccountId },
+                    data: {
+                        currentBalance: { increment: restoreAmount },
+                        statementBalance: { increment: restoreAmount },
+                        principalBalance: { increment: Math.min(restoreAmount, canonicalObligation.principalAmount) },
+                        status: DebtStatus.ACTIVE,
+                    },
+                }),
+                prisma.ledgerEntry.create({
+                    data: {
+                        userId: user.id,
+                        type: 'DEBT_ADDITION',
+                        amount: restoreAmount,
+                        currency: canonicalObligation.debtAccount.currency,
+                        description: `${canonicalObligation.debtAccount.name} taksit geri alma`,
+                        category: 'Borç düzeltme',
+                        date: new Date(),
+                        metadata: {
+                            debtAccountId: canonicalObligation.debtAccountId,
+                            obligationId: canonicalObligation.id,
+                            reversal: true,
+                            canonical: true,
+                        },
+                    },
+                }),
+            ])
+
+            await refreshFinanceState(user.id)
+            revalidateFinancePaths(['/debts', '/budget', '/payment-plan'])
+            return createSuccessResult('Taksit odemesi geri alindi.', canonicalObligation.debtAccountId)
+        }
+
         const target = await prisma.paymentPlan.findFirstOrThrow({
             where: {
                 id: paymentPlanId,
@@ -537,6 +582,7 @@ export async function setDebtInstallmentPaid(paymentPlanId: string, paid: boolea
             }),
         ])
 
+        await rebuildCanonicalDebtForLegacyDebt(user.id, target.debtId)
         await refreshFinanceState(user.id)
         revalidateFinancePaths(['/debts'])
         return createSuccessResult(paid ? 'Taksit odendi olarak isaretlendi.' : 'Taksit odemesi geri alindi.', target.debtId)
@@ -548,167 +594,16 @@ export async function setDebtInstallmentPaid(paymentPlanId: string, paid: boolea
 export async function payDebtObligation(input: DebtObligationPaymentInput): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        await payCanonicalDebtObligation({
+            userId: user.id,
+            obligationId: input.obligationId,
+            amount: input.amount,
+            accountId: input.accountId ?? null,
+        })
 
-        if (input.type === 'LOAN_INSTALLMENT') {
-            return setDebtInstallmentPaid(input.sourceId, true)
-        }
-
-        if (input.type === 'CARD_MINIMUM') {
-            const statement = await prisma.cardStatement.findFirstOrThrow({
-                where: {
-                    id: input.sourceId,
-                    creditCard: { userId: user.id },
-                },
-                include: { creditCard: true },
-            })
-            const amount = roundMoney(Math.max(0, statement.minimumPayment - statement.paymentsReceived))
-            if (amount <= 0) {
-                throw new ActionError('Bu kart ekstresi icin odenecek asgari tutar kalmadi.')
-            }
-            const lateCost = calculateAccumulatedInterest(
-                roundMoney(Math.max(0, statement.statementBalance - statement.paymentsReceived)),
-                statement.creditCard.defaultRate,
-                daysOverdue(statement.dueDate),
-                { kkdfRate: statement.creditCard.kkdfRate, bsmvRate: statement.creditCard.bsmvRate },
-            )
-            const paymentAmount = roundMoney(amount + lateCost.total)
-            const totalReceived = roundMoney(statement.paymentsReceived + amount)
-            const status = totalReceived >= statement.statementBalance
-                ? StatementStatus.PAID
-                : StatementStatus.OPEN
-
-            await prisma.$transaction([
-                ...(lateCost.total > 0 ? [
-                    prisma.cardTransaction.create({
-                        data: {
-                            creditCardId: statement.creditCardId,
-                            statementId: statement.id,
-                            type: TransactionType.INTEREST_CHARGE,
-                            description: 'Gecikme faizi ve vergileri',
-                            amount: lateCost.total,
-                            remainingAmount: lateCost.total,
-                            transactionDate: new Date(),
-                        },
-                    }),
-                    prisma.interestAccrual.create({
-                        data: {
-                            creditCardId: statement.creditCardId,
-                            statementId: statement.id,
-                            type: InterestType.DEFAULT_INTEREST,
-                            baseAmount: roundMoney(Math.max(0, statement.statementBalance - statement.paymentsReceived)),
-                            rate: statement.creditCard.defaultRate,
-                            dayCount: daysOverdue(statement.dueDate),
-                            interest: lateCost.interest,
-                            kkdf: roundMoney(lateCost.tax / 2),
-                            bsmv: roundMoney(lateCost.tax / 2),
-                            totalCost: lateCost.total,
-                        },
-                    }),
-                ] : []),
-                prisma.cardPayment.create({
-                    data: {
-                        creditCardId: statement.creditCardId,
-                        statementId: statement.id,
-                        amount: paymentAmount,
-                        description: 'Asgari odeme',
-                        allocationDetail: {
-                            source: 'debt_obligation',
-                            minimumPayment: amount,
-                            overdueCost: lateCost.total,
-                        },
-                    },
-                }),
-                prisma.cardStatement.update({
-                    where: { id: statement.id },
-                    data: {
-                        paymentsReceived: totalReceived,
-                        status,
-                    },
-                }),
-            ])
-
-            await refreshFinanceState(user.id)
-            revalidateFinancePaths(['/debts', '/cards', `/cards/${statement.creditCardId}`, '/payment-plan'])
-            return createSuccessResult('Kart asgari odemesi kaydedildi.', statement.creditCardId)
-        }
-
-        if (input.type === 'KMH_MINIMUM') {
-            const account = await prisma.account.findFirstOrThrow({
-                where: {
-                    id: input.sourceId,
-                    userId: user.id,
-                    hasKmh: true,
-                },
-            })
-            const principal = roundMoney(account.kmhStatementPrincipal ?? Math.max(account.balance * -1, 0))
-            if (principal <= 0) {
-                throw new ActionError('Bu KMH icin aktif borc bulunmuyor.')
-            }
-
-            const statement = calculateKmhStatement(
-                principal,
-                account.kmhInterestRate ?? 4.25,
-                30,
-                { kkdfRate: 0.15, bsmvRate: 0.15 },
-                account.kmhStatementInterest,
-            )
-            const dueDate = account.kmhNextPaymentDate
-            const lateCost = calculateKmhLateCost(
-                principal,
-                account.kmhLateInterestRate ?? 4.55,
-                daysOverdue(dueDate),
-                { kkdfRate: 0.15, bsmvRate: 0.15 },
-            )
-            const minimumPayment = roundMoney(account.kmhMinimumPayment ?? statement.minimumPayment)
-            if (minimumPayment <= 0) {
-                throw new ActionError('Bu KMH icin odenecek asgari tutar kalmadi.')
-            }
-            const interestDue = roundMoney(account.kmhStatementInterest ?? statement.interestWithTax)
-            const paymentAmount = roundMoney(minimumPayment + lateCost.total)
-            const principalPaid = roundMoney(Math.max(0, paymentAmount - interestDue - lateCost.total))
-            const remainingPrincipal = roundMoney(Math.max(0, principal - principalPaid))
-            const currentNextCutOffDate = account.kmhNextCutOffDate ?? addMonths(new Date(), 1)
-            const nextCutOffDate = addMonths(currentNextCutOffDate, 1)
-            const nextPaymentDate = getDueDateAfterCutOff(currentNextCutOffDate, account.kmhPaymentDueDay)
-
-            await prisma.$transaction([
-                prisma.account.update({
-                    where: { id: account.id },
-                    data: {
-                        balance: roundMoney(account.balance + principalPaid),
-                        kmhStatementPrincipal: remainingPrincipal > 0 ? remainingPrincipal : null,
-                        kmhStatementDate: currentNextCutOffDate,
-                        kmhStatementInterest: 0,
-                        kmhMinimumPayment: 0,
-                        kmhNextCutOffDate: nextCutOffDate,
-                        kmhNextPaymentDate: nextPaymentDate,
-                    },
-                }),
-                prisma.ledgerEntry.create({
-                    data: {
-                        userId: user.id,
-                        type: 'DEBT_PAYMENT',
-                        amount: -paymentAmount,
-                        currency: account.currency,
-                        description: `${account.name} KMH asgari odeme`,
-                        accountId: account.id,
-                        date: new Date(),
-                        metadata: {
-                            source: 'KMH_MINIMUM',
-                            principalPaid,
-                            interestPaid: interestDue,
-                            overdueCost: lateCost.total,
-                        },
-                    },
-                }),
-            ])
-
-            await refreshFinanceState(user.id)
-            revalidateFinancePaths(['/debts', '/accounts', '/payment-plan'])
-            return createSuccessResult('KMH asgari odemesi kaydedildi.', account.id)
-        }
-
-        throw new ActionError('Odeme tipi gecersiz.')
+        await refreshFinanceState(user.id)
+        revalidateFinancePaths(['/debts', '/budget', '/payment-plan', '/cards', '/accounts', '/people'])
+        return createSuccessResult('Borc odemesi kaydedildi.', input.obligationId)
     } catch (error) {
         return getActionErrorResult(error, 'Borc odemesi kaydedilemedi.')
     }

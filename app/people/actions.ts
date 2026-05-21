@@ -1,6 +1,6 @@
 'use server'
 
-import { RPNoteType, RPPaymentPlanType, RPRiskLevel } from '@prisma/client'
+import { DebtSourceType, RPNoteType, RPPaymentPlanType, RPRiskLevel } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import {
     type ActionResult,
@@ -13,6 +13,8 @@ import {
     toRequiredNumber,
     toRequiredString,
 } from '@/lib/action-result'
+import { deleteCanonicalDebtForSource, rebuildCanonicalDebtForPayable } from '@/lib/canonical-debt-service'
+import { prisma } from '@/lib/prisma'
 import { requireCurrentUser } from '@/lib/server-auth'
 import { createPerson, updatePerson, deletePerson } from '@/lib/people-service'
 import {
@@ -144,6 +146,13 @@ export async function updatePersonAction(
 export async function deletePersonAction(personId: string): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        const payables = await prisma.receivablePayable.findMany({
+            where: { userId: user.id, personId, type: 'PAYABLE' },
+            select: { id: true },
+        })
+        await Promise.all(payables.map((payable) =>
+            deleteCanonicalDebtForSource(user.id, DebtSourceType.PERSONAL_PAYABLE, payable.id),
+        ))
         await deletePerson(personId, user.id)
         revalidatePeoplePaths()
         return createSuccessResult('Kisi silindi.', personId)
@@ -191,6 +200,9 @@ export async function createRPAction(
             overdueAlertEnabled: data.get('overdueAlertEnabled') !== 'off',
             riskLevel: parseRiskLevel(data.get('riskLevel')),
         })
+        if (rp.type === 'PAYABLE') {
+            await rebuildCanonicalDebtForPayable(user.id, rp.id)
+        }
         revalidatePeoplePaths()
         revalidatePath(`/people/${String(data.get('personId'))}`)
         return createSuccessResult('Kayit eklendi.', rp.id)
@@ -233,6 +245,11 @@ export async function updateRPAction(
             internalNote: toOptionalString(data.get('internalNote')),
             riskLevel: parseRiskLevel(data.get('riskLevel')),
         })
+        if (rp.type === 'PAYABLE') {
+            await rebuildCanonicalDebtForPayable(user.id, rp.id)
+        } else {
+            await deleteCanonicalDebtForSource(user.id, DebtSourceType.PERSONAL_PAYABLE, rp.id)
+        }
 
         revalidatePeoplePaths()
         revalidatePath(`/people/${personId}`)
@@ -245,6 +262,7 @@ export async function updateRPAction(
 export async function deleteRPAction(rpId: string, personId: string): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        await deleteCanonicalDebtForSource(user.id, DebtSourceType.PERSONAL_PAYABLE, rpId)
         await deleteRP(user.id, rpId)
         revalidatePeoplePaths()
         revalidatePath(`/people/${personId}`)
@@ -304,6 +322,7 @@ export async function recordPaymentToPersonAction(
                 paymentMethod: toOptionalString(data.get('paymentMethod')) ?? undefined,
             },
         )
+        await rebuildCanonicalDebtForPayable(user.id, String(data.get('rpId')))
         revalidatePeoplePaths()
         revalidatePath(`/people/${personId}`)
         return createSuccessResult('Odeme kaydedildi.')
@@ -332,6 +351,7 @@ export async function rescheduleRPAction(
             installmentPeriod: parseInstallmentPeriod(data.get('installmentPeriod')),
             note: toOptionalString(data.get('note')),
         })
+        await rebuildCanonicalDebtForPayable(user.id, String(data.get('rpId')))
 
         revalidatePeoplePaths()
         revalidatePath(`/people/${personId}`)

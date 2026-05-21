@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import CardGrid from '@/components/cards/CardGrid'
 import AddCardButton from '@/components/cards/AddCardButton'
+import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +13,7 @@ async function getCards() {
     if (!user) return null
 
     try {
+        await syncCanonicalDebtsForUser(user.id)
         const cards = await prisma.creditCard.findMany({
             where: { userId: user.id },
             include: {
@@ -25,7 +27,24 @@ async function getCards() {
             orderBy: { createdAt: 'desc' },
         })
 
-        return cards
+        const canonicalDebts = await prisma.debtAccount.findMany({
+            where: {
+                userId: user.id,
+                sourceType: 'CREDIT_CARD',
+                sourceEntityId: { in: cards.map((card) => card.id) },
+            },
+            select: { sourceEntityId: true, currentBalance: true },
+        })
+        const debtByCardId = new Map(canonicalDebts.map((debt) => [debt.sourceEntityId, debt.currentBalance]))
+
+        return cards.map((card) => {
+            const currentDebt = debtByCardId.get(card.id) ?? card.currentDebt ?? 0
+            return {
+                ...card,
+                currentDebt,
+                availableLimit: Math.max(card.totalLimit - currentDebt, 0),
+            }
+        })
     } catch (error) {
         console.error('Error fetching cards:', error)
         return []

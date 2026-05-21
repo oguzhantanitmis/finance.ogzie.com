@@ -1,6 +1,6 @@
 'use server'
 
-import { CardNetwork, CardStatus, TransactionType } from '@prisma/client'
+import { CardNetwork, CardStatus, DebtSourceType, TransactionType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 import {
@@ -17,6 +17,7 @@ import { calculateMinimumPayment } from '@/lib/card-engine/payment-engine'
 import { getDueDate } from '@/lib/card-engine/statement-engine'
 import { recordCardPayment } from '@/lib/card-finance-settings-service'
 import { resolveCardVisual } from '@/lib/card-visuals'
+import { deleteCanonicalDebtForSource, rebuildCanonicalDebtForCreditCard } from '@/lib/canonical-debt-service'
 import { prisma } from '@/lib/prisma'
 import { requireCurrentUser } from '@/lib/server-auth'
 
@@ -169,6 +170,7 @@ export async function addCreditCard(
                 useGlobalRates: data.get('useGlobalRates') === 'on',
             },
         })
+        await rebuildCanonicalDebtForCreditCard(user.id, card.id)
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart kaydedildi.', card.id)
     } catch (error) {
@@ -228,6 +230,7 @@ export async function updateCreditCard(
         })
 
         await syncLatestStatementForCard(card.id, totalLimit, paymentDueDay, minPaymentRate)
+        await rebuildCanonicalDebtForCreditCard(user.id, card.id)
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart guncellendi.', card.id)
     } catch (error) {
@@ -240,6 +243,7 @@ export async function deleteCreditCard(cardId: string): Promise<ActionResult> {
         const user = await requireCurrentUser()
         const card = await getUserCard(cardId, user.id)
 
+        await deleteCanonicalDebtForSource(user.id, DebtSourceType.CREDIT_CARD, card.id)
         await prisma.creditCard.delete({ where: { id: card.id } })
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart silindi.', card.id)
@@ -288,6 +292,7 @@ export async function addCardTransaction(data: {
                 isCashAdvance: data.isCashAdvance || false,
             },
         })
+        await rebuildCanonicalDebtForCreditCard(user.id, card.id)
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart islemi kaydedildi.', card.id)
     } catch (error) {
@@ -346,6 +351,7 @@ export async function makeCardPayment(data: {
             )
         }
 
+        await rebuildCanonicalDebtForCreditCard(user.id, card.id)
         revalidateCardPaths(card.id)
         return createSuccessResult('Kart odemesi kaydedildi.', card.id)
     } catch (error) {
