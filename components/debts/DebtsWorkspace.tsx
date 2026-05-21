@@ -246,7 +246,7 @@ export default function DebtsWorkspace({
                 <Modal
                     title="Yeni Borç Ekle"
                     onClose={() => setShowAdd(false)}
-                    maxWidthClassName={createType === 'LOAN' ? 'max-w-5xl' : 'max-w-xl'}
+                    maxWidthClassName="max-w-4xl"
                 >
                     <DebtCreateForm
                         people={people}
@@ -264,7 +264,7 @@ export default function DebtsWorkspace({
                 <Modal
                     title="Borcu Düzenle"
                     onClose={() => setEditingDebt(null)}
-                    maxWidthClassName={editingDebt.type === 'LOAN' ? 'max-w-5xl' : 'max-w-xl'}
+                    maxWidthClassName="max-w-4xl"
                 >
                     {isPersonalDebt(editingDebt) ? (
                         <PersonalDebtEditForm
@@ -464,18 +464,15 @@ function DebtCreateForm({
                         key={option.value}
                         type="button"
                         onClick={() => onTypeChange(option.value)}
-                        className="filter-tab cursor-pointer"
+                        className="cursor-pointer text-left transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] flex flex-col justify-start rounded-2xl p-4 border whitespace-normal"
                         style={{
                             border: type === option.value ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
                             background: type === option.value ? 'var(--accent-primary)' : 'var(--bg-elevated)',
                             color: type === option.value ? 'var(--text-inverse)' : 'var(--text-primary)',
-                            borderRadius: '1rem',
-                            padding: '1rem',
-                            textAlign: 'left' as const,
                         }}
                     >
                         <p className="font-semibold mb-2">{option.label}</p>
-                        <p className="text-sm" style={{ color: type === option.value ? 'var(--text-inverse)' : 'var(--text-secondary)', opacity: type === option.value ? 0.8 : 1 }}>{option.description}</p>
+                        <p className="text-sm leading-relaxed" style={{ color: type === option.value ? 'var(--text-inverse)' : 'var(--text-secondary)', opacity: type === option.value ? 0.9 : 0.8 }}>{option.description}</p>
                     </button>
                 ))}
             </div>
