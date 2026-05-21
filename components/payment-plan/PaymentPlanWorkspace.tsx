@@ -33,32 +33,32 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
     return (
         <div>
             {/* Özet */}
-            <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
-                <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Toplam Asgari</p>
-                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4 mb-8">
+                <div className="fintech-card p-4 lg:p-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] mb-1.5" style={{ color: 'var(--text-muted)' }}>Toplam Asgari</p>
+                    <p className="text-xl lg:text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(plan.totalMinPayment, 'TRY')}</p>
                 </div>
-                <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Kullanılabilir</p>
-                    <p className="text-2xl font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(plan.totalAvailable, 'TRY')}</p>
+                <div className="fintech-card p-4 lg:p-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] mb-1.5" style={{ color: 'var(--text-muted)' }}>Kullanılabilir</p>
+                    <p className="text-xl lg:text-2xl font-bold privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(plan.totalAvailable, 'TRY')}</p>
                 </div>
-                <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Fazla / Açık</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', plan.surplus >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
+                <div className="fintech-card p-4 lg:p-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] mb-1.5" style={{ color: 'var(--text-muted)' }}>Fazla / Açık</p>
+                    <p className={cn('text-xl lg:text-2xl font-bold privacy-blur', plan.surplus >= 0 ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                         {formatCurrency(plan.surplus, 'TRY')}
                     </p>
                 </div>
-                <div className="fintech-card p-5 flex flex-col justify-between">
-                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Risk</p>
-                    <span className={cn('text-lg font-bold px-3 py-1 rounded-xl w-fit', risk.color)}>{risk.label}</span>
+                <div className="fintech-card p-4 lg:p-5 flex flex-col justify-between min-h-[92px]">
+                    <p className="text-[10px] uppercase tracking-[0.2em] mb-1.5" style={{ color: 'var(--text-muted)' }}>Risk</p>
+                    <span className={cn('text-sm md:text-base font-bold px-3 py-1 rounded-xl w-fit', risk.color)}>{risk.label}</span>
                 </div>
-                <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Tahmini bitiş</p>
-                    <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{plan.estimatedFinishDate ? new Date(plan.estimatedFinishDate).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '-'}</p>
+                <div className="fintech-card p-4 lg:p-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] mb-1.5" style={{ color: 'var(--text-muted)' }}>Tahmini bitiş</p>
+                    <p className="text-base lg:text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{plan.estimatedFinishDate ? new Date(plan.estimatedFinishDate).toLocaleDateString('tr-TR', { month: 'short', year: 'numeric' }) : '-'}</p>
                 </div>
-                <div className="fintech-card p-5">
-                    <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>Faiz tasarrufu</p>
-                    <p className="text-lg font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(plan.interestSavingEstimate, 'TRY')}</p>
+                <div className="fintech-card p-4 lg:p-5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] mb-1.5" style={{ color: 'var(--text-muted)' }}>Faiz tasarrufu</p>
+                    <p className="text-base lg:text-lg font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(plan.interestSavingEstimate, 'TRY')}</p>
                 </div>
             </div>
 
@@ -88,7 +88,7 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
             )}
 
             {/* Strateji Seçimi */}
-            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-6 gap-4 mb-8">
                 {(['SAFE', 'AVALANCHE', 'SNOWBALL', 'CASHFLOW', 'RISK', 'GOAL'] as Strategy[]).map((s) => {
                     const meta = STRATEGY_META[s]
                     const Icon = meta.icon
@@ -98,15 +98,15 @@ export default function PaymentPlanWorkspace({ plans }: Props) {
                             key={s}
                             onClick={() => setActiveStrategy(s)}
                             className={cn(
-                                'fintech-card p-5 text-left transition-all',
-                                isActive ? 'border-white/30' : 'opacity-60 hover:opacity-80'
+                                'fintech-card p-5 text-left transition-all w-full cursor-pointer',
+                                isActive ? 'border-white/30 bg-[var(--bg-active)]' : 'opacity-60 hover:opacity-80'
                             )}
                         >
                             <div className="flex items-center gap-3 mb-2">
-                                <Icon className={cn('w-5 h-5', meta.color)} />
-                                <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{meta.label}</h3>
+                                <Icon className={cn('w-5 h-5 shrink-0', meta.color)} />
+                                <h3 className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>{meta.label}</h3>
                             </div>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.desc}</p>
+                            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{meta.desc}</p>
                         </button>
                     )
                 })}

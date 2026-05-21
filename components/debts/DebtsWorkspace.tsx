@@ -787,6 +787,8 @@ function LoanFields({ debt }: { debt?: DebtView }) {
     const [kkdfRate, setKkdfRate] = useState(String(toPercentInput(debt?.kkdfRate, 0.15)))
     const [bsmvRate, setBsmvRate] = useState(String(toPercentInput(debt?.bsmvRate, 0.15)))
 
+    const [showSchedule, setShowSchedule] = useState(false)
+
     const principalValue = Math.max(0, parseNumberInput(totalPrincipal))
     const interestValue = Math.max(0, parseNumberInput(interestRate))
     const installmentCount = Math.max(0, Math.trunc(parseNumberInput(installments)))
@@ -939,8 +941,21 @@ function LoanFields({ debt }: { debt?: DebtView }) {
                 <LoanMetric label="Faiz + vergi" value={totalInterest + totalTax} variant="danger" />
             </div>
 
-            {rows.length > 0 ? (
-                <div className="data-table-wrapper max-h-80 overflow-y-auto">
+            <div className="flex items-center justify-between border-t border-[var(--border-default)] pt-4 mt-2">
+                <button
+                    type="button"
+                    onClick={() => setShowSchedule(!showSchedule)}
+                    className="text-xs font-semibold flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all duration-200 cursor-pointer bg-[var(--bg-elevated)] border border-[var(--border-default)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                >
+                    <span>{showSchedule ? '📋 Ödeme Planı Tablosunu Gizle' : '📋 Ödeme Planı Tablosunu Göster'}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--bg-hover)] font-mono">
+                        {rows.length} Taksit
+                    </span>
+                </button>
+            </div>
+
+            {showSchedule && rows.length > 0 ? (
+                <div className="data-table-wrapper max-h-60 overflow-y-auto mt-2 border border-[var(--border-default)] rounded-xl">
                     <table className="data-table">
                         <thead>
                             <tr>
