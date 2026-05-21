@@ -131,53 +131,60 @@ export default function AssetsWorkspace({
             <FormMessage success={feedback?.success} message={feedback?.message} />
 
             {/* Header KPI kartları */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div
-                    className="fintech-card p-6"
-                    style={{
-                        background: 'linear-gradient(135deg, var(--accent-success-bg), var(--bg-card))',
-                        borderColor: 'var(--accent-success-border)',
-                    }}
-                >
-                    <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
-                        Toplam Varlıklar
-                    </p>
-                    <p className="text-3xl font-bold tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>
-                        {formatCurrency(totalAssetsValue, 'TRY')}
-                    </p>
-                    <p className="text-sm mt-2" style={{ color: 'var(--accent-success)' }}>
-                        Kaydedilmiş veriler üzerinden hesaplandı.
-                    </p>
-                </div>
+            {(() => {
+                // Per-currency totals (non-TRY)
+                const byCurrency: Record<string, number> = {}
+                for (const a of assets) {
+                    if (a.currency === 'TRY') continue
+                    byCurrency[a.currency] = (byCurrency[a.currency] ?? 0) + a.amount
+                }
+                const foreignEntries = Object.entries(byCurrency).slice(0, 2)
 
-                <div className="fintech-card p-6">
-                    <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
-                        USD/TRY
-                    </p>
-                    <p className="text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                        {hasUsdRate ? formatCurrency(rates.USD, 'TRY') : 'Kur yok'}
-                    </p>
-                    <p className="text-sm mt-2" style={{ color: hasUsdRate ? 'var(--text-muted)' : 'var(--accent-warning)' }}>
-                        {hasUsdRate
-                            ? `${sourceLabel}${updatedLabel ? ` • ${updatedLabel}` : ''}`
-                            : 'CollectAPI verisi bulunamadı.'}
-                    </p>
-                </div>
+                return (
+                    <div className={`grid grid-cols-1 gap-6 mb-8 ${foreignEntries.length > 0 ? 'md:grid-cols-3' : 'md:grid-cols-1 max-w-xs'}`}>
+                        <div
+                            className="fintech-card p-6"
+                            style={{
+                                background: 'linear-gradient(135deg, var(--accent-success-bg), var(--bg-card))',
+                                borderColor: 'var(--accent-success-border)',
+                            }}
+                        >
+                            <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
+                                Toplam Varlıklar
+                            </p>
+                            <p className="text-3xl font-bold tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>
+                                {formatCurrency(totalAssetsValue, 'TRY')}
+                            </p>
+                            <p className="text-sm mt-2" style={{ color: 'var(--accent-success)' }}>
+                                Kaydedilmiş veriler üzerinden hesaplandı.
+                            </p>
+                        </div>
 
-                {rates.GA > 0 && (
-                    <div className="fintech-card p-6">
-                        <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
-                            Gram Altın
-                        </p>
-                        <p className="text-3xl font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                            {formatCurrency(rates.GA, 'TRY')}
-                        </p>
-                        <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>
-                            {sourceLabel}{updatedLabel ? ` • ${updatedLabel}` : ''}
-                        </p>
+                        {foreignEntries.map(([currency, total]) => {
+                            const rate = getCurrentRate(currency, '', rates)
+                            const tlValue = rate ? total * rate : null
+                            return (
+                                <div key={currency} className="fintech-card p-6">
+                                    <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
+                                        Toplam {currency}
+                                    </p>
+                                    <p className="text-3xl font-bold tabular-nums privacy-blur" style={{ color: 'var(--accent-info)' }}>
+                                        {formatNumber(total)} <span className="text-lg">{currency}</span>
+                                    </p>
+                                    {tlValue !== null ? (
+                                        <p className="text-sm mt-2 tabular-nums privacy-blur" style={{ color: 'var(--text-muted)' }}>
+                                            ≈ {formatCurrency(tlValue, 'TRY')}
+                                            {rate && <span className="ml-1.5 text-xs">• 1 {currency} = {formatCurrency(rate, 'TRY')}</span>}
+                                        </p>
+                                    ) : (
+                                        <p className="text-sm mt-2" style={{ color: 'var(--text-muted)' }}>Kur verisi yok</p>
+                                    )}
+                                </div>
+                            )
+                        })}
                     </div>
-                )}
-            </div>
+                )
+            })()}
 
             {/* Varlık tablosu */}
             <div className="data-table-wrapper">
