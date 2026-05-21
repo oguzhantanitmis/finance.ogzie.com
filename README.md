@@ -1,171 +1,283 @@
-# Ogzie Finans
+# Ogzie Finans - Sistem Mimari Dokümantasyonu
 
-Türkiye şartlarına göre tasarlanmış kişisel muhasebe, borç kapatma ve nakit akışı kokpiti.
+Ogzie Finans, Türkiye piyasası ve bireysel finans ihtiyaçları için geliştirilmiş multi-user kişisel finans kokpitidir. Uygulama gelir-gider takibinin ötesinde hesap, varlık, kredi kartı, KMH, kredi, alacak/verecek, bütçe, hedef, rapor, piyasa verisi ve finans asistanı akışlarını tek kullanıcı hesabı altında izole biçimde yönetir.
 
-Uygulama mevcut Next.js + Prisma mimarisi korunarak genişletildi. Amaç sadece gelir-gider listesi göstermek değil; alacak, verecek, taksit, gecikme, kredi kartı faizi, bütçe, hedef, piyasa verisi ve finans asistanını aynı karar ekranında birleştirmektir.
+Bu doküman internal teknik/handoff dokümanıdır. Yeni geliştirici veya ajan, sistemi anlamak, güvenli değişiklik yapmak, deploy etmek ve üretim hatalarını takip etmek için bu dosyayı başlangıç noktası olarak kullanmalıdır. Gerçek parola, API anahtarı, veritabanı bağlantısı veya özel kullanıcı şifresi bu dosyaya yazılmaz.
 
-## Ana Özellikler
+## Ürün Kapsamı
 
-- CollectAPI tabanlı USD, EUR, GBP ve altın piyasa kartları
-- Güvenli CollectAPI API anahtarı saklama ve cache destekli piyasa verisi
-- Alacak / verecek kayıtları, taksit planı, kısmi ödeme, gecikme ve yeniden taksitlendirme
-- Kayıt bazlı not, ödeme geçmişi ve timeline
-- Nakit seçimi destekli gelir/gider işlem formu
-- Kredi kartı limiti, güncel borç, asgari ödeme, son ödeme tarihi, faiz ve kart programı takibi
-- Türkiye kart programları için görsel eşleşme altyapısı
-- Aylık bütçe merkezi, TL formatlı para alanları ve planlanan/gerçekleşen nakit akışı
-- Kartopu, çığ, nakit akışı, risk ve hedef odaklı borç ödeme stratejileri
-- Hedef türleri ve hedefe göre ödeme kapasitesi analizi
-- Profesyonel rapor özeti, detay kartları ve kişi/kart/borç bazlı analiz
-- Deterministik finans asistanı intent sistemi
-- Superuser kontrollü admin paneli ve kullanıcı bazlı veri izolasyonu
-- SMTP ile yeni kullanıcı giriş bilgisi ve admin test e-postası gönderimi
-- Açık/koyu tema değişkenleri ve legacy koyu input düzeltmeleri
+Ana hedef, kullanıcının finansal durumunu tek ekranda karar verilebilir hale getirmektir:
 
-## Kurulum
+- Genel bakış: net pozisyon, nakit, borç, alacak, yaklaşan ödemeler ve piyasa kartları.
+- Varlıklar: nakit, banka, döviz, altın, kripto, hisse, gayrimenkul ve diğer varlıklar.
+- Hesaplar: banka hesapları, nakit cüzdanları, KMH/Esnek Hesap bilgileri ve ledger hareketleri.
+- Kişiler: kişi bazlı alacak/verecek, taksit, kısmi ödeme, not ve timeline.
+- Borçlar: manuel borçlar, ihtiyaç kredileri, KMH, kredi kartları ve ödenmesi gereken borçlar.
+- Kartlar: kredi kartı limitleri, hareketler, ekstreler, asgari ödeme ve faiz kayıtları.
+- Bütçe: planlanan gelir, sabit yük, borç baskısı, serbest nakit ve yaklaşan yükümlülükler.
+- Ödeme planı: borç kapatma stratejileri ve kayıtlı ödeme planları.
+- Hedefler, sağlık skoru, raporlar, simülasyonlar ve finans asistanı.
+- Admin: superuser tarafından kullanıcı oluşturma, silme, SMTP testleri ve kullanıcı durum takibi.
+
+## Teknik Mimari
+
+Uygulama Next.js App Router tabanlıdır. Sayfalar `app/**/page.tsx`, mutasyonlar çoğunlukla Server Actions, dış entegrasyonlar ve AI gibi HTTP girişleri API route olarak çalışır.
+
+Ana katmanlar:
+
+- UI: `components/**` altında sayfa workspace bileşenleri, tablo/kart bileşenleri ve ortak shell yapısı.
+- Route katmanı: `app/**` altında sayfalar, server action dosyaları ve API route dosyaları.
+- Domain servisleri: `lib/**` altında finans hesaplama, veri okuma/yazma, rapor, risk, piyasa ve auth servisleri.
+- Veri katmanı: Prisma Client üzerinden MySQL/MariaDB uyumlu `DATABASE_URL`.
+- Auth: NextAuth Credentials provider, JWT session stratejisi ve middleware koruması.
+- Deploy: GitHub main branch push sonrası Vercel production deployment.
+
+Önemli runtime kararları:
+
+- `proxy.ts` tüm korumalı route'ları login arkasına alır.
+- `/admin` ve `/ai` sadece `SUPERUSER` rolüne veya primary superuser e-postasına açıktır.
+- Server tarafında güvenlik için `getCurrentUser`, `requireCurrentUser`, `requireSuperuser` kullanılmalıdır.
+- Client tarafındaki görünürlük kontrolleri tek güvenlik katmanı değildir; server action ve API route içinde tekrar yetki kontrolü yapılmalıdır.
+
+## Auth, RBAC ve Multi-User İzolasyonu
+
+Kullanıcı modeli `User` tablosudur. Roller `USER` ve `SUPERUSER` olarak tutulur.
+
+Primary superuser:
+
+- `oguzhan@tanitmis.com` primary superuser hesabıdır.
+- `resolveUserRole` bu e-postayı her zaman `SUPERUSER` olarak çözer.
+- Primary superuser admin panelinden silinemez.
+
+RBAC davranışı:
+
+- Normal kullanıcılar kendi finans verilerini görür ve yönetir.
+- Normal kullanıcılar admin panelini ve AI finans asistanını göremez/kullanamaz.
+- Superuser kullanıcı oluşturabilir, silebilir, SMTP test e-postası gönderebilir ve global sağlayıcı ayarlarını yönetebilir.
+
+Tenant izolasyonu:
+
+- Finansal kayıtların ana sahiplik alanı `userId` kolonudur.
+- Query'lerde kullanıcı kapsamı her zaman session kullanıcısının `id` değeri ile filtrelenmelidir.
+- Kullanıcı silme akışı bağlı finans verilerini transaction içinde temizler.
+- IDOR riskini önlemek için action/API katmanında sadece id ile kayıt aranmamalı; `id + userId` birlikte doğrulanmalıdır.
+
+## Veri Modeli
+
+Prisma schema ana model grupları:
+
+- Kullanıcı ve erişim: `User`, `UserRole`.
+- Varlık ve piyasa: `Asset`, `AssetType`, `MarketRate`.
+- Borç: `Debt`, `DebtType`, `PaymentPlan`.
+- İşlem ve bütçe: `Transaction`, `BudgetMonth`, `BudgetAlert`, `IncomeSource`, `Subscription`, `RecurringExpense`.
+- Kredi kartı: `CreditCard`, `CardStatement`, `CardTransaction`, `CardInstallment`, `CardPayment`, `InterestAccrual`, `CreditCardInterestRecord`.
+- Kişi ve alacak/verecek: `Person`, `ReceivablePayable`, `RPTransaction`, `RPInstallment`, `RPRecordNote`, `RPRecordEvent`.
+- Hesap ve ledger: `Account`, `LedgerEntry`.
+- Ayarlar ve sistem: `AppSettings`, `CardFinanceSettings`.
+- Planlama ve analiz: `FinancialGoal`, `HealthSnapshot`, `AIInsight`, `AIRecommendation`, `SavedPaymentPlan`, `Snapshot`.
+
+Migration sırası repo içinde `prisma/migrations/**` altında tutulur. Yeni migration eklendiğinde production deploy öncesi Prisma Client üretimi ve migration uygulama akışı doğrulanmalıdır.
+
+## Finans Modülleri ve Veri Akışı
+
+Dashboard verisi `dashboard-service`, `monthly-planner`, `market-data` ve ilgili domain servislerinden beslenir. Dashboard hesapları doğrudan ham tablolardan değil, servislerin normalize ettiği özetlerden okunmalıdır.
+
+Borçlar sayfası farklı kaynakları tek görünümde birleştirir:
+
+- Manuel borç ve kredi kayıtları `Debt` ve `PaymentPlan`.
+- Kredi kartları `CreditCard` ve son ekstre/veri hareketlerinden hesaplanır.
+- KMH borcu `Account` üzerinde tutulan eksi bakiye ve KMH ekstre alanlarından gelir.
+- Kişisel verecek/alacak kayıtları `ReceivablePayable` üzerinden yansır.
+- "Ödemen gereken borçlar" paneli kredi taksidi, KMH asgari ve kart asgarisini tek ödeme yükümlülüğü listesinde toplar.
+
+Bütçe borç baskısı, Borçlar sayfasındaki ödeme yükümlülüğü kaynağıyla aynı mantığı kullanmalıdır. Eski manuel borç tahminleri kredi/kart/KMH ile çift sayılmamalıdır.
+
+Ledger yaklaşımı:
+
+- Hesap hareketleri `LedgerEntry` ile izlenir.
+- Kart ödemeleri, KMH ödemeleri, alacak tahsilatı ve kişiye ödeme gibi aksiyonlar ilgili kaynak kaydıyla birlikte ledger etkisi üretmelidir.
+- Nakit/hareket etkisi olmayan salt görüntüleme değişiklikleri ledger üretmemelidir.
+
+## Hesaplama Motorları
+
+Finans hesaplamaları `lib/banking-engine.ts`, `lib/card-balance.ts`, `lib/debt-views.ts`, `lib/monthly-planner.ts`, `lib/debt-priority-engine.ts`, `lib/health-score-service.ts` ve benzeri servislerde tutulur.
+
+KMH / Esnek Hesap:
+
+- Akdi faiz ve gecikme faizi aylık oran ile günlük hesaplanır.
+- Günlük faiz formülü: `anapara * aylık oran * gün / 3000`.
+- KKDF ve BSMV faiz üstüne eklenir; varsayılan oranlar %15 + %15'tir.
+- Dönem borcu: anapara borcu + dönem faizi/vergi.
+- Zorunlu asgari: anapara borcunun %5'i + dönem faizi/vergi.
+- Son ödeme geçerse gecikme artışı anapara borcu üzerinden günlük hesaplanır.
+- Yapı Kredi Esnek Hesap PDF değerleri ekstre verisi olarak saklanır; tahmini değer ekstre yerine geçmez.
+
+Kredi:
+
+- Eşit taksitli kredi planı anapara, aylık faiz ve vergi oranlarıyla hesaplanır.
+- Taksit tablosunda faiz, KKDF, BSMV, anapara ve kalan anapara ayrı gösterilir.
+- Aynı taksit numarasına ait eski seed/veri tekrarları normalize edilerek tek ödeme planı görünümü üretilir.
+
+Kredi kartı:
+
+- Güncel borç kart hareketleri ve ödemelerden hesaplanır.
+- Asgari ödeme, kart ayarlarında tutulan oranlara göre hesaplanır.
+- Gecikmiş asgari ödemelerde gecikme maliyeti faiz/vergi hareketi olarak karta işlenir.
+- Kart faiz ayarları `CardFinanceSettings` ile kullanıcı bazlı tutulur.
+
+Bütçe:
+
+- Planlanan gelir, sabit yük ve borç baskısı aylık özet üretir.
+- Gelir/bütçe alanı elle girilmişse elle girilen değer önceliklidir.
+- Borç baskısı hesaplanırken kredi taksidi, KMH asgari, kart asgari ve yapılacak kişi ödemeleri birlikte değerlendirilir.
+
+Piyasa değerleme:
+
+- TL varlıklar doğrudan tutar olarak alınır.
+- Döviz ve altın varlıklar `MarketRate` tablosundaki son başarılı CollectAPI verisiyle TL'ye çevrilir.
+- Veri çekilemezse son başarılı kayıt stale olarak kullanılabilir; kullanıcıya sağlayıcı uyarısı gösterilir.
+
+## Entegrasyonlar
+
+CollectAPI:
+
+- Piyasa kartları USD, EUR, GBP, gram altın ve isteğe bağlı diğer altın serilerinden beslenir.
+- API anahtarı env üzerinden veya encrypted `AppSettings` üzerinden okunur.
+- Sağlayıcı ayarları primary superuser sahibinden okunur; normal kullanıcı anahtarı görmez.
+- Cache süresi ayarlanabilir, eksik veri durumunda son başarılı kayıt korunur.
+
+SMTP:
+
+- Admin panelinden kullanıcı oluşturulduğunda SMTP konfigürasyonu varsa giriş bilgileri e-posta ile gönderilir.
+- SMTP yoksa kullanıcı oluşturma devam eder, sadece mail gönderilmez.
+- SMTP test e-postası sadece superuser tarafından gönderilebilir.
+
+OpenAI / Finans asistanı:
+
+- `/ai` ve `/api/ai` superuser-only çalışır.
+- OpenAI anahtarı yoksa deterministik yerel finans asistanı cevapları kullanılabilir.
+- AI promptları kullanıcı finans bağlamı ile compose edilir; normal kullanıcıya AI yüzeyi kapalıdır.
+
+GitHub / Vercel:
+
+- Main branch push production deployment tetikler.
+- Vercel build komutu `npm run build:vercel`.
+- Deployment sonrası `finance.ogzie.com` alias'ının yeni deployment'a döndüğü kontrol edilmelidir.
+- Runtime loglarda hata olup olmadığı deployment URL üzerinden kontrol edilmelidir.
+
+## Ortam Değişkenleri
+
+Zorunlu temel değişkenler:
+
+```bash
+DATABASE_URL
+NEXTAUTH_SECRET
+NEXTAUTH_URL
+APP_URL
+APP_SETTINGS_SECRET
+```
+
+Opsiyonel entegrasyon değişkenleri:
+
+```bash
+COLLECTAPI_API_KEY
+OPENAI_API_KEY
+OPENAI_MODEL
+OPENAI_BASE_URL
+SMTP_HOST
+SMTP_PORT
+SMTP_SECURE
+SMTP_USER
+SMTP_PASSWORD
+SMTP_FROM
+SMTP_REPLY_TO
+```
+
+Seed için kullanılan değişkenler:
+
+```bash
+SEED_SUPERUSER_EMAIL
+SEED_SUPERUSER_PASSWORD
+```
+
+Notlar:
+
+- Production'da `APP_SETTINGS_SECRET` sabit ve güçlü olmalıdır; değiştirilirse encrypted ayarlar okunamaz.
+- `.env.example` sadece placeholder içermelidir.
+- Gerçek env değerleri repo içine commit edilmez.
+
+## Kurulum ve Lokal Çalışma
+
+Temel kurulum:
 
 ```bash
 npm install
-cp .env.example .env
 npm run db:update
 npm run dev
 ```
 
-Geliştirme sunucusu varsayılan olarak `http://localhost:3000` adresinde çalışır.
-
-## Ortam Değişkenleri
-
-`.env` içinde en az aşağıdaki değerler gerekir:
+Veritabanı işlemleri:
 
 ```bash
-DATABASE_URL="mysql://USER:PASSWORD@HOST:PORT/DATABASE"
-NEXTAUTH_SECRET="uzun-guvenli-secret"
-NEXTAUTH_URL="http://localhost:3000"
-APP_SETTINGS_SECRET="collectapi-ve-diger-sifreli-ayarlar-icin-uzun-secret"
-COLLECTAPI_API_KEY="collectapi-token"
+npm run prisma -- migrate deploy
+npm run db:generate
+npm run db:push
 ```
 
-`APP_SETTINGS_SECRET` tanımlanmazsa şifreli ayar kaydı için `NEXTAUTH_SECRET` veya `AUTH_SECRET` kullanılır. Production ortamında sabit ve güçlü bir `APP_SETTINGS_SECRET` kullanılması önerilir.
-
-Admin panelinden kullanıcı oluşturma ve e-posta gönderimi için opsiyonel SMTP değerleri:
+Build:
 
 ```bash
-SMTP_HOST="smtp.example.com"
-SMTP_PORT="587"
-SMTP_SECURE="false"
-SMTP_USER="smtp-user"
-SMTP_PASSWORD="smtp-password"
-SMTP_FROM="Ogzie Finans <no-reply@finance.ogzie.com>"
-SMTP_REPLY_TO="destek@finance.ogzie.com"
-```
-
-SMTP eksikse kullanıcı oluşturma devam eder, sadece giriş bilgisi e-postası gönderilmez. Finans asistanı ve AI çalışma durumu sadece `SUPERUSER` rolündeki hesaplara açıktır.
-
-## Veritabanı Migration
-
-Yeni kişisel muhasebe kokpiti için migration dosyası:
-
-```bash
-prisma/migrations/20260503010000_personal_finance_cockpit/migration.sql
-```
-
-Migration mevcut kayıtları silmez. Eski alacak/verecek kayıtları yeni alanlara geriye dönük doldurulur:
-
-- `title` eski açıklamadan üretilir
-- `principalAmount` ve `totalAmount` eski ana tutardan doldurulur
-- `paidAmount` eski kalan tutara göre hesaplanır
-- eski taksitli kayıtlar `INSTALLMENT`, diğerleri `ONE_TIME` olarak taşınır
-
-Uygulamak için:
-
-```bash
-npm run db:update
-```
-
-## CollectAPI Ayarları
-
-1. Production ortamında `COLLECTAPI_API_KEY` değişkenini tanımlayın.
-2. Ayarlar sayfasına gidin.
-3. Superuser olarak `CollectAPI Ayarları` bölümünden tüm kullanıcılar için gösterilecek piyasa kartlarını seçin.
-4. Cache süresini belirleyin. Bu sağlayıcı ayarları primary superuser hesabından okunur; piyasa rate kayıtları her kullanıcı için ayrı tutulur.
-5. Dashboard'da `Piyasa Kartları` bölümünü kontrol edin.
-
-API anahtarı yoksa dashboard hata vermez, `CollectAPI API anahtarı girilmedi` uyarısını gösterir. Veri çekilemezse son başarılı CollectAPI kaydı gösterilir.
-
-CollectAPI entegrasyonu `Authorization: apikey <token>` header formatını kullanır. Döviz kartları önce `/economy/allCurrency`, altın kartları önce `/economy/goldPrice` endpointinden beslenir. Satır bulunamazsa sistem `/economy/serbestPiyasa?base=...` fallback endpointini dener. Normal kullanıcılar sağlayıcı anahtarını görmez; anahtar uygulama seviyesinde tutulur.
-
-## Kişisel Muhasebe Kullanımı
-
-### Alacak / Verecek
-
-Kişi detayından yeni kayıt eklerken:
-
-- `Bana borcu var / Alacak`
-- `Benim borcum var / Verecek`
-- tek seferlik, taksitli veya serbest ödeme planı
-- risk seviyesi
-- hatırlatma seçenekleri
-- iç not ve açıklama
-
-Taksitli kayıt oluşturulduğunda sistem taksitleri, hatırlatmaları ve timeline olaylarını otomatik üretir.
-
-### Kısmi Ödeme
-
-Taksit seçerek tahsilat veya ödeme girildiğinde:
-
-- taksit ödenen/kalan tutarı güncellenir
-- durum `Kısmi ödendi` veya `Ödendi` olur
-- ana kayıt kalan tutarı güncellenir
-- ödeme geçmişi ve timeline kaydı oluşur
-
-### Kalanı Yeniden Taksitlendir
-
-Kişi detayındaki `Kalanı Taksitlendir` aksiyonu ödenmiş taksitleri korur, açık taksitleri `Yeniden yapılandırıldı` durumuna alır ve kalan tutar için yeni plan oluşturur.
-
-## Kredi Kartı Kullanımı
-
-Kart ekleme formu banka, kart programı, kart ağı, limit, kullanılabilir limit, güncel borç, hesap kesim tarihi, son ödeme tarihi ve faiz oranlarını destekler.
-
-Desteklenen kart ağı seçenekleri:
-
-- Visa
-- Mastercard
-- Troy
-- American Express
-
-Kart programı eşleşmeleri `lib/card-visuals.ts` içinde yönetilir. Telifli görseller repo içine gömülmez; yerel asset eklemek için aşağıdaki klasörler hazırdır:
-
-```bash
-public/assets/cards
-public/assets/banks
-```
-
-## Finans Asistanı
-
-Asistan doğal dil sorularını önce yerel intent sistemiyle yanıtlar. Desteklenen başlıklar:
-
-- kredi kartı faizi
-- borç bitiş tahmini
-- aylık ödeme ihtiyacı
-- kişi bazlı alacak
-- kişi/kurum bazlı verecek
-- nakit akışı
-- riskli borçlar
-- hedef durumu
-- rapor özeti
-
-Yeterli veri yoksa açıkça `Bu hesaplama için yeterli veri yok` yaklaşımıyla cevap verir.
-
-## Test ve Doğrulama
-
-Çalıştırılan kontroller:
-
-```bash
-npx prisma format
-npx prisma generate
-npx tsc --noEmit
-npm run test
 npm run build
+npm run build:production
 ```
 
-Son durumda TypeScript, Vitest ve production build başarılıdır. Repo genelindeki ESLint kontrolü, mevcut eski dosyalardaki `any`, `require`, kullanılmayan import ve React 19 lint kurallarına takılmaktadır; detaylar `TEST_REPORT.md` içindedir.
+Bu projede production odaklı çalışılır. Kullanıcı özellikle local test istemediyse değişiklikler için local dev server açılmamalıdır; gerekli durumlarda statik doğrulama ve Vercel deployment kontrolü tercih edilir.
+
+## Operasyon ve Bakım
+
+Önerilen değişiklik akışı:
+
+1. Önce ilgili domain servislerini ve Prisma model ilişkilerini oku.
+2. En küçük güvenli değişikliği yap.
+3. `docs/CHANGELOG.md` içine tamamlanan adımı yaz.
+4. Uygun statik doğrulamayı çalıştır.
+5. Commit, push, Vercel deployment ve log kontrolü yap.
+
+Yaygın doğrulamalar:
+
+```bash
+git diff --check
+npx tsc --noEmit
+npm run lint
+npm run test
+```
+
+Dokümantasyon-only değişikliklerde `git diff --check` yeterlidir; kod değişmediği için lint/build zorunlu değildir.
+
+Veri onarım scriptleri:
+
+- `scripts/repair-yapikredi-data.mjs` Yapı Kredi İhtiyaç kredisi ve Yapı Kredi KMH ekstre verisini üretim kullanıcısı için düzeltmek amacıyla kullanılır.
+- Onarım scriptleri manuel, kontrollü ve üretim verisi etkilediği bilinerek çalıştırılmalıdır.
+
+## Geliştirme Kuralları
+
+- Kullanıcı verisi tenant dışına sızmamalıdır.
+- Admin ve AI akışları server-side superuser kontrolü olmadan açılmamalıdır.
+- Finans hesaplarında tek kaynaklı veri tercih edilir; aynı borç farklı modüllerde çift sayılmamalıdır.
+- Piyasa ve banka verilerinde ekstre/resmi veri tahminden üstündür.
+- Hesaplamalar kullanıcıya anlaşılır satırlara bölünmelidir: anapara, faiz, vergi, asgari, gecikme, güncel borç.
+- Schema/migration değişikliklerinde geriye dönük veri uyumluluğu düşünülmelidir.
+- UI sadece gizleme amacıyla güvenlik sağlamaz; tüm mutasyonlarda server-side doğrulama gerekir.
+- Gerçek secret, kişisel şifre, API key veya production connection string dokümana veya loga yazılmaz.
+
+## Önemli Dosyalar
+
+- `app/**`: route, page, action ve API girişleri.
+- `components/**`: kullanıcı arayüzü ve workspace bileşenleri.
+- `lib/auth.ts`, `lib/authz.ts`, `lib/server-auth.ts`: authentication ve authorization.
+- `lib/debt-views.ts`: borç kaynaklarını tek görünüm ve ödeme yükümlülüğü haline getirir.
+- `lib/banking-engine.ts`: KMH, faiz, kredi ve temel finans hesapları.
+- `lib/market-data.ts`, `lib/evds-service.ts`: CollectAPI piyasa verisi ve rate cache akışı.
+- `lib/monthly-planner.ts`: bütçe özeti ve yaklaşan ödeme yükümlülükleri.
+- `prisma/schema.prisma`: veri modeli.
+- `docs/CHANGELOG.md`: tamamlanan teknik değişikliklerin kısa kayıtları.

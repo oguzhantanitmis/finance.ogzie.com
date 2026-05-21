@@ -2,6 +2,7 @@
 
 ## 2026-05-21
 
+- Root README internal teknik/handoff dokümanı olarak yeniden yazıldı; mimari, veri modeli, finans motorları, güvenlik, entegrasyon ve operasyon akışları tek dosyada toplandı.
 - KMH borç görünümü Yapı Kredi hesap özeti açıklamalarına göre netleştirildi; tahmini asgari satırı kaldırıldı, zorunlu asgari yalnızca ekstre formülüyle gösterilir.
 - KMH maliyet analizinde asgari anapara (%5), dönem faizi/vergi, zorunlu asgari, gecikme artışı ve güncel borç ayrı satırlara bölündü.
 - KMH kart başlığındaki güncel borç, son ödeme tarihi geçtiyse hesaplanan gecikme artışını da içerecek şekilde güncellendi.
