@@ -1,11 +1,11 @@
 'use client'
 
 import { useActionState, useState } from 'react'
-import { CreditCard, Settings2, Bell, Shield, CheckCircle, User2, Lock, Calendar } from 'lucide-react'
+import { CreditCard, Settings2, Bell, Shield, CheckCircle, User2, Lock, Calendar, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
 import { saveEvdsSettingsAction } from '@/app/settings/evds-actions'
-import { updateProfileAction, changePasswordAction } from '@/app/settings/profile-actions'
+import { updateProfileAction, changePasswordAction, signOutAllDevicesAction } from '@/app/settings/profile-actions'
 import FormMessage from '@/components/ui/FormMessage'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT } from '@/lib/action-result'
@@ -122,7 +122,37 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         </div>
                         <FormMessage success={passwordState.success} message={passwordState.message} />
                         <SubmitButton label="Şifreyi Değiştir" pendingLabel="Değiştiriliyor..." />
+                        {passwordState.success && (
+                            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                                Şifre değişimi tüm cihazlardaki oturumları sonlandırır.
+                            </p>
+                        )}
                     </form>
+                </div>
+
+                {/* Tüm cihazlardan çıkış */}
+                <div
+                    className="mt-6 pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    style={{ borderTop: '1px solid var(--border-default)' }}
+                >
+                    <div>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Tüm cihazlardan çıkış</p>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                            Mevcut oturum hariç tüm aktif JWT oturumları sonlandırılır.
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            if (!confirm('Tüm cihazlardaki oturumlar sonlandırılacak. Devam?')) return
+                            await signOutAllDevicesAction()
+                        }}
+                        className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
+                        style={{ color: 'var(--accent-danger)', borderColor: 'var(--accent-danger-border)' }}
+                    >
+                        <LogOut className="w-4 h-4" />
+                        Tüm oturumları sonlandır
+                    </button>
                 </div>
             </div>
 
