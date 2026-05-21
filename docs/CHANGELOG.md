@@ -51,3 +51,34 @@
 
 ### Değişiklik
 - Dashboard "Kritik sinyaller": uyarı kartları `space-y-3` → `grid-cols-2` iki sütunlu grid, padding/font küçültüldü, içerik `line-clamp-2` ile kırpıldı
+
+## 2026-05-22 01:15
+
+### Değiştirilen dosyalar
+- `prisma/schema.prisma`
+- `types/next-auth.d.ts`
+- `lib/auth.ts`
+- `lib/server-auth.ts`
+- `app/login/page.tsx`
+- `app/settings/profile-actions.ts`
+- `components/settings/SettingsWorkspace.tsx`
+
+### Değişiklik
+- **Schema**: `failedLoginAttempts`, `lockedUntil`, `sessionVersion`, `passwordResetToken`, `passwordResetExpiry`, `lastLoginIp` alanları eklendi
+- **Brute-force koruması**: 5 başarısız giriş → 15 dk hesap kilidi; kalan deneme sayısı mesajı
+- **Beni hatırla**: JWT maxAge dinamik — seçilmezse 8 saat, seçilirse 30 gün
+- **Session invalidation**: `sessionVersion` ile tüm aktif JWT'ler geçersiz kılınabilir; şifre değişiminde otomatik tetiklenir
+- **Login UI**: premium redesign, şifre göster/gizle, beni hatırla checkbox, detaylı hata mesajları
+- **TypeScript**: next-auth augmentation'a `id`, `sessionVersion` eklendi (artık optional değil)
+- **Settings**: "Tüm oturumları sonlandır" butonu — `sessionVersion++` tetikler
+
+### Doğrulama
+- tsc --noEmit: hata yok
+- npm run build: temiz
+
+### ⚠️ Gerekli adım
+Yeni DB sütunları için terminalde çalıştırın:
+```bash
+npm run db:push
+```
+Bu yapılmadan auth özellikleri (brute-force, sessionVersion) çalışmaz.
