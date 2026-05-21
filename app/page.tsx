@@ -111,27 +111,31 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
                 </div>
             </header>
 
-            {canUseAi ? (
-                <AIHeader
-                    canUseAi
-                    summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
+            <div className="space-y-6">
+                {canUseAi ? (
+                    <AIHeader
+                        canUseAi
+                        summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
+                    />
+                ) : null}
+
+                <MarketTicker ticker={marketTicker} canRefresh={canUseAi} />
+
+                <DashboardInsights insights={insights} />
+
+                {canUseAi ? (
+                    <AIQuickAction />
+                ) : null}
+
+                <SummaryCards
+                    data={{
+                        plannedIncome: summary.plannedIncome,
+                        fixedCommitments: summary.fixedCommitments,
+                        debtCommitments: summary.debtCommitments,
+                        freeCash: summary.freeCash,
+                    }}
                 />
-            ) : null}
-
-            <MarketTicker ticker={marketTicker} canRefresh={canUseAi} />
-
-            <DashboardInsights insights={insights} />
-
-            {canUseAi ? <AIQuickAction /> : null}
-
-            <SummaryCards
-                data={{
-                    plannedIncome: summary.plannedIncome,
-                    fixedCommitments: summary.fixedCommitments,
-                    debtCommitments: summary.debtCommitments,
-                    freeCash: summary.freeCash,
-                }}
-            />
+            </div>
 
             <div className="space-y-6 mt-6">
                 <div className="space-y-6">
