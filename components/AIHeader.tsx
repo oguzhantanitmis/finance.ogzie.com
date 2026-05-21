@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 export default function AIHeader({ summary, canUseAi = false }: { summary: string; canUseAi?: boolean }) {
     return (
-        <div className="mb-8">
+        <div>
             <div className="flex items-center gap-2 mb-4">
                 <span className="relative flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--accent-success)' }} />

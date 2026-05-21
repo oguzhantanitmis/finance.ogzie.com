@@ -111,29 +111,33 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
                 </div>
             </header>
 
-            {canUseAi ? (
-                <AIHeader
-                    canUseAi
-                    summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
+            <div className="space-y-6">
+                {canUseAi ? (
+                    <AIHeader
+                        canUseAi
+                        summary={`Bu ay planlanan gelir ${formatCurrency(summary.plannedIncome, 'TRY')}, sabit yük ${formatCurrency(summary.fixedCommitments, 'TRY')}, borç baskısı ${formatCurrency(summary.debtCommitments, 'TRY')}.`}
+                    />
+                ) : null}
+
+                <MarketTicker ticker={marketTicker} canRefresh={canUseAi} />
+
+                <DashboardInsights insights={insights} />
+
+                {canUseAi ? (
+                    <AIQuickAction />
+                ) : null}
+
+                <SummaryCards
+                    data={{
+                        plannedIncome: summary.plannedIncome,
+                        fixedCommitments: summary.fixedCommitments,
+                        debtCommitments: summary.debtCommitments,
+                        freeCash: summary.freeCash,
+                    }}
                 />
-            ) : null}
+            </div>
 
-            <MarketTicker ticker={marketTicker} canRefresh={canUseAi} />
-
-            <DashboardInsights insights={insights} />
-
-            {canUseAi ? <AIQuickAction /> : null}
-
-            <SummaryCards
-                data={{
-                    plannedIncome: summary.plannedIncome,
-                    fixedCommitments: summary.fixedCommitments,
-                    debtCommitments: summary.debtCommitments,
-                    freeCash: summary.freeCash,
-                }}
-            />
-
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] gap-6 mt-6">
+            <div className="space-y-6 mt-6">
                 <div className="space-y-6">
                     <div className="fintech-card p-6 md:p-7">
                         <div className="flex items-center justify-between gap-4 mb-6">
