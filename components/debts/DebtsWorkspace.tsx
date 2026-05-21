@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
-import { AlertTriangle, CheckCircle2, CreditCard, Landmark, Plus, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CreditCard, Landmark, Plus, Users, Clock, Check } from 'lucide-react'
 import type { DebtType } from '@prisma/client'
 
 import { addDebt, deleteDebt, payDebtObligation, setDebtInstallmentPaid, updateDebt } from '@/app/actions'
@@ -324,22 +324,66 @@ function DueDebtPanel({
                 <div className="space-y-3">
                     {obligations.map((obligation) => {
                         const isPending = pendingId === obligation.id
-                        const isOverdue = obligation.overdueDays > 0
+
+                        // Calculate difference in days between obligation.dueDate and today
+                        const today = new Date()
+                        const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                        const dueDate = new Date(obligation.dueDate)
+                        const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate())
+                        const diffTime = dueDateStart.getTime() - todayStart.getTime()
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+                        const isOverdue = obligation.overdueDays > 0 || diffDays < 0
+                        const isCritical = !isOverdue && diffDays <= 3
+
+                        let cardClassName = "rounded-xl border p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 transition-all duration-300 hover:-translate-y-0.5 "
+                        let cardStyle = {}
+
+                        if (isOverdue) {
+                            cardClassName += "shadow-[0_4px_20px_rgba(248,113,113,0.04)] hover:shadow-[0_4px_25px_rgba(248,113,113,0.08)]"
+                            cardStyle = {
+                                backgroundColor: 'var(--accent-danger-bg)',
+                                borderColor: 'var(--accent-danger-border)',
+                            }
+                        } else if (isCritical) {
+                            cardClassName += "shadow-[0_4px_20px_rgba(251,191,36,0.04)] hover:shadow-[0_4px_25px_rgba(251,191,36,0.08)]"
+                            cardStyle = {
+                                backgroundColor: 'var(--accent-warning-bg)',
+                                borderColor: 'var(--accent-warning-border)',
+                            }
+                        } else {
+                            cardClassName += "shadow-[0_4px_20px_rgba(52,211,153,0.02)] hover:shadow-[0_4px_25px_rgba(52,211,153,0.06)]"
+                            cardStyle = {
+                                backgroundColor: 'var(--accent-success-bg)',
+                                borderColor: 'var(--accent-success-border)',
+                            }
+                        }
 
                         return (
                             <div
                                 key={obligation.id}
-                                className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4"
+                                className={cardClassName}
+                                style={cardStyle}
                             >
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                         <span className="status-badge status-badge-neutral">{obligation.sourceLabel}</span>
                                         {isOverdue ? (
                                             <span className="status-badge status-badge-danger">
-                                                <AlertTriangle className="w-3 h-3" /> {obligation.overdueDays} gün gecikti
+                                                <AlertTriangle className="w-3 h-3 animate-pulse" /> {obligation.overdueDays || Math.abs(diffDays)} gün gecikti
+                                            </span>
+                                        ) : diffDays === 0 ? (
+                                            <span className="status-badge status-badge-warning">
+                                                <AlertTriangle className="w-3 h-3 animate-bounce" /> Bugün son gün!
+                                            </span>
+                                        ) : isCritical ? (
+                                            <span className="status-badge status-badge-warning">
+                                                <Clock className="w-3 h-3" /> {diffDays} gün kaldı
                                             </span>
                                         ) : (
-                                            <span className="status-badge status-badge-success">Zamanında</span>
+                                            <span className="status-badge status-badge-success">
+                                                <Check className="w-3 h-3" /> {diffDays} gün kaldı
+                                            </span>
                                         )}
                                     </div>
                                     <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{obligation.name}</h3>
@@ -361,7 +405,7 @@ function DueDebtPanel({
                                     disabled={Boolean(pendingId)}
                                     title="Ödendi olarak işaretle"
                                     aria-label="Ödendi olarak işaretle"
-                                    className="btn-primary shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="btn-primary shrink-0 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] transition-transform duration-200"
                                 >
                                     <CheckCircle2 className={isPending ? 'w-4 h-4 animate-pulse' : 'w-4 h-4'} />
                                     Ödedim

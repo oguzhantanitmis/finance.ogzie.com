@@ -2,6 +2,11 @@
 
 ## 2026-05-21 - Canonical Debt Model Tamamlama
 
+### Eklendi
+
+- `__tests__/lib/debt-views.test.ts`: `getDebtWorkspaceData` için kapsamlı birim testleri eklendi. `allObligations` parametresiyle vade filtreleme ve serbest mod test edildi.
+- `components/debts/DebtsWorkspace.tsx`: `DueDebtPanel` içindeki borç ödeme kartlarına aciliyet seviyesine göre premium glassmorphism tasarımı eklendi (gecikmiş = kırmızı cam, kritik/son 3 gün = sarı cam, normal = yeşil/zümrüt cam). Durum rozetleri güncellendi, ikonlar eklendi ve hover ile yumuşak mikro animasyonlar entegre edildi.
+
 ### Değişti
 
 - `lib/health-score-service.ts`: `prisma.debt` → `prisma.debtAccount`; `estimateDebtMonthlyLoad` legacy helper kaldırıldı; borç baskısı ve gecikme sayısı artık `DebtObligation` üzerinden canonical olarak hesaplanıyor. `saveHealthSnapshot` da `DebtAccount.currentBalance` toplamını kullanıyor.
@@ -19,7 +24,7 @@
 
 - `npx tsc --noEmit` — 0 hata
 - `npm run lint` — 0 uyarı
-- `npm run test` — 8 dosya, 131 test başarılı
+- `npm run test` — 9 dosya, 133 test başarılı
 
 ## 2026-05-03 - Personal Finance Cockpit
 
