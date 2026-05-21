@@ -91,21 +91,22 @@ export async function simulateExtraPayment(
     debtId: string,
     extraAmount: number
 ): Promise<SimulationResult> {
-    const debt = await prisma.debt.findFirstOrThrow({ where: { id: debtId, userId } })
+    // debtId: canonical DebtAccount.id
+    const debtAccount = await prisma.debtAccount.findFirstOrThrow({ where: { id: debtId, userId } })
     const cash = await getAvailableCash(userId)
     const incomes = await prisma.incomeSource.findMany({ where: { userId }, select: { amount: true, billingCycle: true } })
     const monthlyIncome = incomes.reduce((s, i) => s + (i.billingCycle === 'YEARLY' ? i.amount / 12 : i.amount), 0)
-    const newBalance = Math.max(0, debt.remainingBalance - extraAmount)
+    const newBalance = Math.max(0, debtAccount.currentBalance - extraAmount)
     const cashAfter = cash - extraAmount
 
     return {
-        currentState: { cash, totalDebt: debt.remainingBalance, monthlyExpense: 0 },
+        currentState: { cash, totalDebt: debtAccount.currentBalance, monthlyExpense: 0 },
         projectedState: { cash: cashAfter, totalDebt: newBalance, monthlyExpense: 0 },
         cashImpact: -extraAmount,
-        debtImpact: -(debt.remainingBalance - newBalance),
+        debtImpact: -(debtAccount.currentBalance - newBalance),
         recommendation: newBalance === 0
-            ? `${debt.name} tamamen kapatılır! Nakit ${cashAfter.toFixed(2)} TL'ye düşer.`
-            : `${debt.name} borcu ${newBalance.toFixed(2)} TL'ye düşer.`,
+            ? `${debtAccount.name} tamamen kapatılır! Nakit ${cashAfter.toFixed(2)} TL'ye düşer.`
+            : `${debtAccount.name} borcu ${newBalance.toFixed(2)} TL'ye düşer.`,
         riskLevel: assessRisk(cashAfter, newBalance, monthlyIncome),
     }
 }

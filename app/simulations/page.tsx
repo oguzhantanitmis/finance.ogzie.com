@@ -20,7 +20,7 @@ export default async function SimulationsPage() {
     try {
         const [subscriptions, debts, cards, incomes, availCash] = await Promise.all([
             prisma.subscription.findMany({ where: { userId: user.id, isActive: true, status: 'ACTIVE' }, select: { id: true, name: true, amount: true, monthlyNormalizedAmount: true } }),
-            prisma.debt.findMany({ where: { userId: user.id }, select: { id: true, name: true, remainingBalance: true } }),
+            prisma.debtAccount.findMany({ where: { userId: user.id, status: { not: 'CLOSED' }, currentBalance: { gt: 0 } }, select: { id: true, name: true, currentBalance: true, counterpartyName: true } }),
             prisma.creditCard.findMany({
                 where: { userId: user.id, status: 'ACTIVE' },
                 include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1, select: { statementBalance: true, minimumPayment: true } } },
@@ -29,7 +29,7 @@ export default async function SimulationsPage() {
             getAvailableCash(user.id),
         ])
         subs = subscriptions.map((s) => ({ id: s.id, name: s.name, monthly: s.monthlyNormalizedAmount ?? s.amount }))
-        debtsList = debts.map((d) => ({ id: d.id, name: d.name, balance: d.remainingBalance }))
+        debtsList = debts.map((d) => ({ id: d.id, name: d.counterpartyName ? `${d.name} (${d.counterpartyName})` : d.name, balance: d.currentBalance }))
         cardsList = cards.map((c) => ({
             id: c.id,
             name: c.cardName,

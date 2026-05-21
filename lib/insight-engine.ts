@@ -22,7 +22,10 @@ export async function generateLocalInsights(userId: string): Promise<LocalInsigh
     const [accounts, cards, debts, subscriptions, recurringExpenses, goals] = await Promise.all([
         prisma.account.findMany({ where: { userId, isActive: true } }),
         prisma.creditCard.findMany({ where: { userId, status: 'ACTIVE' }, include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1 } } }),
-        prisma.debt.findMany({ where: { userId } }),
+        prisma.debtAccount.findMany({
+            where: { userId, status: { not: 'CLOSED' } },
+            select: { sourceType: true, currentBalance: true, status: true },
+        }),
         prisma.subscription.findMany({ where: { userId, isActive: true } }),
         prisma.recurringExpense.findMany({ where: { userId, status: 'ACTIVE' } }),
         prisma.financialGoal.findMany({ where: { userId, status: 'GOAL_ACTIVE' } }),
@@ -32,8 +35,8 @@ export async function generateLocalInsights(userId: string): Promise<LocalInsigh
 
     // 1. Nakit Akışı Riski
     const shortTermDebts = debts
-        .filter(d => ['CREDIT_CARD', 'PERSONAL_LOAN'].includes(d.type))
-        .reduce((sum, d) => sum + d.remainingBalance, 0)
+        .filter(d => ['CREDIT_CARD', 'LOAN'].includes(d.sourceType))
+        .reduce((sum, d) => sum + d.currentBalance, 0)
 
     if (shortTermDebts > availableCash && availableCash > 0) {
         recommendations.push({
@@ -135,7 +138,7 @@ export async function generateLocalInsights(userId: string): Promise<LocalInsigh
     }
 
     // 8. Pozitif — Borç azalması
-    const totalDebt = debts.reduce((s, d) => s + d.remainingBalance, 0)
+    const totalDebt = debts.reduce((s, d) => s + d.currentBalance, 0)
     if (totalDebt === 0 && debts.length > 0) {
         recommendations.push({
             type: 'SUCCESS',

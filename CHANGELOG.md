@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-05-21 - Canonical Debt Model Tamamlama
+
+### Değişti
+
+- `lib/health-score-service.ts`: `prisma.debt` → `prisma.debtAccount`; `estimateDebtMonthlyLoad` legacy helper kaldırıldı; borç baskısı ve gecikme sayısı artık `DebtObligation` üzerinden canonical olarak hesaplanıyor. `saveHealthSnapshot` da `DebtAccount.currentBalance` toplamını kullanıyor.
+- `lib/dashboard-service.ts`: `prisma.debt.remainingBalance` → `prisma.debtAccount.currentBalance` toplamı.
+- `lib/insight-engine.ts`: `prisma.debt` → `prisma.debtAccount`; kısa vadeli borç filtresi `sourceType` ile, toplam borç `currentBalance` ile hesaplanıyor.
+- `lib/simulation-engine.ts`: `simulateExtraPayment` artık `debtId` parametresini `DebtAccount.id` olarak alıyor; `prisma.debt.findFirstOrThrow` → `prisma.debtAccount.findFirstOrThrow`.
+- `lib/ai/context-composer.ts`: `prisma.debt` → `prisma.debtAccount`; bağlı taraf adı (`counterpartyName`) context'e dahil edildi.
+- `app/simulations/page.tsx`: borç listesi `DebtAccount` üzerinden yükleniyor; `id` ve `balance` canonical veriden geliyor.
+
+### Doğrulandı
+
+- `npx tsc --noEmit` — 0 hata
+- `npm run lint` — 0 uyarı
+- `npm run test` — 8 dosya, 131 test başarılı
+
 ## 2026-05-03 - Personal Finance Cockpit
 
 ### Eklendi

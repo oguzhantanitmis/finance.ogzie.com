@@ -35,7 +35,10 @@ export async function composeFinancialContext(userId: string, mode: 'full' | 'sl
             where: { userId, status: 'ACTIVE' },
             include: { statements: { orderBy: { periodEnd: 'desc' }, take: 1, select: { statementBalance: true, minimumPayment: true, dueDate: true } } },
         }),
-        prisma.debt.findMany({ where: { userId }, select: { name: true, remainingBalance: true, interestRate: true } }),
+        prisma.debtAccount.findMany({
+            where: { userId, status: { not: 'CLOSED' }, currentBalance: { gt: 0 } },
+            select: { name: true, currentBalance: true, interestRate: true, sourceType: true, counterpartyName: true },
+        }),
         prisma.subscription.findMany({ where: { userId, isActive: true }, select: { name: true, amount: true, monthlyNormalizedAmount: true, billingCycle: true, createdAt: true } }),
         prisma.recurringExpense.findMany({ where: { userId }, select: { name: true, amount: true, billingCycle: true } }),
         prisma.incomeSource.findMany({ where: { userId }, select: { name: true, amount: true, billingCycle: true } }),
@@ -233,7 +236,10 @@ export async function composeFinancialContext(userId: string, mode: 'full' | 'sl
     // Borçlar
     if (debts.length > 0) {
         lines.push('=== BORÇLAR ===')
-        for (const d of debts) lines.push(`  ${d.name}: ${formatCurrency(d.remainingBalance, 'TRY')}${d.interestRate ? ` (%${d.interestRate} faiz)` : ''}`)
+        for (const d of debts) {
+            const label = d.counterpartyName ? `${d.name} (${d.counterpartyName})` : d.name
+            lines.push(`  ${label}: ${formatCurrency(d.currentBalance, 'TRY')}${d.interestRate ? ` (%${d.interestRate} faiz)` : ''}`)
+        }
         lines.push('')
     }
 

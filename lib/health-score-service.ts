@@ -1,7 +1,6 @@
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { endOfMonth, isWithinInterval, startOfMonth } from 'date-fns'
 
-import { calculateAccumulatedInterest } from '@/lib/banking-engine'
 import { getCardFinancialSnapshot } from '@/lib/card-balance'
 import { prisma } from '@/lib/prisma'
 
@@ -55,56 +54,6 @@ function scoreByThresholds(value: number, thresholds: Array<{ max: number; score
     return fallback
 }
 
-function estimateDebtMonthlyLoad(
-    debt: {
-        remainingBalance: number
-        type: string
-        remainingInstallments: number | null
-        installments: number | null
-        minPaymentRate: number
-        interestRate: number
-        paymentDueDay: number | null
-        dueDate: Date | null
-        paymentPlan: Array<{ amount: number; dueDate: Date; isPaid: boolean }>
-    },
-    monthStart: Date,
-    monthEnd: Date,
-) {
-    const thisMonthInstallments = debt.paymentPlan.filter((plan) =>
-        !plan.isPaid && isWithinInterval(plan.dueDate, { start: monthStart, end: monthEnd }),
-    )
-
-    if (thisMonthInstallments.length > 0) {
-        return thisMonthInstallments.reduce((sum, item) => sum + item.amount, 0)
-    }
-
-    if (debt.type === 'LOAN') {
-        const remainingInstallments = debt.remainingInstallments ?? debt.installments ?? 0
-        if (remainingInstallments > 0) {
-            return debt.remainingBalance / remainingInstallments
-        }
-    }
-
-    if (debt.type === 'KMH') {
-        return calculateAccumulatedInterest(debt.remainingBalance, debt.interestRate, 30).total
-    }
-
-    if (debt.type === 'CREDIT_CARD') {
-        const safeRate = Math.max(debt.minPaymentRate || 0.2, 0.2)
-        return debt.remainingBalance * safeRate
-    }
-
-    if (debt.dueDate && debt.dueDate <= monthEnd) {
-        return debt.remainingBalance
-    }
-
-    if (debt.paymentDueDay) {
-        const safeRate = Math.max(debt.minPaymentRate || 0.1, 0.1)
-        return debt.remainingBalance * safeRate
-    }
-
-    return 0
-}
 
 function getLevelFromScore(score: number) {
     if (score >= 80) return 'EXCELLENT'
@@ -119,7 +68,7 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
     const monthStart = startOfMonth(now)
     const monthEnd = endOfMonth(now)
 
-    const [cards, incomes, subscriptions, recurring, accounts, payables, debts, snapshots] = await Promise.all([
+    const [cards, incomes, subscriptions, recurring, accounts, debtAccounts, snapshots] = await Promise.all([
         prisma.creditCard.findMany({
             where: { userId, status: 'ACTIVE' },
             include: {
@@ -154,28 +103,17 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
             where: { userId, isActive: true },
             select: { balance: true, hasKmh: true, kmhInterestRate: true },
         }),
-        prisma.receivablePayable.findMany({
-            where: {
-                userId,
-                type: 'PAYABLE',
-                status: { in: ['OPEN', 'PARTIAL', 'OVERDUE'] },
-            },
-            select: { remainingAmount: true, dueDate: true, status: true },
-        }),
-        prisma.debt.findMany({
-            where: { userId },
+        prisma.debtAccount.findMany({
+            where: { userId, status: { not: 'CLOSED' } },
             select: {
-                remainingBalance: true,
-                type: true,
-                remainingInstallments: true,
-                installments: true,
-                minPaymentRate: true,
-                interestRate: true,
-                paymentDueDay: true,
-                dueDate: true,
-                paymentPlan: {
-                    where: { isPaid: false },
-                    select: { amount: true, dueDate: true, isPaid: true },
+                currentBalance: true,
+                status: true,
+                obligations: {
+                    where: {
+                        status: { in: ['PENDING', 'PARTIAL_PAID', 'OVERDUE'] },
+                        remainingAmount: { gt: 0 },
+                    },
+                    select: { remainingAmount: true, dueDate: true, status: true },
                 },
             },
         }),
@@ -197,48 +135,32 @@ export async function calculateHealthScore(userId: string): Promise<HealthScoreR
     const fixedExpense = subscriptionLoad + recurringLoad
 
     const liquidReserve = accounts.reduce((sum, account) => sum + Math.max(account.balance, 0), 0)
-    const kmhUsage = accounts
-        .filter((account) => account.hasKmh)
-        .reduce((sum, account) => sum + Math.max(account.balance * -1, 0), 0)
-    const kmhMonthlyCost = accounts
-        .filter((account) => account.hasKmh)
-        .reduce((sum, account) => {
-            const usage = Math.max(account.balance * -1, 0)
-            if (usage <= 0) return sum
-            return sum + calculateAccumulatedInterest(usage, account.kmhInterestRate ?? 4.25, 30).total
-        }, 0)
 
     const totalCardDebt = cardSnapshots.reduce((sum, snapshot) => sum + snapshot.currentDebt, 0)
     const totalCardLimit = cards.reduce((sum, card) => sum + card.totalLimit, 0)
     const totalCardMinimumDue = cardSnapshots.reduce((sum, snapshot) => sum + snapshot.minimumPayment, 0)
-    const manualDebtBalance = debts.reduce((sum, debt) => sum + debt.remainingBalance, 0)
-    const personalPayableBalance = payables.reduce((sum, payable) => sum + payable.remainingAmount, 0)
-    const totalDebtBalance = totalCardDebt + manualDebtBalance + personalPayableBalance + kmhUsage
 
-    const manualDebtMonthlyLoad = debts.reduce(
-        (sum, debt) => sum + estimateDebtMonthlyLoad(debt, monthStart, monthEnd),
-        0,
-    )
-    const personalDebtMonthlyLoad = payables.reduce((sum, payable) => {
-        if (payable.dueDate && payable.dueDate <= monthEnd) {
-            return sum + payable.remainingAmount
-        }
+    // Canonical borç bakiyeleri (kart borcu canonical'da zaten var; çift saymamak için kart haricindeki DebtAccount'ları al)
+    const nonCardDebtBalance = debtAccounts
+        .filter((da) => da.status !== 'PAID')
+        .reduce((sum, da) => sum + da.currentBalance, 0)
+    const totalDebtBalance = nonCardDebtBalance
 
-        return sum
+    // Bu ay vadesi gelen veya gecikmiş canonical obligationlar → borç baskısı
+    const canonicalDebtMonthlyLoad = debtAccounts.reduce((sum, da) => {
+        return sum + da.obligations
+            .filter((ob) => isWithinInterval(ob.dueDate, { start: monthStart, end: monthEnd }) || ob.status === 'OVERDUE')
+            .reduce((s, ob) => s + ob.remainingAmount, 0)
     }, 0)
-    const monthlyDebtLoad = totalCardMinimumDue + manualDebtMonthlyLoad + personalDebtMonthlyLoad + kmhMonthlyCost
+    const monthlyDebtLoad = canonicalDebtMonthlyLoad
 
-    const overdueCards = cardSnapshots.filter((snapshot) => snapshot.isOverdue).length
-    const overdueDebts = debts.reduce((sum, debt) => {
-        const overdueInstallments = debt.paymentPlan.filter((plan) => !plan.isPaid && plan.dueDate < now).length
-        if (overdueInstallments > 0) return sum + overdueInstallments
-        if (debt.dueDate && debt.dueDate < now && debt.remainingBalance > 0) return sum + 1
-        return sum
+    // Gecikmiş obligation sayısı
+    const overdueCount = debtAccounts.reduce((sum, da) => {
+        return sum + da.obligations.filter((ob) => ob.status === 'OVERDUE').length
     }, 0)
-    const overduePayables = payables.filter((payable) => payable.status === 'OVERDUE' || (payable.dueDate && payable.dueDate < now)).length
-    const overdueRecurring = recurring.filter((expense) => expense.nextPayment < now).length
-    const overdueSubscriptions = subscriptions.filter((subscription) => subscription.nextPayment < now).length
-    const overdueCount = overdueCards + overdueDebts + overduePayables + overdueRecurring + overdueSubscriptions
+        + recurring.filter((expense) => expense.nextPayment < now).length
+        + subscriptions.filter((subscription) => subscription.nextPayment < now).length
+        + cardSnapshots.filter((snapshot) => snapshot.isOverdue).length
 
     const hasMeaningfulData =
         monthlyIncome > 0 ||
@@ -348,39 +270,16 @@ export async function saveHealthSnapshot(userId: string, result: HealthScoreResu
         return
     }
 
-    const [accounts, debts, cards, payables] = await Promise.all([
+    const [accounts, debtSnapshotAccounts] = await Promise.all([
         prisma.account.findMany({
             where: { userId, isActive: true },
             select: { balance: true, hasKmh: true },
         }),
-        prisma.debt.findMany({ where: { userId }, select: { remainingBalance: true } }),
-        prisma.creditCard.findMany({
-            where: { userId, status: 'ACTIVE' },
-            include: {
-                transactions: { select: { type: true, amount: true } },
-                payments: { select: { amount: true } },
-                statements: {
-                    orderBy: { periodEnd: 'desc' },
-                    take: 1,
-                    select: { statementBalance: true, minimumPayment: true, dueDate: true, paymentsReceived: true, status: true },
-                },
-            },
-        }),
-        prisma.receivablePayable.findMany({
-            where: { userId, type: 'PAYABLE', status: { in: ['OPEN', 'PARTIAL', 'OVERDUE'] } },
-            select: { remainingAmount: true },
-        }),
+        prisma.debtAccount.findMany({ where: { userId, status: { not: 'CLOSED' } }, select: { currentBalance: true } }),
     ])
 
     const totalAssets = accounts.reduce((sum, account) => sum + Math.max(account.balance, 0), 0)
-    const kmhUsage = accounts
-        .filter((account) => account.hasKmh)
-        .reduce((sum, account) => sum + Math.max(account.balance * -1, 0), 0)
-    const totalDebts =
-        debts.reduce((sum, debt) => sum + debt.remainingBalance, 0) +
-        cards.reduce((sum, card) => sum + getCardFinancialSnapshot(card).currentDebt, 0) +
-        payables.reduce((sum, payable) => sum + payable.remainingAmount, 0) +
-        kmhUsage
+    const totalDebts = debtSnapshotAccounts.reduce((sum, da) => sum + da.currentBalance, 0)
 
     await prisma.healthSnapshot.create({
         data: {
