@@ -133,7 +133,7 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
                 }}
             />
 
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] gap-6 mt-6">
+            <div className="space-y-6 mt-6">
                 <div className="space-y-6">
                     <div className="fintech-card p-6 md:p-7">
                         <div className="flex items-center justify-between gap-4 mb-6">
