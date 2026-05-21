@@ -149,7 +149,10 @@ function navigateForDebt(input: {
     return { href: undefined, label: undefined }
 }
 
-export async function getDebtWorkspaceData(userId: string): Promise<{
+export async function getDebtWorkspaceData(
+    userId: string,
+    options?: { allObligations?: boolean }
+): Promise<{
     debts: DebtView[]
     people: DebtPersonOption[]
     paymentObligations: DebtPaymentObligation[]
@@ -241,12 +244,28 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
         }
     })
 
+    const allObligations = options?.allObligations ?? false
+    const today = new Date()
+    const endOfThisMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
+    const tenDaysFromNow = new Date(today.getTime() + 10 * 24 * 60 * 60 * 1000)
+
     const paymentObligations: DebtPaymentObligation[] = debtAccounts.flatMap((debtAccount) => {
         const sourceType = debtAccount.sourceType
         return debtAccount.obligations
-            .filter((obligation) => ['PENDING', 'PARTIAL_PAID', 'OVERDUE'].includes(obligation.status) && obligation.remainingAmount > 0)
+            .filter((obligation) => {
+                const isPendingOrOverdue = ['PENDING', 'PARTIAL_PAID', 'OVERDUE'].includes(obligation.status) && obligation.remainingAmount > 0
+                if (!isPendingOrOverdue) return false
+                if (allObligations) return true
+
+                const dueDate = new Date(obligation.dueDate)
+                const isOverdue = obligation.status === 'OVERDUE' || daysOverdue(obligation.dueDate, today) > 0
+                const isDueThisMonth = dueDate <= endOfThisMonth
+                const isDueSoon = dueDate <= tenDaysFromNow
+
+                return isOverdue || isDueThisMonth || isDueSoon
+            })
             .map((obligation) => {
-                const overdueDays = daysOverdue(obligation.dueDate)
+                const overdueDays = daysOverdue(obligation.dueDate, today)
                 const baseAmount = roundMoney(obligation.remainingAmount - obligation.lateFeeAmount)
                 const amount = roundMoney(obligation.remainingAmount)
                 return {
@@ -285,6 +304,6 @@ export async function getDebtWorkspaceData(userId: string): Promise<{
 }
 
 export async function getDebtPaymentObligations(userId: string): Promise<DebtPaymentObligation[]> {
-    const workspaceData = await getDebtWorkspaceData(userId)
+    const workspaceData = await getDebtWorkspaceData(userId, { allObligations: true })
     return workspaceData.paymentObligations
 }
