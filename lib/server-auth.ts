@@ -11,10 +11,11 @@ export async function getCurrentUser() {
     const user = await prisma.user.findUnique({ where: { email: session.user.email } })
     if (!user || !user.isActive) return null
 
-    // Sunucu tarafındaki sessionVersion JWT'deki ile eşleşmiyorsa oturum geçersiz
-    // (admin "tüm cihazlardan çıkış" yaptığında sessionVersion artar)
+    // sessionVersion kontrolü — yeni kolonlar migrate edildikten sonra aktif olur
+    const hasNewCols   = 'sessionVersion' in user
+    const dbVersion    = hasNewCols ? (user as typeof user & { sessionVersion: number }).sessionVersion : 1
     const tokenVersion = session.user.sessionVersion ?? 1
-    if (user.sessionVersion !== tokenVersion) return null
+    if (hasNewCols && dbVersion !== tokenVersion) return null
 
     const role = resolveUserRole(user.email, user.role)
     if (role !== user.role) {
