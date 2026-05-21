@@ -1,5 +1,49 @@
 # CHANGELOG
 
+## 2026-05-22 - UI Redesign Aşama 1: Tasarım Sistemi Altyapısı
+
+Premium finans kokpiti redesign'ının 1. aşaması. Mevcut `globals.css` tasarım sistemi (token + 12 utility class) bozulmadan üstüne **eklemeler** yapıldı; React component katmanı zenginleştirildi. Domain motorları, auth helper'ları, server action'lar ve Prisma sorguları **dokunulmadı** — sadece sunum katmanı.
+
+### Eklendi
+
+- `app/globals.css`:
+  - **Critical token seti**: `--accent-critical`, `--accent-critical-bg`, `--accent-critical-border`, `--accent-critical-glow` (dark/light her iki temada). "Danger"dan ayrı bir kanal — sadece kritik borç/hesap durumları için.
+  - **Overdue token alias'ları**: `--accent-overdue`, `--accent-overdue-bg`, `--accent-overdue-border` (warning üstünde semantik wrapper).
+  - **Yeni component class'ları**: `.fintech-card-critical` (kırmızı border + glow), `.fintech-card-elevated` (default elevated shadow), `.fintech-card-glass` (hero overlay'ler için backdrop-blur'lı varyant), `.kpi-card-critical`, `.status-badge-critical`, `.metric-row` + `.metric-row-label` + `.metric-row-value` (StatRow component'in CSS tabanı).
+- `components/ui/MoneyAmount.tsx`: `formatCurrency` + `tabular-nums` + `privacy-blur` otomatik sarmalayıcı. `intent: positive | negative | neutral | auto`, `size: sm/md/lg/xl/hero`, `showSign` ve `sensitive` (privacy off için) prop'larıyla. Server Component.
+- `components/ui/MoneyDelta.tsx`: İşaretli para değişimi — `+₺X` / `-₺Y` + yukarı/aşağı ok ikonu, semantik renk. Server Component.
+- `components/ui/RiskBadge.tsx`: 7 risk seviyesi varyantı — `low | medium | high | critical | closed | overdue | due_today` + Türkçe etiket + lucide ikon + status-badge class haritası. Server Component.
+- `components/ui/StatusDot.tsx`: 7 tonda küçük renkli daire (icon-only badge alternatifi). `pulsing` ve `label` (a11y) prop'ları. Server Component.
+- `components/ui/SectionHeader.tsx`: Eyebrow + başlık + açıklama + sağda aksiyon slot + opsiyonel filter row + tone'lu ikon kutusu. `as`, `size` ve `iconTone` varyantları. Server Component.
+- `components/ui/StatRow.tsx`: Label + tabular-nums değer iki-kolonlu satır. `tone` varyantı, opsiyonel `icon` + `hint`. `.metric-row` CSS'ini tüketir. Server Component.
+- `components/ui/ProgressBar.tsx`: Mevcut `.progress-bar*` CSS'i typed wrapper'a kavuşturuldu — `tone`, `label`, `showValue`, ARIA `progressbar` rolü ve `aria-valuenow`. Server Component.
+- `components/ui/UtilizationRing.tsx`: SVG progress circle — `auto` tone modunda eşiklere göre (varsayılan: 50/75/90 → warning/danger/critical) otomatik renkleniyor. `size: sm/md/lg`. Server Component, role="img".
+- `components/ui/Skeleton.tsx`: `text | title | paragraph | card | kpi | avatar | pill` varyantları + `lines` prop'u. Mevcut `.animate-shimmer` keyframe'ini tüketir. Server Component.
+- `components/ui/FinanceMetricCard.tsx`: KPI compose — label + value (MoneyAmount) + trend ok + helper text + opsiyonel CTA link + accent (success/danger/warning/purple/info/critical). `href` verilirse Link'e dönüşür. Server Component.
+
+### Değişti
+
+- `components/ui/Modal.tsx`:
+  - `size: sm | md | lg | xl | 2xl | 4xl` prop'u eklendi; `maxWidthClassName` **deprecated** olarak geriye uyumlu korundu.
+  - `role="dialog"` + `aria-modal="true"` + `aria-labelledby` (`useId`) + `aria-describedby` eklendi.
+  - **Focus trap**: Tab/Shift+Tab modal içinde dolaşır, açılırken ilk focusable'a focus verilir, kapanırken önceki active element'e focus döner.
+  - **Scroll lock**: `document.body.style.overflow` modal açıkken kilitlenir, cleanup'ta restore edilir.
+  - Close butonu `X` (lucide-react) ikon + `aria-label` ile değiştirildi (önceden ✕ string).
+  - `closeOnOverlayClick` (default `true`) ve `hideClose` opsiyonel prop'ları.
+  - Modal entrance animasyonu için `toast-enter` keyframe'i kullanıldı.
+- `components/ui/EmptyState.tsx`:
+  - `action` prop'u `() => void` yerine `ReactNode` slot oldu (kullanıcı kendi buton/link/form'unu geçebiliyor).
+  - `cta?: { label; href }` shortcut'ı eklendi (Server Component'te kullanılabilir Link).
+  - `tone` (7 ton) eklendi — icon kutusunun arka plan/renk semantiği.
+  - `bare` prop'u eklendi — fintech-card sarmalayıcısı olmadan render (başka bir kart içine gömülürken).
+
+### Doğrulandı
+
+- `npm run build` — TypeScript dahil temiz build ✓
+- `npm test` — 9 dosya, 133 test PASS ✓
+- Mevcut sayfaların hiçbiri değişmedi; yeni primitive'ler şu an için kullanılmıyor (Aşama 2'den itibaren dashboard'a entegre edilecek).
+- Auth helper'ları, server action imzaları, Prisma sorgu pattern'leri **değişmedi**.
+
 ## 2026-05-21 - Kredi Kartları Bölümü Premium Modernizasyonu (UI/UX)
 
 ### Eklendi

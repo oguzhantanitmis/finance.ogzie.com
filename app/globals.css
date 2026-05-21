@@ -61,10 +61,23 @@
   --accent-info: #38bdf8;
   --accent-info-bg: rgba(56, 189, 248, 0.1);
   --accent-info-border: rgba(56, 189, 248, 0.2);
+
+  /* Critical risk — distinct from danger, reserved for "kritik" debt/account states */
+  --accent-critical: #ef4444;
+  --accent-critical-bg: rgba(239, 68, 68, 0.12);
+  --accent-critical-border: rgba(239, 68, 68, 0.45);
+  --accent-critical-glow: 0 0 0 1px rgba(239, 68, 68, 0.35), 0 0 24px rgba(239, 68, 68, 0.18);
+
+  /* Overdue — pulsing amber for due-today / past-due signals */
+  --accent-overdue: var(--accent-warning);
+  --accent-overdue-bg: var(--accent-warning-bg);
+  --accent-overdue-border: var(--accent-warning-border);
+
   --primary: var(--accent-primary);
   --success: var(--accent-success);
   --danger: var(--accent-danger);
   --warning: var(--accent-warning);
+  --critical: var(--accent-critical);
 
   /* Chart Colors */
   --chart-1: #3b82f6;
@@ -137,6 +150,11 @@ html.light {
   --accent-info-bg: rgba(2, 132, 199, 0.08);
   --accent-info-border: rgba(2, 132, 199, 0.15);
 
+  --accent-critical: #be123c;
+  --accent-critical-bg: rgba(190, 18, 60, 0.08);
+  --accent-critical-border: rgba(190, 18, 60, 0.4);
+  --accent-critical-glow: 0 0 0 1px rgba(190, 18, 60, 0.35), 0 0 24px rgba(190, 18, 60, 0.12);
+
   --chart-grid: rgba(0, 0, 0, 0.06);
 
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -205,6 +223,36 @@ body.privacy-active .tabular-nums {
     box-shadow: var(--shadow-elevated);
   }
 
+  /* Critical state — used by debts/cards/KMH when status demands user attention */
+  .fintech-card-critical {
+    border-color: var(--accent-critical-border);
+    box-shadow: var(--accent-critical-glow);
+  }
+
+  .fintech-card-critical:hover {
+    border-color: var(--accent-critical-border);
+    box-shadow: var(--accent-critical-glow), var(--shadow-elevated);
+  }
+
+  /* Elevated — for hero cards and modal-like surfaces sitting above the page */
+  .fintech-card-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Glass surface card — for hero overlays */
+  .fintech-card-glass {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-2xl);
+  }
+
+  html.light .fintech-card-glass {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
   /* Glass Effect */
   .glass {
     background: rgba(255, 255, 255, 0.05);
@@ -216,6 +264,38 @@ body.privacy-active .tabular-nums {
   html.light .glass {
     background: rgba(255, 255, 255, 0.8);
     border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  /* Metric row — label/value side-by-side helper for StatRow component */
+  .metric-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .metric-row:last-child {
+    border-bottom: none;
+  }
+
+  .metric-row-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    min-width: 0;
+  }
+
+  .metric-row-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    white-space: nowrap;
   }
 }
 
@@ -260,6 +340,11 @@ body.privacy-active .tabular-nums {
   .kpi-card-warning { --kpi-accent: var(--accent-warning); }
   .kpi-card-purple { --kpi-accent: var(--accent-purple); }
   .kpi-card-info { --kpi-accent: var(--accent-info); }
+  .kpi-card-critical {
+    --kpi-accent: var(--accent-critical);
+    border-color: var(--accent-critical-border);
+    box-shadow: var(--accent-critical-glow);
+  }
 }
 
 /* ============================================================
@@ -316,6 +401,12 @@ body.privacy-active .tabular-nums {
     color: var(--text-muted);
     background: var(--bg-hover);
     border-color: var(--border-default);
+  }
+
+  .status-badge-critical {
+    color: var(--accent-critical);
+    background: var(--accent-critical-bg);
+    border-color: var(--accent-critical-border);
   }
 }
 

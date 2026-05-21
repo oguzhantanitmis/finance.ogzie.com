@@ -43,9 +43,16 @@ export default async function AssetsPage() {
                     valueInTL: asset.valueInTL,
                 }))}
                 totalAssetsValue={totalAssetsValue}
-                usdRate={rates.USD}
-                usdRateSource={rates.source}
-                usdRateUpdatedAt={rates.updatedAt?.toISOString() ?? null}
+                rates={{
+                    USD: rates.USD,
+                    EUR: rates.EUR,
+                    GBP: rates.GBP,
+                    GA: rates.GA,
+                    BTC: rates.BTC,
+                    ETH: rates.ETH,
+                }}
+                ratesSource={rates.source}
+                ratesUpdatedAt={rates.updatedAt?.toISOString() ?? null}
             />
         </PageShell>
     )

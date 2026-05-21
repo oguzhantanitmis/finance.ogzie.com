@@ -30,3 +30,24 @@
 - Yapı Kredi Esnek Hesap/KMH için hesap özeti alanları eklendi: hesap kesim tarihi, son ödeme tarihi, anapara borcu, dönem faizi + vergi, asgari ödeme, sonraki kesim tarihi.
 - KMH borç görünümü Yapı Kredi Esnek Hesap mantığına göre düzenlendi: dönem borcu = anapara borcu + dönem faizi/vergi; asgari ödeme = anapara %5 + dönem faizi/vergi.
 - Üretim verisi düzeltmesi için `scripts/repair-yapikredi-data.mjs` eklendi; Oğuzhan kullanıcısının Yapı Kredi İhtiyaç ve Yapı Kredi KMH kayıtlarını PDF değerleriyle günceller.
+
+## 2026-05-22 00:15
+
+### Değiştirilen dosyalar
+- `components/assets/AssetsWorkspace.tsx`
+
+### Değişiklik
+- Varlıklar sayfası header KPI kartları: USD/TRY ve Gram Altın kurları yerine kullanıcının biriktirdiği yabancı para toplamları gösterilir (örn. "Toplam USD: 250,00 USD ≈ ₺11.402,50 • 1 USD = ₺45,61")
+- Para birimi yoksa ikinci/üçüncü kart görünmez
+
+### Doğrulama
+- tsc --noEmit: hata yok
+- git push: başarılı
+
+## 2026-05-22 00:25
+
+### Değiştirilen dosyalar
+- `app/page.tsx`
+
+### Değişiklik
+- Dashboard "Kritik sinyaller": uyarı kartları `space-y-3` → `grid-cols-2` iki sütunlu grid, padding/font küçültüldü, içerik `line-clamp-2` ile kırpıldı

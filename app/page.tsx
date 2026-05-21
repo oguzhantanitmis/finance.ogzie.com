@@ -211,12 +211,12 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
                         {alerts.length === 0 ? (
                             <p style={{ color: 'var(--text-secondary)' }}>Açık uyarı yok. Sistem dengede.</p>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {alerts.map((alert) => (
-                                    <div key={alert.id} className="rounded-2xl p-4" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-hover)' }}>
-                                        <p className="text-xs uppercase tracking-[0.25em] mb-2" style={{ color: 'var(--text-muted)' }}>{formatAlertTypeLabel(alert.type)}</p>
-                                        <h3 className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{alert.title}</h3>
-                                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{alert.content}</p>
+                                    <div key={alert.id} className="rounded-xl p-3" style={{ border: '1px solid var(--border-default)', background: 'var(--bg-hover)' }}>
+                                        <p className="text-[10px] uppercase tracking-[0.2em] mb-1" style={{ color: 'var(--text-muted)' }}>{formatAlertTypeLabel(alert.type)}</p>
+                                        <h3 className="text-sm font-semibold mb-0.5 leading-snug" style={{ color: 'var(--text-primary)' }}>{alert.title}</h3>
+                                        <p className="text-xs leading-relaxed line-clamp-2" style={{ color: 'var(--text-secondary)' }}>{alert.content}</p>
                                     </div>
                                 ))}
                             </div>
