@@ -691,7 +691,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
                                                         <label className="form-label">İşlem Türü</label>
-                                                        <select name="type" className="form-input">
+                                                        <select name="type" className="form-input form-select">
                                                             <option value="PURCHASE">Alışveriş</option>
                                                             <option value="INSTALLMENT_PURCHASE">Taksitli Alışveriş</option>
                                                             <option value="CASH_ADVANCE">Nakit Avans</option>

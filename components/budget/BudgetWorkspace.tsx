@@ -279,20 +279,20 @@ function IncomeSourceForm({
             <input name="name" defaultValue={income?.name ?? ''} placeholder="Maaş, freelance, kira geliri" className="form-input" required />
             <div className="grid grid-cols-2 gap-4">
                 <input name="amount" type="number" step="0.01" defaultValue={income?.amount ?? ''} placeholder="0.00" className="form-input" required />
-                <select name="currency" defaultValue={income?.currency ?? 'TRY'} className="form-input">
+                <select name="currency" defaultValue={income?.currency ?? 'TRY'} className="form-input form-select">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                 </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <select name="billingCycle" defaultValue={income?.billingCycle ?? 'MONTHLY'} className="form-input">
+                <select name="billingCycle" defaultValue={income?.billingCycle ?? 'MONTHLY'} className="form-input form-select">
                     <option value="MONTHLY">Aylık</option>
                     <option value="YEARLY">Yıllık</option>
                 </select>
                 <input name="payday" type="number" min="1" max="31" defaultValue={income?.payday ?? ''} placeholder="Ödeme günü" className="form-input" />
             </div>
-            <select name="status" defaultValue={income?.status ?? 'ACTIVE'} className="form-input">
+            <select name="status" defaultValue={income?.status ?? 'ACTIVE'} className="form-input form-select">
                 <option value="ACTIVE">Aktif</option>
                 <option value="PAUSED">Duraklatıldı</option>
                 <option value="CANCELED">İptal Edildi</option>

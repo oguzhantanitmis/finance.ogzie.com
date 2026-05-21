@@ -207,13 +207,13 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                             type="number"
                             step="0.01"
                             placeholder="Yeni bakiye"
-                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                            className="form-input"
                             required
                         />
                         <input
                             name="description"
                             placeholder="Aciklama (opsiyonel)"
-                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                            className="form-input"
                         />
                         <FormMessage success={adjustState.success} message={adjustState.message} />
                         <SubmitButton label="Bakiyeyi Guncelle" pendingLabel="Guncelleniyor..." />
@@ -244,13 +244,13 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
                             step="0.01"
                             min="0.01"
                             placeholder="Tutar"
-                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                            className="form-input"
                             required
                         />
                         <input
                             name="description"
                             placeholder="Aciklama (opsiyonel)"
-                            className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                            className="form-input"
                         />
                         <FormMessage success={transferState.success} message={transferState.message} />
                         <SubmitButton label="Transferi Gerceklestir" pendingLabel="Kaydediliyor..." />
@@ -283,7 +283,7 @@ function AccountForm({
                 name="name"
                 placeholder="Hesap adi (Ziraat Vadesiz, Nakit Cuzdan)"
                 defaultValue={account?.name ?? ''}
-                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                className="form-input"
                 required
             />
             <div className="grid grid-cols-2 gap-4">
@@ -291,7 +291,7 @@ function AccountForm({
                     name="type"
                     defaultValue={account?.type ?? 'BANK_ACCOUNT'}
                     onChange={(event) => setAccountType(event.target.value as Account['type'])}
-                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                    className="form-input form-select"
                 >
                     <option value="BANK_ACCOUNT">Banka Hesabi</option>
                     <option value="CASH">Nakit</option>
@@ -302,7 +302,7 @@ function AccountForm({
                 <select
                     name="currency"
                     defaultValue={account?.currency ?? 'TRY'}
-                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                    className="form-input form-select"
                 >
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
@@ -315,20 +315,20 @@ function AccountForm({
                     type="number"
                     step="0.01"
                     placeholder="Baslangic bakiyesi"
-                    className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                    className="form-input"
                 />
             ) : null}
             <input
                 name="bankName"
                 placeholder="Banka adi (opsiyonel)"
                 defaultValue={account?.bankName ?? ''}
-                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                className="form-input"
             />
             <input
                 name="iban"
                 placeholder="IBAN (opsiyonel)"
                 defaultValue={account?.iban ?? ''}
-                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                className="form-input"
             />
 
             {accountType === 'BANK_ACCOUNT' ? (
@@ -442,7 +442,7 @@ function AccountForm({
                 name="notes"
                 placeholder="Not (opsiyonel)"
                 defaultValue={account?.notes ?? ''}
-                className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                className="form-input min-h-20"
             />
             <label className="flex items-center gap-2 text-sm text-zinc-400">
                 <input
@@ -493,7 +493,7 @@ function AccountField({
                 min={min}
                 max={max}
                 defaultValue={defaultValue ?? ''}
-                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                className="form-input"
             />
         </label>
     )

@@ -30,7 +30,7 @@ export default function AccountSelect({
                 name={name}
                 defaultValue={selected}
                 required={required}
-                className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white"
+                className="form-input form-select"
             >
                 <option value="">Hesap seçin</option>
                 {filtered.map((account) => (

@@ -108,7 +108,7 @@ export default function AdminUsersWorkspace({ users, currentUserId, currentUserE
                             </div>
                             <div>
                                 <label className="form-label">Rol</label>
-                                <select name="role" defaultValue="USER" className="form-input">
+                                <select name="role" defaultValue="USER" className="form-input form-select">
                                     <option value="USER">Kullanıcı</option>
                                     <option value="SUPERUSER">Superuser</option>
                                 </select>

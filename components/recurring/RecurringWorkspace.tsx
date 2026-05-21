@@ -162,24 +162,24 @@ function RecurringExpenseForm({
     return (
         <form action={action} className="space-y-4">
             {expense ? <input type="hidden" name="expenseId" value={expense.id} /> : null}
-            <input name="name" defaultValue={expense?.name ?? ''} placeholder="Kira, Turkcell Fiber, Özel Sigorta" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
+            <input name="name" defaultValue={expense?.name ?? ''} placeholder="Kira, Turkcell Fiber, Özel Sigorta" className="form-input" required />
             <div className="grid grid-cols-2 gap-4">
-                <input name="amount" type="number" step="0.01" defaultValue={expense?.amount ?? ''} placeholder="0.00" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
-                <select name="currency" defaultValue={expense?.currency ?? 'TRY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
+                <input name="amount" type="number" step="0.01" defaultValue={expense?.amount ?? ''} placeholder="0.00" className="form-input" required />
+                <select name="currency" defaultValue={expense?.currency ?? 'TRY'} className="form-input form-select">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
                 </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <input name="category" defaultValue={expense?.category ?? ''} placeholder="Barınma, fatura, sigorta..." className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
-                <select name="billingCycle" defaultValue={expense?.billingCycle ?? 'MONTHLY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
+                <input name="category" defaultValue={expense?.category ?? ''} placeholder="Barınma, fatura, sigorta..." className="form-input" required />
+                <select name="billingCycle" defaultValue={expense?.billingCycle ?? 'MONTHLY'} className="form-input form-select">
                     <option value="MONTHLY">Aylık</option>
                     <option value="YEARLY">Yıllık</option>
                 </select>
             </div>
-            <input name="nextPayment" type="date" defaultValue={expense?.nextPayment.slice(0, 10) ?? ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4" required />
-            <select name="status" defaultValue={expense?.status ?? 'ACTIVE'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4">
+            <input name="nextPayment" type="date" defaultValue={expense?.nextPayment.slice(0, 10) ?? ''} className="form-input" required />
+            <select name="status" defaultValue={expense?.status ?? 'ACTIVE'} className="form-input form-select">
                 <option value="ACTIVE">Aktif</option>
                 <option value="PAUSED">Duraklatıldı</option>
                 <option value="CANCELED">İptal Edildi</option>
@@ -188,7 +188,7 @@ function RecurringExpenseForm({
                 name="notes"
                 defaultValue={expense?.notes ?? ''}
                 placeholder="Açıklama veya hesap bilgisi"
-                className="w-full min-h-24 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4"
+                className="form-input min-h-24"
             />
             <div className="flex items-center justify-between text-sm text-zinc-400">
                 <label className="flex items-center gap-2">

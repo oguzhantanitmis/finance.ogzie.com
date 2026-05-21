@@ -522,7 +522,7 @@ function PersonalDebtCreateForm({
 
             <div>
                 <label className="form-label">Kişi</label>
-                <select name="personId" className="form-input" required defaultValue={people[0]?.id}>
+                <select name="personId" className="form-input form-select" required defaultValue={people[0]?.id}>
                     {people.map((person) => (
                         <option key={person.id} value={person.id}>{person.name}</option>
                     ))}
@@ -543,7 +543,7 @@ function PersonalDebtCreateForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="form-label">Para birimi</label>
-                    <select name="currency" defaultValue="TRY" className="form-input">
+                    <select name="currency" defaultValue="TRY" className="form-input form-select">
                         <option value="TRY">TRY</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
@@ -616,7 +616,7 @@ function PersonalDebtEditForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="form-label">Para birimi</label>
-                    <select name="currency" defaultValue="TRY" className="form-input">
+                    <select name="currency" defaultValue="TRY" className="form-input form-select">
                         <option value="TRY">TRY</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
@@ -671,7 +671,7 @@ function StoredDebtForm({
                         name="type"
                         defaultValue={activeType}
                         onChange={(event) => setEditType(event.target.value as DebtType)}
-                        className="form-input"
+                        className="form-input form-select"
                     >
                         <option value="LOAN">Banka Kredisi</option>
                         <option value="MANUAL">Diğer Borç</option>

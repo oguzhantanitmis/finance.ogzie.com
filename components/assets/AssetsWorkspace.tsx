@@ -203,9 +203,9 @@ function AssetForm({
     return (
         <form action={action} className="space-y-4">
             {asset ? <input type="hidden" name="assetId" value={asset.id} /> : null}
-            <input name="name" defaultValue={asset?.name ?? ''} placeholder="Örn: Ziraat Bankası, Altın Hesabı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+            <input name="name" defaultValue={asset?.name ?? ''} placeholder="Örn: Ziraat Bankası, Altın Hesabı" className="form-input" required />
             <div className="grid grid-cols-2 gap-4">
-                <select name="type" defaultValue={asset?.type ?? 'CASH'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
+                <select name="type" defaultValue={asset?.type ?? 'CASH'} className="form-input form-select">
                     <option value="CASH">Nakit</option>
                     <option value="BANK">Banka Hesabı</option>
                     <option value="GOLD">Altın</option>
@@ -215,7 +215,7 @@ function AssetForm({
                     <option value="ESTATE">Gayrimenkul</option>
                     <option value="OTHER">Diğer</option>
                 </select>
-                <select name="currency" defaultValue={asset?.currency ?? 'TRY'} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
+                <select name="currency" defaultValue={asset?.currency ?? 'TRY'} className="form-input form-select">
                     <option value="TRY">TRY</option>
                     <option value="USD">USD</option>
                     <option value="EUR">EUR</option>
@@ -223,10 +223,10 @@ function AssetForm({
                     <option value="XAU">XAU</option>
                 </select>
             </div>
-            <input name="amount" type="number" step="0.01" defaultValue={asset?.amount ?? ''} placeholder="Miktar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+            <input name="amount" type="number" step="0.01" defaultValue={asset?.amount ?? ''} placeholder="Miktar" className="form-input" required />
             <div className="grid grid-cols-2 gap-4">
-                <input name="unitPrice" type="number" step="0.01" defaultValue={asset?.unitPrice ?? ''} placeholder="Maliyet / birim fiyat" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
-                <input name="lastValue" type="number" step="0.01" defaultValue={asset?.lastValue ?? ''} placeholder="Güncel toplam değer (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                <input name="unitPrice" type="number" step="0.01" defaultValue={asset?.unitPrice ?? ''} placeholder="Maliyet / birim fiyat" className="form-input" />
+                <input name="lastValue" type="number" step="0.01" defaultValue={asset?.lastValue ?? ''} placeholder="Güncel toplam değer (opsiyonel)" className="form-input" />
             </div>
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label={asset ? 'Varlığı Güncelle' : 'Varlığı Kaydet'} pendingLabel={asset ? 'Güncelleniyor...' : 'Kaydediliyor...'} />

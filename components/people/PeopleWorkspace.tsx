@@ -265,7 +265,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                 <label className="form-label">Kişi</label>
                                 <select
                                     name="personId"
-                                    className="form-input"
+                                    className="form-input form-select"
                                     defaultValue={selectedPersonId ?? people[0]?.id ?? ''}
                                     required
                                 >
@@ -277,7 +277,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Kayıt türü</label>
-                                    <select name="type" defaultValue="PAYABLE" className="form-input">
+                                    <select name="type" defaultValue="PAYABLE" className="form-input form-select">
                                         <option value="PAYABLE">Benim borcum</option>
                                         <option value="RECEIVABLE">Bana borçlu</option>
                                     </select>
@@ -294,7 +294,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Para birimi</label>
-                                    <select name="currency" defaultValue="TRY" className="form-input">
+                                    <select name="currency" defaultValue="TRY" className="form-input form-select">
                                         <option value="TRY">TRY</option>
                                         <option value="USD">USD</option>
                                         <option value="EUR">EUR</option>

@@ -223,7 +223,7 @@ function GoalForm({
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <input name="currentAmount" type="number" step="0.01" min="0" defaultValue={goal?.currentAmount ?? 0} placeholder="Birikmiş tutar" className="form-input" />
-                <select name="goalType" defaultValue={goal?.goalType ?? 'SAVINGS'} className="form-input">
+                <select name="goalType" defaultValue={goal?.goalType ?? 'SAVINGS'} className="form-input form-select">
                     <option value="DEBT_FREE">Borçları tamamen kapat</option>
                     <option value="SPECIFIC_DEBT">Belirli bir borcu kapat</option>
                     <option value="CREDIT_CARD_FREE">Kredi kartı borcunu kapat</option>
@@ -236,13 +236,13 @@ function GoalForm({
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <input name="monthlyRequiredAmount" type="number" step="0.01" min="0" defaultValue={goal?.monthlyRequiredAmount ?? ''} placeholder="Aylık ayrılacak tutar" className="form-input" />
-                <select name="priority" defaultValue={goal?.priority ?? 2} className="form-input">
+                <select name="priority" defaultValue={goal?.priority ?? 2} className="form-input form-select">
                     <option value="1">Düşük öncelik</option>
                     <option value="2">Orta öncelik</option>
                     <option value="3">Yüksek öncelik</option>
                 </select>
             </div>
-            <select name="category" defaultValue={goal?.category ?? ''} className="form-input">
+            <select name="category" defaultValue={goal?.category ?? ''} className="form-input form-select">
                 <option value="">Kategori seçin...</option>
                 <option value="Borç">Borç kapatma</option>
                 <option value="Acil Fon">Acil fon</option>

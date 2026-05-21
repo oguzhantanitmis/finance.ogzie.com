@@ -113,7 +113,7 @@ export default function CardFormModal({
                             name="bankName"
                             required
                             defaultValue={card?.bankName ?? BANKS[0]}
-                            className="form-input"
+                            className="form-input form-select"
                         >
                             {BANKS.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
                         </select>
@@ -123,7 +123,7 @@ export default function CardFormModal({
                         <select
                             name="cardProgram"
                             defaultValue={card?.cardProgram ?? ''}
-                            className="form-input"
+                            className="form-input form-select"
                         >
                             <option value="">Seçiniz...</option>
                             <option value="Axess">Axess</option>
@@ -158,7 +158,7 @@ export default function CardFormModal({
                         <select
                             name="cardNetwork"
                             defaultValue={card?.cardNetwork ?? 'VISA'}
-                            className="form-input"
+                            className="form-input form-select"
                         >
                             <option value="VISA">VISA</option>
                             <option value="MASTERCARD">Mastercard</option>
@@ -321,7 +321,7 @@ export default function CardFormModal({
                 {card ? (
                     <div>
                         <label className="form-label">Durum</label>
-                        <select name="status" defaultValue={card.status} className="form-input">
+                        <select name="status" defaultValue={card.status} className="form-input form-select">
                             <option value="ACTIVE">Aktif</option>
                             <option value="FROZEN">Donduruldu</option>
                             <option value="CLOSED">Kapandı</option>

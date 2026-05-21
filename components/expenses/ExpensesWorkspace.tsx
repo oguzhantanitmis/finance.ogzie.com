@@ -333,13 +333,13 @@ function SubscriptionAddForm({ onSuccess }: { onSuccess: (r: ActionResult) => vo
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Tutar</label><input name="amount" type="number" step="0.01" placeholder="149.99" className="form-input" required /></div>
                 <div><label className="form-label">Döviz</label>
-                    <select name="currency" defaultValue="TRY" className="form-input"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
+                    <select name="currency" defaultValue="TRY" className="form-input form-select"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select>
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Kategori</label><input name="category" defaultValue={activePreview?.category ?? 'Genel'} className="form-input" /></div>
                 <div><label className="form-label">Döngü</label>
-                    <select name="billingCycle" defaultValue={activePreview?.billingCycle ?? 'MONTHLY'} className="form-input"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select>
+                    <select name="billingCycle" defaultValue={activePreview?.billingCycle ?? 'MONTHLY'} className="form-input form-select"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select>
                 </div>
             </div>
             <div><label className="form-label">Sonraki ödeme</label><input name="nextPayment" type="date" defaultValue={new Date().toISOString().slice(0, 10)} className="form-input" required /></div>
@@ -372,11 +372,11 @@ function RecurringAddForm({ onSuccess }: { onSuccess: (r: ActionResult) => void 
             <div><label className="form-label">Gider adı</label><input name="name" placeholder="Kira, Aidat, Sigorta..." className="form-input" required /></div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Tutar</label><input name="amount" type="number" step="0.01" placeholder="0.00" className="form-input" required /></div>
-                <div><label className="form-label">Döviz</label><select name="currency" defaultValue="TRY" className="form-input"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+                <div><label className="form-label">Döviz</label><select name="currency" defaultValue="TRY" className="form-input form-select"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Kategori</label><input name="category" placeholder="Barınma, fatura..." className="form-input" required /></div>
-                <div><label className="form-label">Döngü</label><select name="billingCycle" defaultValue="MONTHLY" className="form-input"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select></div>
+                <div><label className="form-label">Döngü</label><select name="billingCycle" defaultValue="MONTHLY" className="form-input form-select"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select></div>
             </div>
             <div><label className="form-label">Sonraki ödeme</label><input name="nextPayment" type="date" className="form-input" required /></div>
             <label className="flex items-center gap-2 text-sm cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
@@ -398,14 +398,14 @@ function SubscriptionEditForm({ item, onSuccess }: { item: SubscriptionItem; onS
             <div><label className="form-label">Ad</label><input name="name" defaultValue={item.name} className="form-input" required /></div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Tutar</label><input name="amount" type="number" step="0.01" defaultValue={item.amount} className="form-input" required /></div>
-                <div><label className="form-label">Döviz</label><select name="currency" defaultValue={item.currency} className="form-input"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+                <div><label className="form-label">Döviz</label><select name="currency" defaultValue={item.currency} className="form-input form-select"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Kategori</label><input name="category" defaultValue={item.category} className="form-input" /></div>
-                <div><label className="form-label">Döngü</label><select name="billingCycle" defaultValue={item.billingCycle} className="form-input"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select></div>
+                <div><label className="form-label">Döngü</label><select name="billingCycle" defaultValue={item.billingCycle} className="form-input form-select"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select></div>
             </div>
             <div><label className="form-label">Sonraki ödeme</label><input name="nextPayment" type="date" defaultValue={item.nextPayment.slice(0, 10)} className="form-input" required /></div>
-            <select name="status" defaultValue={item.status} className="form-input"><option value="ACTIVE">Aktif</option><option value="PAUSED">Duraklatıldı</option><option value="CANCELED">İptal Edildi</option></select>
+            <select name="status" defaultValue={item.status} className="form-input form-select"><option value="ACTIVE">Aktif</option><option value="PAUSED">Duraklatıldı</option><option value="CANCELED">İptal Edildi</option></select>
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label="Güncelle" pendingLabel="Güncelleniyor..." />
         </form>
@@ -422,14 +422,14 @@ function RecurringEditForm({ item, onSuccess }: { item: RecurringItem; onSuccess
             <div><label className="form-label">Ad</label><input name="name" defaultValue={item.name} className="form-input" required /></div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Tutar</label><input name="amount" type="number" step="0.01" defaultValue={item.amount} className="form-input" required /></div>
-                <div><label className="form-label">Döviz</label><select name="currency" defaultValue={item.currency} className="form-input"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
+                <div><label className="form-label">Döviz</label><select name="currency" defaultValue={item.currency} className="form-input form-select"><option value="TRY">TRY</option><option value="USD">USD</option><option value="EUR">EUR</option></select></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div><label className="form-label">Kategori</label><input name="category" defaultValue={item.category} className="form-input" required /></div>
-                <div><label className="form-label">Döngü</label><select name="billingCycle" defaultValue={item.billingCycle} className="form-input"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select></div>
+                <div><label className="form-label">Döngü</label><select name="billingCycle" defaultValue={item.billingCycle} className="form-input form-select"><option value="MONTHLY">Aylık</option><option value="YEARLY">Yıllık</option></select></div>
             </div>
             <div><label className="form-label">Sonraki ödeme</label><input name="nextPayment" type="date" defaultValue={item.nextPayment.slice(0, 10)} className="form-input" required /></div>
-            <select name="status" defaultValue={item.status} className="form-input"><option value="ACTIVE">Aktif</option><option value="PAUSED">Duraklatıldı</option><option value="CANCELED">İptal Edildi</option></select>
+            <select name="status" defaultValue={item.status} className="form-input form-select"><option value="ACTIVE">Aktif</option><option value="PAUSED">Duraklatıldı</option><option value="CANCELED">İptal Edildi</option></select>
             <FormMessage success={state.success} message={state.message} />
             <SubmitButton label="Güncelle" pendingLabel="Güncelleniyor..." />
         </form>

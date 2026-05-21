@@ -472,11 +472,11 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                     <form action={createRPActionState} className="space-y-4">
                         <input type="hidden" name="personId" value={person.id} />
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <select name="type" className="form-input">
+                            <select name="type" className="form-input form-select">
                                 <option value="RECEIVABLE">Bana borcu var / Alacak</option>
                                 <option value="PAYABLE">Ben borçluyum / Verecek</option>
                             </select>
-                            <select name="riskLevel" defaultValue="MEDIUM" className="form-input">
+                            <select name="riskLevel" defaultValue="MEDIUM" className="form-input form-select">
                                 <option value="LOW">Düşük risk</option>
                                 <option value="MEDIUM">Orta risk</option>
                                 <option value="HIGH">Yüksek risk</option>
@@ -489,7 +489,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                             <input name="totalAmount" type="number" step="0.01" min="0.01" placeholder="Toplam alınacak/ödenecek" className="form-input" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <select name="currency" className="form-input">
+                            <select name="currency" className="form-input form-select">
                                 <option value="TRY">TRY</option>
                                 <option value="USD">USD</option>
                                 <option value="EUR">EUR</option>
@@ -501,13 +501,13 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                             <input name="dueDate" type="date" className="form-input" />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <select name="paymentPlanType" defaultValue="ONE_TIME" className="form-input">
+                            <select name="paymentPlanType" defaultValue="ONE_TIME" className="form-input form-select">
                                 <option value="ONE_TIME">Tek seferlik</option>
                                 <option value="INSTALLMENT">Taksitli</option>
                                 <option value="FLEXIBLE">Serbest / düzensiz ödeme</option>
                             </select>
                             <input name="installmentCount" type="number" min="1" placeholder="Taksit sayısı" className="form-input" />
-                            <select name="installmentPeriod" defaultValue="MONTHLY" className="form-input">
+                            <select name="installmentPeriod" defaultValue="MONTHLY" className="form-input form-select">
                                 <option value="DAILY">Günlük</option>
                                 <option value="WEEKLY">Haftalık</option>
                                 <option value="BIWEEKLY">15 günlük</option>
@@ -540,22 +540,22 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                     <form action={updateRPActionState} className="space-y-4">
                         <input type="hidden" name="rpId" value={selectedRP.id} />
                         <input type="hidden" name="personId" value={person.id} />
-                        <select name="type" defaultValue={selectedRP.type} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
+                        <select name="type" defaultValue={selectedRP.type} className="form-input form-select">
                             <option value="RECEIVABLE">Bana borçlu (Alacak)</option>
                             <option value="PAYABLE">Benim borcum (Verecek)</option>
                         </select>
-                        <input name="description" defaultValue={selectedRP.description} placeholder="Açıklama" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                        <input name="description" defaultValue={selectedRP.description} placeholder="Açıklama" className="form-input" required />
                         <div className="grid grid-cols-2 gap-4">
-                            <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={selectedRP.originalAmount} placeholder="Toplam tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
-                            <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={selectedRP.remainingAmount} placeholder="Kalan tutar" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                            <input name="originalAmount" type="number" step="0.01" min="0.01" defaultValue={selectedRP.originalAmount} placeholder="Toplam tutar" className="form-input" required />
+                            <input name="remainingAmount" type="number" step="0.01" min="0" defaultValue={selectedRP.remainingAmount} placeholder="Kalan tutar" className="form-input" required />
                         </div>
-                        <select name="currency" defaultValue={selectedRP.currency} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white">
+                        <select name="currency" defaultValue={selectedRP.currency} className="form-input form-select">
                             <option value="TRY">TRY</option>
                             <option value="USD">USD</option>
                             <option value="EUR">EUR</option>
                         </select>
-                        <input name="dueDate" type="date" defaultValue={selectedRP.dueDate ? selectedRP.dueDate.slice(0, 10) : ''} className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
-                        <textarea name="notes" placeholder="Not (opsiyonel)" className="w-full min-h-20 bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <input name="dueDate" type="date" defaultValue={selectedRP.dueDate ? selectedRP.dueDate.slice(0, 10) : ''} className="form-input" />
+                        <textarea name="notes" placeholder="Not (opsiyonel)" className="form-input min-h-20" />
                         <FormMessage success={updateRPState.success} message={updateRPState.message} />
                         <SubmitButton label="Kaydı Güncelle" pendingLabel="Güncelleniyor..." />
                     </form>
@@ -574,7 +574,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         {selectedRP.installments.length > 0 ? (
                             <div>
                                 <label className="form-label">Taksit</label>
-                                <select name="installmentId" className="form-input">
+                                <select name="installmentId" className="form-input form-select">
                                     <option value="">En eski açık taksite uygula</option>
                                     {selectedRP.installments.filter((item) => item.remainingAmount > 0).map((item) => (
                                         <option key={item.id} value={item.id}>
@@ -584,9 +584,9 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                 </select>
                             </div>
                         ) : null}
-                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Tahsilat tutarı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Tahsilat tutarı" className="form-input" required />
                         <AccountSelect accounts={accounts} name="accountId" label="Paranın yatacağı hesap" required />
-                        <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <input name="description" placeholder="Açıklama (opsiyonel)" className="form-input" />
                         <FormMessage success={collectionState.success} message={collectionState.message} />
                         <SubmitButton label="Tahsilatı Kaydet" pendingLabel="Kaydediliyor..." className="w-full bg-emerald-500 text-black font-bold py-4 rounded-2xl hover:bg-emerald-400 transition-all disabled:opacity-60" />
                     </form>
@@ -605,7 +605,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         {selectedRP.installments.length > 0 ? (
                             <div>
                                 <label className="form-label">Taksit</label>
-                                <select name="installmentId" className="form-input">
+                                <select name="installmentId" className="form-input form-select">
                                     <option value="">En eski açık taksite uygula</option>
                                     {selectedRP.installments.filter((item) => item.remainingAmount > 0).map((item) => (
                                         <option key={item.id} value={item.id}>
@@ -615,9 +615,9 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                                 </select>
                             </div>
                         ) : null}
-                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Ödeme tutarı" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" required />
+                        <input name="amount" type="number" step="0.01" min="0.01" max={selectedRP.remainingAmount} placeholder="Ödeme tutarı" className="form-input" required />
                         <AccountSelect accounts={accounts} name="accountId" label="Paranın çıkacağı hesap" required />
-                        <input name="description" placeholder="Açıklama (opsiyonel)" className="w-full bg-black border border-[var(--border-default)] rounded-2xl py-3 px-4 text-white" />
+                        <input name="description" placeholder="Açıklama (opsiyonel)" className="form-input" />
                         <FormMessage success={paymentState.success} message={paymentState.message} />
                         <SubmitButton label="Ödemeyi Kaydet" pendingLabel="Kaydediliyor..." className="w-full bg-red-500 text-white font-bold py-4 rounded-2xl hover:bg-red-400 transition-all disabled:opacity-60" />
                     </form>
@@ -647,7 +647,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         </div>
                         <div>
                             <label className="form-label">Taksit periyodu</label>
-                            <select name="installmentPeriod" defaultValue="MONTHLY" className="form-input">
+                            <select name="installmentPeriod" defaultValue="MONTHLY" className="form-input form-select">
                                 <option value="DAILY">Günlük</option>
                                 <option value="WEEKLY">Haftalık</option>
                                 <option value="BIWEEKLY">15 günlük</option>
@@ -668,7 +668,7 @@ export default function PersonDetailWorkspace({ person, accounts }: Props) {
                         <input type="hidden" name="personId" value={person.id} />
                         <div>
                             <label className="form-label">Not türü</label>
-                            <select name="noteType" defaultValue="GENERAL" className="form-input">
+                            <select name="noteType" defaultValue="GENERAL" className="form-input form-select">
                                 <option value="GENERAL">Genel not</option>
                                 <option value="PAYMENT">Ödeme notu</option>
                                 <option value="DELAY">Gecikme notu</option>
