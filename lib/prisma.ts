@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client'
 
 const prismaClientSingleton = () => {
+  if (process.env.PRISMA_CLIENT_ENGINE_TYPE === 'binary') {
+    delete process.env.PRISMA_CLIENT_ENGINE_TYPE
+  }
   return new PrismaClient()
 }
 

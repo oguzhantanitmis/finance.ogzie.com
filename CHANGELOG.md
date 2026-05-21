@@ -18,6 +18,7 @@
 
 ### Sabitlendi
 
+- `lib/prisma.ts`: Production/Vercel ortamındaki uyumsuz `PRISMA_CLIENT_ENGINE_TYPE="binary"` yapılandırmasından kaynaklanan `PrismaClientValidationError` hatası giderildi. Runtime sırasında bu değişken temizlenerek uygulamanın varsayılan/önerilen `library` (Node-API) engine ile sorunsuz çalışması sağlandı. Bu sayede canlı ortamdaki "Bir hata oluştu" ana sayfa çökmesi çözüldü.
 - `lib/debt-views.ts`: "Ödeme Gereken Borçlar" (Due/Required Payments) panelinde vadesi gelmemiş gelecekteki taksitlerin ve ödemelerin gösterilmesi engellendi. Artık bu panelde sadece vadesi geçmiş (`OVERDUE`), bu ay vadesi gelen veya önümüzdeki 10 gün içinde vadesi gelecek olan (`dueDate <= 10 days`) ödemeler listeleniyor. Bütçe planlayıcının (`getMonthlyBudgetSummary`) tüm ödemeleri görebilmesi için `getDebtWorkspaceData` fonksiyonuna `{ allObligations: true }` seçeneği eklendi.
 
 ### Doğrulandı
