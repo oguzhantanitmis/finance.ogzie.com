@@ -132,7 +132,7 @@ export async function addCreditCard(
     try {
         const user = await requireCurrentUser()
         const totalLimit = toRequiredNumber(data.get('totalLimit'), 'totalLimit', 'Toplam limit', { min: 0.01 })
-        const minPaymentRate = toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? (totalLimit > 50000 ? 0.4 : 0.2)
+        const minPaymentRate = toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? (data.get('isNewCard') === 'on' || totalLimit > 50000 ? 0.4 : 0.2)
         const cardName = toRequiredString(data.get('cardName'), 'cardName', 'Kart adi')
         const bankName = toRequiredString(data.get('bankName'), 'bankName', 'Banka adi')
         const cardProgram = toOptionalString(data.get('cardProgram')) ?? resolveCardVisual(bankName, cardName).cardProgram
@@ -394,5 +394,145 @@ export async function updateCardPoints(cardId: string, points: number): Promise<
         return createSuccessResult('Kart puani guncellendi.', card.id)
     } catch (error) {
         return getActionErrorResult(error, 'Kart puani guncellenemedi.')
+    }
+}
+
+export async function drawCashAdvance(data: {
+    creditCardId: string
+    amount: number
+    installments: number
+}): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+        if (!Number.isFinite(data.amount) || data.amount <= 0) {
+            return getActionErrorResult(new Error('Tutar geçersiz'), 'Tutar geçersiz.')
+        }
+
+        const card = await getUserCard(data.creditCardId, user.id)
+
+        const rate = card.cashAdvanceRate / 100
+        const kkdf = card.kkdfRate
+        const bsmv = card.bsmvRate
+        const netRate = rate * (1 + kkdf + bsmv)
+
+        let totalAmount = data.amount
+        let installmentAmount = data.amount
+
+        if (data.installments > 1) {
+             const temp = Math.pow(1 + netRate, data.installments)
+             installmentAmount = data.amount * (netRate * temp) / (temp - 1)
+             totalAmount = installmentAmount * data.installments
+        } else {
+             const commission = data.amount * 0.01 // %1 komisyon
+             totalAmount = data.amount + commission
+             installmentAmount = totalAmount
+        }
+
+        const transaction = await prisma.cardTransaction.create({
+            data: {
+                creditCardId: card.id,
+                type: 'CASH_ADVANCE',
+                description: data.installments > 1 ? `Taksitli Nakit Avans (${data.installments} Ay)` : 'Nakit Avans',
+                merchant: 'Banka ATM/Şube',
+                amount: totalAmount,
+                remainingAmount: totalAmount,
+                totalInstallments: data.installments,
+                isCashAdvance: true,
+            }
+        })
+
+        if (data.installments > 1) {
+            const installmentsToCreate = []
+            for (let i = 1; i <= data.installments; i++) {
+                const dueDate = new Date()
+                dueDate.setMonth(dueDate.getMonth() + i)
+                installmentsToCreate.push({
+                    transactionId: transaction.id,
+                    installmentNo: i,
+                    amount: installmentAmount,
+                    dueDate,
+                })
+            }
+            await prisma.cardInstallment.createMany({
+                data: installmentsToCreate
+            })
+        }
+
+        await rebuildCanonicalDebtForCreditCard(user.id, card.id)
+        revalidateCardPaths(card.id)
+        return createSuccessResult('Nakit avans çekildi.', card.id)
+    } catch (error) {
+        return getActionErrorResult(error, 'Nakit avans çekilemedi.')
+    }
+}
+
+export async function installmentizeTransaction(data: {
+    transactionId: string
+    installments: number
+}): Promise<ActionResult> {
+    try {
+        const user = await requireCurrentUser()
+        const transaction = await prisma.cardTransaction.findFirstOrThrow({
+            where: { id: data.transactionId },
+            include: { creditCard: true }
+        })
+
+        if (transaction.creditCard.userId !== user.id) {
+            return getActionErrorResult(new Error('Yetkisiz'), 'Erişim reddedildi.')
+        }
+
+        if (transaction.totalInstallments > 1 || transaction.type !== 'PURCHASE') {
+             return getActionErrorResult(new Error('Uygun değil'), 'Bu işlem taksitlendirilemez.')
+        }
+
+        const lowerDesc = transaction.description.toLowerCase()
+        const lowerMerchant = (transaction.merchant || '').toLowerCase()
+        const forbiddenKeywords = ['gıda', 'market', 'akaryakıt', 'benzin', 'telekom', 'fatura', 'kozmetik', 'yurt dışı', 'yurtdışı']
+        const isForbidden = forbiddenKeywords.some(kw => lowerDesc.includes(kw) || lowerMerchant.includes(kw))
+
+        if (isForbidden) {
+             return getActionErrorResult(new Error('Yasal kısıtlama'), 'Bu sektördeki işlemler (Gıda, Akaryakıt, Telekom vb.) yasal olarak taksitlendirilemez.')
+        }
+
+        const card = transaction.creditCard
+        const rate = card.contractualRate / 100
+        const kkdf = card.kkdfRate
+        const bsmv = card.bsmvRate
+        const netRate = rate * (1 + kkdf + bsmv)
+
+        const temp = Math.pow(1 + netRate, data.installments)
+        const installmentAmount = transaction.amount * (netRate * temp) / (temp - 1)
+        const totalAmount = installmentAmount * data.installments
+
+        await prisma.cardTransaction.update({
+            where: { id: transaction.id },
+            data: {
+                totalInstallments: data.installments,
+                amount: totalAmount,
+                remainingAmount: totalAmount,
+                description: `${transaction.description} (Sonradan ${data.installments} Taksit)`
+            }
+        })
+
+        const installmentsToCreate = []
+        for (let i = 1; i <= data.installments; i++) {
+            const dueDate = new Date()
+            dueDate.setMonth(dueDate.getMonth() + i)
+            installmentsToCreate.push({
+                transactionId: transaction.id,
+                installmentNo: i,
+                amount: installmentAmount,
+                dueDate,
+            })
+        }
+        await prisma.cardInstallment.createMany({
+            data: installmentsToCreate
+        })
+
+        await rebuildCanonicalDebtForCreditCard(user.id, card.id)
+        revalidateCardPaths(card.id)
+        return createSuccessResult('İşlem taksitlendirildi.', transaction.id)
+    } catch (error) {
+        return getActionErrorResult(error, 'İşlem taksitlendirilemedi.')
     }
 }

@@ -311,8 +311,8 @@ function DueDebtPanel({
                     <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Tek tıkla ödeme işaretle</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-3 min-w-full lg:min-w-[340px]">
-                    <LoanMetric label="Toplam ödenecek" value={totalDue} />
-                    <LoanMetric label="Gecikme maliyeti" value={overdueTotal} />
+                    <LoanMetric label="Toplam ödenecek" value={totalDue} variant="primary" />
+                    <LoanMetric label="Gecikme maliyeti" value={overdueTotal} variant="danger" />
                 </div>
             </div>
 
@@ -468,14 +468,14 @@ function DebtCreateForm({
                         style={{
                             border: type === option.value ? '1px solid var(--accent-primary)' : '1px solid var(--border-default)',
                             background: type === option.value ? 'var(--accent-primary)' : 'var(--bg-elevated)',
-                            color: type === option.value ? '#000' : 'var(--text-primary)',
+                            color: type === option.value ? 'var(--text-inverse)' : 'var(--text-primary)',
                             borderRadius: '1rem',
                             padding: '1rem',
                             textAlign: 'left' as const,
                         }}
                     >
                         <p className="font-semibold mb-2">{option.label}</p>
-                        <p className="text-sm" style={{ color: type === option.value ? 'rgba(0,0,0,0.7)' : 'var(--text-secondary)' }}>{option.description}</p>
+                        <p className="text-sm" style={{ color: type === option.value ? 'var(--text-inverse)' : 'var(--text-secondary)', opacity: type === option.value ? 0.8 : 1 }}>{option.description}</p>
                     </button>
                 ))}
             </div>
@@ -768,13 +768,22 @@ function StoredDebtForm({
     )
 }
 
+const getNextMonthDateString = () => {
+    const today = new Date()
+    const date = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate())
+    const yyyy = date.getFullYear()
+    const mm = String(date.getMonth() + 1).padStart(2, '0')
+    const dd = String(date.getDate()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+}
+
 function LoanFields({ debt }: { debt?: DebtView }) {
     const initialPaidInstallments = getPaidInstallmentCount(debt)
-    const [totalPrincipal, setTotalPrincipal] = useState(debt?.totalPrincipal ? String(debt.totalPrincipal) : '')
+    const [totalPrincipal, setTotalPrincipal] = useState(debt?.totalPrincipal ? String(debt.totalPrincipal) : '100000')
     const [interestRate, setInterestRate] = useState(String(debt?.interestRate ?? 4.49))
     const [installments, setInstallments] = useState(String(debt?.installments ?? 12))
     const [paidInstallments, setPaidInstallments] = useState(String(initialPaidInstallments))
-    const [firstDueDate, setFirstDueDate] = useState(formatDateInput(debt?.dueDate))
+    const [firstDueDate, setFirstDueDate] = useState(formatDateInput(debt?.dueDate) || getNextMonthDateString())
     const [kkdfRate, setKkdfRate] = useState(String(toPercentInput(debt?.kkdfRate, 0.15)))
     const [bsmvRate, setBsmvRate] = useState(String(toPercentInput(debt?.bsmvRate, 0.15)))
 
@@ -923,11 +932,11 @@ function LoanFields({ debt }: { debt?: DebtView }) {
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <LoanMetric label="Aylık taksit" value={monthlyPayment} />
-                <LoanMetric label="Toplam ödeme" value={totalPayment} />
-                <LoanMetric label="Kalan ödeme" value={remainingPayment} />
-                <LoanMetric label="Kalan anapara" value={remainingPrincipal} />
-                <LoanMetric label="Faiz + vergi" value={totalInterest + totalTax} />
+                <LoanMetric label="Aylık taksit" value={monthlyPayment} variant="primary" />
+                <LoanMetric label="Toplam ödeme" value={totalPayment} variant="default" />
+                <LoanMetric label="Kalan ödeme" value={remainingPayment} variant="warning" />
+                <LoanMetric label="Kalan anapara" value={remainingPrincipal} variant="default" />
+                <LoanMetric label="Faiz + vergi" value={totalInterest + totalTax} variant="danger" />
             </div>
 
             {rows.length > 0 ? (
@@ -970,11 +979,59 @@ function LoanFields({ debt }: { debt?: DebtView }) {
     )
 }
 
-function LoanMetric({ label, value }: { label: string; value: number }) {
+function LoanMetric({ 
+    label, 
+    value, 
+    variant = 'default' 
+}: { 
+    label: string
+    value: number
+    variant?: 'default' | 'primary' | 'danger' | 'warning' | 'success' 
+}) {
+    let borderColor = 'var(--border-default)'
+    let bg = 'var(--bg-elevated)'
+    let textColor = 'var(--text-primary)'
+    let accentColor = 'var(--text-secondary)'
+
+    if (variant === 'primary') {
+        borderColor = 'rgba(59, 130, 246, 0.2)'
+        bg = 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.02) 100%)'
+        textColor = 'var(--accent-primary)'
+        accentColor = 'var(--accent-primary)'
+    } else if (variant === 'danger') {
+        borderColor = 'rgba(248, 113, 113, 0.2)'
+        bg = 'linear-gradient(135deg, rgba(248, 113, 113, 0.08) 0%, rgba(248, 113, 113, 0.02) 100%)'
+        textColor = 'var(--accent-danger)'
+        accentColor = 'var(--accent-danger)'
+    } else if (variant === 'warning') {
+        borderColor = 'rgba(251, 191, 36, 0.2)'
+        bg = 'linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.02) 100%)'
+        textColor = 'var(--accent-warning)'
+        accentColor = 'var(--accent-warning)'
+    } else if (variant === 'success') {
+        borderColor = 'rgba(52, 211, 153, 0.2)'
+        bg = 'linear-gradient(135deg, rgba(52, 211, 153, 0.08) 0%, rgba(52, 211, 153, 0.02) 100%)'
+        textColor = 'var(--accent-success)'
+        accentColor = 'var(--accent-success)'
+    }
+
     return (
-        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-4 py-3">
-            <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{label}</p>
-            <p className="font-mono text-sm font-semibold tabular-nums privacy-blur" style={{ color: 'var(--text-primary)' }}>{formatCurrency(value, 'TRY')}</p>
+        <div 
+            className="rounded-2xl border px-4 py-3.5 transition-all duration-300 relative overflow-hidden group hover:scale-[1.02] hover:shadow-lg"
+            style={{
+                borderColor,
+                background: bg,
+            }}
+        >
+            <p className="text-[10px] uppercase tracking-wider font-semibold mb-1" style={{ color: accentColor }}>
+                {label}
+            </p>
+            <p 
+                className="font-mono text-base lg:text-lg font-bold tabular-nums privacy-blur tracking-tight"
+                style={{ color: textColor }}
+            >
+                {formatCurrency(value, 'TRY')}
+            </p>
         </div>
     )
 }

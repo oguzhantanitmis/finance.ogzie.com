@@ -8,7 +8,7 @@ import {
     Plus, Trash2, AlertTriangle, Pencil, Search, 
     Calendar, Sparkles, Tag, CheckCircle2 
 } from 'lucide-react'
-import { makeCardPayment, addCardTransaction, deleteCreditCard, updateCardPoints } from '@/app/cards/actions'
+import { makeCardPayment, addCardTransaction, deleteCreditCard, updateCardPoints, drawCashAdvance, installmentizeTransaction } from '@/app/cards/actions'
 import { useRouter } from 'next/navigation'
 import { analyzeInterestForPeriod, simulateMinimumPaymentTrap } from '@/lib/card-engine/interest-engine'
 import { formatCostBreakdown } from '@/lib/card-engine/tax-engine'
@@ -130,11 +130,19 @@ function simulateFixedMonthlyPayment(
 
 export default function CardDetailView({ card }: CardDetailProps) {
     const router = useRouter()
-    const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'statements' | 'payment'>('overview')
+    const [activeTab, setActiveTab] = useState<'overview' | 'transactions' | 'statements' | 'payment' | 'cash_advance'>('overview')
     const [paymentAmount, setPaymentAmount] = useState('')
     const [showAddTransaction, setShowAddTransaction] = useState(false)
     const [showEditCard, setShowEditCard] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    // Cash Advance States
+    const [cashAdvanceAmount, setCashAdvanceAmount] = useState('')
+    const [cashAdvanceInstallments, setCashAdvanceInstallments] = useState<number>(1)
+
+    // Installmentize State
+    const [txToInstallmentize, setTxToInstallmentize] = useState<string | null>(null)
+    const [installmentizeMonths, setInstallmentizeMonths] = useState<number>(3)
 
     // Transaction search and filter states
     const [searchTerm, setSearchTerm] = useState('')
@@ -232,6 +240,42 @@ export default function CardDetailView({ card }: CardDetailProps) {
         router.refresh()
     }
 
+    async function handleCashAdvance() {
+        const amt = parseFloat(cashAdvanceAmount)
+        if (!amt || amt <= 0) return
+        setLoading(true)
+        const res = await drawCashAdvance({
+            creditCardId: card.id,
+            amount: amt,
+            installments: cashAdvanceInstallments
+        })
+        setLoading(false)
+        if (res.success) {
+            setCashAdvanceAmount('')
+            setCashAdvanceInstallments(1)
+            setActiveTab('transactions')
+            router.refresh()
+        } else {
+            alert(res.message)
+        }
+    }
+
+    async function handleInstallmentize() {
+        if (!txToInstallmentize) return
+        setLoading(true)
+        const res = await installmentizeTransaction({
+            transactionId: txToInstallmentize,
+            installments: installmentizeMonths
+        })
+        setLoading(false)
+        if (res.success) {
+            setTxToInstallmentize(null)
+            router.refresh()
+        } else {
+            alert(res.message)
+        }
+    }
+
     async function handleAddTransaction(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
         setLoading(true)
@@ -260,6 +304,7 @@ export default function CardDetailView({ card }: CardDetailProps) {
         { key: 'transactions' as const, label: 'İşlemler', icon: <Receipt className="w-4 h-4" /> },
         { key: 'statements' as const, label: 'Ekstre Geçmişi', icon: <TrendingDown className="w-4 h-4" /> },
         { key: 'payment' as const, label: 'Ödeme Yap', icon: <DollarSign className="w-4 h-4" /> },
+        { key: 'cash_advance' as const, label: 'Nakit Avans', icon: <DollarSign className="w-4 h-4 text-purple-400" /> },
     ]
 
     return (
@@ -511,6 +556,30 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                             </div>
                                         )}
 
+                                        {/* BDDK 60 Ay Yapılandırma CTA */}
+                                        {card.currentDebt > 0 && simulatedPayment <= card.minimumPayment && (
+                                            <div className="p-5 bg-gradient-to-r from-blue-950/40 to-indigo-950/40 border border-blue-900/50 rounded-2xl flex flex-col md:flex-row gap-4 justify-between items-center relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl mix-blend-screen pointer-events-none"></div>
+                                                <div>
+                                                    <h4 className="text-sm font-extrabold text-blue-400 mb-1 flex items-center gap-2">
+                                                        <span className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded text-[10px] uppercase">Yeni BDDK Düzenlemesi</span>
+                                                        60 Ay Borç Yapılandırma
+                                                    </h4>
+                                                    <p className="text-xs text-zinc-400 leading-relaxed max-w-lg">
+                                                        Asgari ödemenizi yapmakta zorlanıyorsanız, güncel borcunuzu (<span className="text-white font-mono">{formatCurrency(card.currentDebt)}</span>) TCMB referans oranı ile <strong className="text-blue-300">60 aya kadar</strong> taksitlendirebilirsiniz. Bu hak yasal bir zorunluluktur.
+                                                    </p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        alert('60 Ay Yapılandırma planı oluşturuldu (Simülasyon)');
+                                                    }}
+                                                    className="whitespace-nowrap shrink-0 bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] sm:text-xs px-5 py-3 rounded-xl transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] uppercase tracking-wider"
+                                                >
+                                                    Taksitlendir
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {/* Cost breakdown checklist */}
                                         {sliderCostBreakdown && simulatedPayment < card.statementBalance && (
                                             <div className="fintech-card p-6 border-zinc-800">
@@ -711,9 +780,62 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <span className={`font-mono font-bold text-sm privacy-blur ${isRefund ? 'text-emerald-400' : 'text-white'}`}>
-                                                                {isRefund ? '+' : '-'}{formatCurrency(tx.amount)}
-                                                            </span>
+                                                            <div className="flex flex-col items-end gap-2">
+                                                                <span className={`font-mono font-bold text-sm privacy-blur ${isRefund ? 'text-emerald-400' : 'text-white'}`}>
+                                                                    {isRefund ? '+' : '-'}{formatCurrency(tx.amount)}
+                                                                </span>
+                                                                
+                                                                {/* Taksitlendirme Aksiyonu (BDDK/Sektör kısıtı simulasyonu) */}
+                                                                {tx.type === 'PURCHASE' && tx.totalInstallments === 1 && (
+                                                                    <div className="mt-1">
+                                                                        {(() => {
+                                                                            const forbidden = ['gıda', 'market', 'akaryakıt', 'benzin', 'telekom', 'fatura', 'kozmetik', 'yurt dışı', 'yurtdışı'];
+                                                                            const isForbidden = forbidden.some(k => tx.description.toLowerCase().includes(k) || (tx.merchant && tx.merchant.toLowerCase().includes(k)));
+                                                                            
+                                                                            if (isForbidden) {
+                                                                                return <span className="text-[9px] text-zinc-600 bg-zinc-900/50 px-2 py-1 rounded font-medium border border-zinc-800" title="Yasal kısıtlama">Taksitlendirilemez</span>
+                                                                            }
+
+                                                                            if (txToInstallmentize === tx.id) {
+                                                                                return (
+                                                                                    <div className="flex items-center gap-1.5 bg-zinc-900 p-1.5 rounded-lg border border-zinc-700">
+                                                                                        <select 
+                                                                                            value={installmentizeMonths}
+                                                                                            onChange={e => setInstallmentizeMonths(Number(e.target.value))}
+                                                                                            className="bg-zinc-950 text-xs text-white border border-zinc-800 rounded px-1.5 py-0.5 outline-none"
+                                                                                        >
+                                                                                            {[2, 3, 4, 6, 9, 12].map(m => (
+                                                                                                <option key={m} value={m}>{m} Ay</option>
+                                                                                            ))}
+                                                                                        </select>
+                                                                                        <button 
+                                                                                            onClick={handleInstallmentize}
+                                                                                            disabled={loading}
+                                                                                            className="text-[10px] bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 px-2 py-0.5 rounded font-bold transition-colors disabled:opacity-50"
+                                                                                        >
+                                                                                            Onayla
+                                                                                        </button>
+                                                                                        <button 
+                                                                                            onClick={() => setTxToInstallmentize(null)}
+                                                                                            className="text-[10px] text-zinc-500 hover:text-zinc-300 px-1 py-0.5"
+                                                                                        >
+                                                                                            İptal
+                                                                                        </button>
+                                                                                    </div>
+                                                                                )
+                                                                            }
+                                                                            return (
+                                                                                <button 
+                                                                                    onClick={() => setTxToInstallmentize(tx.id)}
+                                                                                    className="text-[10px] bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white px-2 py-1 rounded font-bold transition-colors"
+                                                                                >
+                                                                                    Taksitlendir
+                                                                                </button>
+                                                                            )
+                                                                        })()}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     )
                                                 })}
@@ -862,6 +984,99 @@ export default function CardDetailView({ card }: CardDetailProps) {
                                                 className="w-full py-3.5 rounded-xl bg-white text-black font-extrabold hover:bg-zinc-200 transition-all text-xs uppercase tracking-widest disabled:opacity-40 disabled:hover:bg-white"
                                             >
                                                 {loading ? 'Ödeme Kaydediliyor...' : 'Ödemeyi Onayla ve Kaydet'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* CASH ADVANCE TAB */}
+                                {activeTab === 'cash_advance' && (
+                                    <div className="max-w-lg space-y-6">
+                                        <div className="fintech-card p-6 bg-zinc-950 border-zinc-900 relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-fuchsia-500"></div>
+                                            <h3 className="text-sm font-bold mb-5 flex items-center gap-2 text-white">
+                                                <DollarSign className="w-4 h-4 text-purple-400" />
+                                                Nakit Avans İşlemleri
+                                            </h3>
+                                            <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
+                                                Kartınızdan anında nakit çekebilir, dilerseniz 12 aya varan vadelerle taksitlendirebilirsiniz. BDDK kuralları gereği, taksitli nakit avans işlemlerinde TCMB referans faiz oranları geçerlidir.
+                                            </p>
+
+                                            <div className="space-y-4 mb-6">
+                                                <div>
+                                                    <label className="form-label text-purple-300">Çekilecek Tutar (₺)</label>
+                                                    <input 
+                                                        type="number"
+                                                        step="100"
+                                                        value={cashAdvanceAmount}
+                                                        onChange={e => setCashAdvanceAmount(e.target.value)}
+                                                        placeholder="Örn: 5000"
+                                                        className="w-full bg-zinc-900/60 border border-purple-500/30 rounded-xl px-4 py-3 text-white font-mono text-lg outline-none focus:border-purple-500 transition-colors placeholder-zinc-700 focus:shadow-[0_0_15px_rgba(168,85,247,0.15)]"
+                                                    />
+                                                    <p className="text-[10px] text-zinc-500 mt-1.5 text-right">Mevcut Limit: {formatCurrency(card.totalLimit - card.currentDebt)}</p>
+                                                </div>
+
+                                                <div>
+                                                    <label className="form-label">Taksit Sayısı</label>
+                                                    <select 
+                                                        value={cashAdvanceInstallments}
+                                                        onChange={e => setCashAdvanceInstallments(Number(e.target.value))}
+                                                        className="w-full bg-zinc-900/60 border border-zinc-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-purple-500 transition-colors appearance-none"
+                                                    >
+                                                        <option value={1}>Peşin (Tek Çekim)</option>
+                                                        <option value={3}>3 Ay Taksitli</option>
+                                                        <option value={6}>6 Ay Taksitli</option>
+                                                        <option value={9}>9 Ay Taksitli</option>
+                                                        <option value={12}>12 Ay Taksitli</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {/* Preview Cash Advance Info */}
+                                            {parseFloat(cashAdvanceAmount) > 0 && (
+                                                <div className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-4 mb-6 space-y-3">
+                                                    {cashAdvanceInstallments === 1 ? (
+                                                        <>
+                                                            <div className="flex justify-between text-xs text-zinc-400">
+                                                                <span>Nakit Çekim Komisyonu (%1)</span>
+                                                                <span className="text-red-400">{formatCurrency(parseFloat(cashAdvanceAmount) * 0.01)}</span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs font-bold text-white border-t border-purple-500/20 pt-2">
+                                                                <span>Döneme Yansıyacak Toplam</span>
+                                                                <span>{formatCurrency(parseFloat(cashAdvanceAmount) * 1.01)}</span>
+                                                            </div>
+                                                            <p className="text-[10px] text-purple-300 mt-2 text-center">Nakit avans bakiyesine ekstre kesilene kadar günlük faiz işletilir.</p>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex justify-between text-xs text-zinc-400">
+                                                                <span>Aylık Faiz (%{card.cashAdvanceRate}) + KKDF/BSMV</span>
+                                                                <span className="text-red-400 font-mono">
+                                                                    %{((card.cashAdvanceRate / 100) * (1 + card.kkdfRate + card.bsmvRate) * 100).toFixed(2)} (Net)
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between text-xs font-bold text-white border-t border-purple-500/20 pt-2">
+                                                                <span>Aylık Taksit Tutarı</span>
+                                                                <span className="text-purple-400">
+                                                                    {formatCurrency(
+                                                                        (parseFloat(cashAdvanceAmount) * 
+                                                                        (((card.cashAdvanceRate / 100) * (1 + card.kkdfRate + card.bsmvRate)) * 
+                                                                        Math.pow(1 + ((card.cashAdvanceRate / 100) * (1 + card.kkdfRate + card.bsmvRate)), cashAdvanceInstallments)) / 
+                                                                        (Math.pow(1 + ((card.cashAdvanceRate / 100) * (1 + card.kkdfRate + card.bsmvRate)), cashAdvanceInstallments) - 1))
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <button
+                                                onClick={handleCashAdvance}
+                                                disabled={!parseFloat(cashAdvanceAmount) || parseFloat(cashAdvanceAmount) <= 0 || loading}
+                                                className="w-full py-3.5 rounded-xl bg-purple-500 text-white font-extrabold hover:bg-purple-400 transition-all text-xs uppercase tracking-widest disabled:opacity-40 disabled:hover:bg-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.3)] hover:shadow-[0_0_30px_rgba(168,85,247,0.5)]"
+                                            >
+                                                {loading ? 'İşleniyor...' : 'Nakit Çek'}
                                             </button>
                                         </div>
                                     </div>

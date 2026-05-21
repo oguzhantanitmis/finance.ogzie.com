@@ -74,9 +74,9 @@ export default function CreditCardVisual({ card, flippable = false, className = 
         } else {
             // VISA is default
             return (
-                <svg className="h-5 w-14" viewBox="0 0 24 8" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 0l3.1 7.8H5L8.1 0H6.2L4.5 5L2.8 0H0zm8.3 0l-1.5 5.5L6.2 0H4.3l2.8 7.8h1.9L11.5 0H9.6L8.3 0zm5.1 2.3c-.6-.4-1.2-.6-1.9-.6-2 0-2.8 1-2.8 2 0 1.2.9 1.7 1.8 2.2c.9.4 1.2.7 1.2 1.1s-.6.8-1.2.8c-.8 0-1.4-.3-1.8-.5L8 8c.6.3 1.4.5 2.1.5 2.1 0 3-.9 3-2.1 0-1.5-1.2-1.9-2-2.3-.9-.4-1.2-.7-1.2-1.1s.6-.7 1.1-.7c.7 0 1.2.2 1.6.4l.6-.9c-.5-.2-1.1-.4-1.8-.4zM16.5 0l-.8 7.8h1.8L18.3 0h-1.8z" fill="#fff" />
-                </svg>
+                <div className="font-extrabold italic text-2xl tracking-tighter text-white drop-shadow-md">
+                    VISA
+                </div>
             )
         }
     }
@@ -173,13 +173,6 @@ export default function CreditCardVisual({ card, flippable = false, className = 
                             </div>
                         </div>
                     </div>
-
-                    {/* Flippable Hint Indicator */}
-                    {flippable && (
-                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-white/30 flex items-center gap-1 font-semibold">
-                            <HelpCircle className="w-3 h-3" /> Arkasını Çevirmek İçin Tıkla
-                        </div>
-                    )}
                 </div>
 
                 {/* CARD BACK */}

@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { signOut, useSession } from 'next-auth/react'
+import NotificationBell from '@/components/notifications/NotificationBell'
 
 export default function Navbar() {
     const { hideAmounts, toggleHideAmounts } = useFinance()
@@ -70,7 +71,7 @@ export default function Navbar() {
         {
             title: 'Sistem',
             items: [
-                ...(isSuperuser ? [{ name: 'Finans Asistanı', icon: MessageSquare, path: '/ai' }] : []),
+                { name: 'Finans Asistanı', icon: Wand2, path: '/ai' },
                 { name: 'Ayarlar', icon: Settings, path: '/settings' },
                 ...(isSuperuser ? [{ name: 'Admin', icon: ShieldCheck, path: '/admin' }] : []),
             ]
@@ -220,6 +221,21 @@ export default function Navbar() {
                         {!collapsed && <span className="text-[13px]">{hideAmounts ? 'Tutarları Göster' : 'Gizli Mod'}</span>}
                     </button>
 
+                    {/* Notification Bell (Desktop) */}
+                    <div className={cn(
+                        "flex items-center rounded-xl w-full transition-all duration-200",
+                        !collapsed && "px-1"
+                    )}>
+                        <NotificationBell 
+                            align={collapsed ? 'sidebar' : 'right'} 
+                            className={cn(
+                                "w-full flex", 
+                                !collapsed && "justify-start"
+                            )} 
+                        />
+                        {!collapsed && <span className="text-[13px] ml-2 text-[var(--text-secondary)] pointer-events-none">Bildirimler</span>}
+                    </div>
+
                     {/* Collapse Toggle */}
                     <button
                         onClick={() => setCollapsed(!collapsed)}
@@ -280,6 +296,7 @@ export default function Navbar() {
                     >
                         {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                     </button>
+                    <NotificationBell align="right" className="flex items-center" />
                     <button
                         onClick={toggleHideAmounts}
                         className="btn-icon"

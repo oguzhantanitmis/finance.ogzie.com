@@ -66,6 +66,19 @@ export default function CardFormModal({
     onClose: () => void
 }) {
     const [selectedColor, setSelectedColor] = useState(card?.color ?? CARD_COLORS[0])
+    const [totalLimit, setTotalLimit] = useState(card?.totalLimit ?? 50000)
+    const [isNewCard, setIsNewCard] = useState(false)
+    const [minPaymentRate, setMinPaymentRate] = useState<number | ''>(
+        card?.minPaymentRate ? toPercentInput(card.minPaymentRate, 0.2) : (totalLimit > 50000 ? 40 : 20)
+    )
+
+    // Sync minPaymentRate when totalLimit or isNewCard changes, unless user manually edited it
+    useEffect(() => {
+        if (!card) { // Only auto-update for new cards to avoid overriding user's manual settings
+            setMinPaymentRate(isNewCard || totalLimit > 50000 ? 40 : 20)
+        }
+    }, [totalLimit, isNewCard, card])
+
     const [createState, createAction] = useActionState(addCreditCard, EMPTY_ACTION_RESULT)
     const [updateState, updateAction] = useActionState(updateCreditCard, EMPTY_ACTION_RESULT)
     const activeState = card ? updateState : createState
@@ -162,7 +175,8 @@ export default function CardFormModal({
                             name="totalLimit"
                             type="number"
                             required
-                            defaultValue={card?.totalLimit ?? ''}
+                            value={totalLimit}
+                            onChange={(e) => setTotalLimit(Number(e.target.value))}
                             placeholder="50000"
                             className="form-input font-mono"
                         />
@@ -272,7 +286,27 @@ export default function CardFormModal({
                 <div className="grid grid-cols-3 gap-3">
                     <div>
                         <label className="form-label">Asgari Oran (%)</label>
-                        <input name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(card?.minPaymentRate, 0.2)} className="form-input font-mono text-sm" />
+                        <input 
+                            name="minPaymentRate" 
+                            type="number" 
+                            min="0" max="100" step="0.01" 
+                            value={minPaymentRate}
+                            onChange={(e) => setMinPaymentRate(e.target.value ? Number(e.target.value) : '')}
+                            className="form-input font-mono text-sm" 
+                        />
+                    </div>
+                    <div className="flex items-center space-x-2 pt-6">
+                        <input
+                            type="checkbox"
+                            id="isNewCard"
+                            name="isNewCard"
+                            checked={isNewCard}
+                            onChange={(e) => setIsNewCard(e.target.checked)}
+                            className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900"
+                        />
+                        <label htmlFor="isNewCard" className="text-sm text-zinc-300">
+                            Kart 1 yıldan yeni (BDDK kuralı gereği asgari %40)
+                        </label>
                     </div>
                     <div>
                         <label className="form-label">KKDF (%)</label>
