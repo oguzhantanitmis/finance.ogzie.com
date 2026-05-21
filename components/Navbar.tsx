@@ -222,19 +222,10 @@ export default function Navbar() {
                     </button>
 
                     {/* Notification Bell (Desktop) */}
-                    <div className={cn(
-                        "flex items-center rounded-xl w-full transition-all duration-200",
-                        !collapsed && "px-1"
-                    )}>
-                        <NotificationBell 
-                            align={collapsed ? 'sidebar' : 'right'} 
-                            className={cn(
-                                "w-full flex", 
-                                !collapsed && "justify-start"
-                            )} 
-                        />
-                        {!collapsed && <span className="text-[13px] ml-2 text-[var(--text-secondary)] pointer-events-none">Bildirimler</span>}
-                    </div>
+                    <NotificationBell 
+                        align="sidebar" 
+                        showLabel={!collapsed}
+                    />
 
                     {/* Collapse Toggle */}
                     <button

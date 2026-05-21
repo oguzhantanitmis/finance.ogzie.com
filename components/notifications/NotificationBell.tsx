@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils'
 interface NotificationBellProps {
     align?: 'left' | 'right' | 'sidebar'
     className?: string
+    showLabel?: boolean
 }
 
-export default function NotificationBell({ align = 'right', className }: NotificationBellProps) {
+export default function NotificationBell({ align = 'right', className, showLabel = false }: NotificationBellProps) {
     const [notifications, setNotifications] = useState<BudgetAlert[]>([])
     const [isOpen, setIsOpen] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -70,13 +71,24 @@ export default function NotificationBell({ align = 'right', className }: Notific
         <div className={cn("relative", className)} ref={dropdownRef}>
             <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className="relative flex items-center justify-center p-2 rounded-xl transition-colors hover:bg-zinc-800/50 w-full"
+                className={cn(
+                    "flex items-center rounded-xl transition-all duration-200 cursor-pointer text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]",
+                    showLabel 
+                        ? "gap-3 px-3 py-2 w-full" 
+                        : (align === 'sidebar' 
+                            ? "justify-center p-2.5 w-full" 
+                            : "justify-center w-9 h-9"
+                          )
+                )}
                 title="Bildirimler"
             >
-                <Bell className="w-[18px] h-[18px] text-zinc-400" />
-                {notifications.length > 0 && (
-                    <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-zinc-900" />
-                )}
+                <div className="relative inline-block shrink-0">
+                    <Bell className="w-[18px] h-[18px]" />
+                    {notifications.length > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-pulse ring-2 ring-[var(--sidebar-bg)]" />
+                    )}
+                </div>
+                {showLabel && <span className="text-[13px] font-normal">Bildirimler</span>}
             </button>
 
             <AnimatePresence>
