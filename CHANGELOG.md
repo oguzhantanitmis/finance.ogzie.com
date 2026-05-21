@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 2026-05-21 - Kredi Kartları Bölümü Premium Modernizasyonu (UI/UX)
+
+### Eklendi
+
+- `components/cards/CreditCardVisual.tsx`: Framer Motion `useMotionValue`, `useSpring` ve `useTransform` kancalarıyla entegre, fare hareketine (hover) duyarlı 3D eğilme (tilt) efektine sahip interaktif dijital kart bileşeni oluşturuldu. Detay sayfasında tıklandığında Y ekseninde 180 derece dönen (flip) akdi faiz, gecikme faizi ve hesap kesim günü detaylarını barındıran arka yüz tasarımı eklendi. Visa, Mastercard, Troy ve Amex ağ logoları entegre edildi.
+- `components/cards/CardGrid.tsx`: Toplam limit kullanımı, toplam güncel borç, kullanılabilir limit KPI kartları ve renklendirilmiş (limit aşımına göre yeşil/sarı/kırmızı) kullanım oranı barı içeren **Limits Overview Dashboard** eklendi. Toplam mil/puan özeti ile vade yakınlığına göre (3 gün kala kırmızı alarm, 7 gün kala sarı alarm) yaklaşan kart ödemesi uyarı sistemi entegre edildi.
+- `components/cards/CardDetailView.tsx`: Sol tarafta 3D dijital kart ve özet metrikleri, sağ tarafta tablı (tabbed) içerik alanını barındıran premium split yerleşim planı uygulandı.
+- **Akıllı Ödeme ve Faiz Simülatörü**: `components/cards/CardDetailView.tsx` içerisine asgari ödeme ile toplam borç arasında dinamik olarak kaydırılabilen (range slider) interaktif faiz ve vade projeksiyon simülasyonu eklendi. Ödeme miktarı aylık faiz+vergi yükünü karşılamadığında **Sonsuz Borç Döngüsü (Infinite Loop)** uyarısı, sadece asgari yatırıldığında ise **Asgari Ödeme Tuzağı (Minimum Payment Trap)** uyarısı anlık reaktif uyarı kutularıyla (warning alerts) görselleştirildi.
+- **Gelişmiş İşlem Arama ve Filtreleme**: Kart detayında harcama işlemlerini metinsel arama kutusu ve işlem türü filtreleme düğmeleri (pills) ile süzme özelliği eklendi.
+
+### Sabitlendi
+
+- Kredi kartları sayfalarında bulunan kullanılmayan lucide-react importları ve atanıp kullanılmayan değişkenler (linter uyarıları) tamamen temizlenerek `npm run lint` kontrolü 0 uyarı ile tamamlandı.
+
 ## 2026-05-21 - Canonical Debt Model Tamamlama
 
 ### Eklendi
