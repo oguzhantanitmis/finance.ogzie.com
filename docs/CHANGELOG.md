@@ -1,10 +1,15 @@
 # Changelog
 
+## 2026-05-21
+
+- KMH borç görünümü Yapı Kredi hesap özeti açıklamalarına göre netleştirildi; tahmini asgari satırı kaldırıldı, zorunlu asgari yalnızca ekstre formülüyle gösterilir.
+- KMH maliyet analizinde asgari anapara (%5), dönem faizi/vergi, zorunlu asgari, gecikme artışı ve güncel borç ayrı satırlara bölündü.
+- KMH kart başlığındaki güncel borç, son ödeme tarihi geçtiyse hesaplanan gecikme artışını da içerecek şekilde güncellendi.
+
 ## 2026-05-18
 
 - Bütçe özeti borç baskısı eski borç tahmininden çıkarıldı; artık Borçlar sayfasındaki kredi taksidi/KMH/kart ödeme yükümlülükleriyle aynı kaynaktan hesaplanır.
 - Gecikmiş borç ödeme yükümlülükleri bütçe yaklaşan ödemeler listesinde de görünür hale getirildi.
-- KMH ekranında ekstredeki asgari ödeme ile 30 günlük normal faiz+vergi üzerinden tahmini asgari ödeme ayrı gösterilir; Yapı Kredi PDF tutarı ile bankacılık ekranındaki yaklaşık 26 bin TL hesabın farkı görünür hale getirildi.
 - Borçlar sayfasına "Ödemen gereken borçlar" paneli eklendi; kredi taksidi, KMH asgari ödemesi ve kredi kartı asgari ödemesi tek yerden ödendi olarak işaretlenebilir.
 - KMH için aylık gecikme faizi alanı eklendi; asgari ödeme vadesi geçerse gecikme günü ve gecikme maliyeti otomatik hesaplanır.
 - KMH asgari ödemesi ödendiğinde dönem faizi/gecikme maliyeti önce kapatılır, kalan tutar anaparadan düşülür.

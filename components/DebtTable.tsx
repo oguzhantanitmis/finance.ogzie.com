@@ -167,10 +167,9 @@ export default function DebtTable({
                 const kmhMinimumPayment = isKMH
                     ? (debt.kmhMinimumPayment ?? roundMoney((kmhPrincipal * debt.minPaymentRate) + kmhInterestWithTax))
                     : 0
-                const kmhCalculatedMinimumPayment = isKMH
-                    ? (debt.kmhCalculatedMinimumPayment ?? roundMoney((kmhPrincipal * debt.minPaymentRate) + monthlyInterest.total))
+                const kmhMinimumPrincipalPayment = isKMH
+                    ? (debt.kmhMinimumPrincipalPayment ?? roundMoney(kmhPrincipal * debt.minPaymentRate))
                     : 0
-                const showKmhEstimatedMinimum = isKMH && Math.abs(kmhMinimumPayment - kmhCalculatedMinimumPayment) >= 1
                 const kmhLateCost = isKMH
                     ? calculateKmhLateCost(
                         kmhPrincipal,
@@ -180,6 +179,7 @@ export default function DebtTable({
                     )
                     : { overdueDays: 0, total: 0 }
                 const kmhPeriodDebt = isKMH ? roundMoney(kmhPrincipal + kmhInterestWithTax) : 0
+                const displayDebtBalance = isKMH ? roundMoney(kmhPeriodDebt + kmhLateCost.total) : debt.remainingBalance
                 const loanRows = isLoan ? buildLoanDisplayRows(debt) : []
                 const loanPaidCount = loanRows.filter((item) => item.isPaid).length
                 const loanRemainingRows = loanRows.filter((item) => !item.isPaid)
@@ -226,7 +226,7 @@ export default function DebtTable({
                                 <div className="flex items-center gap-6">
                                     <div className="text-right">
                                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Güncel Borç</p>
-                                        <p className="font-mono text-xl font-bold privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(debt.remainingBalance, 'TRY')}</p>
+                                        <p className="font-mono text-xl font-bold privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(displayDebtBalance, 'TRY')}</p>
                                         {(isCard || isKMH) && debt.limit ? (
                                             <div className="w-24 h-1 rounded-full mt-1 ml-auto" style={{ background: 'var(--bg-elevated)' }}>
                                                 <div
@@ -341,29 +341,21 @@ export default function DebtTable({
                                         ) : isKMH ? (
                                             <>
                                                 <div className="flex justify-between text-sm">
-                                                    <span style={{ color: 'var(--text-secondary)' }}>Günlük Tahmini Yük</span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Günlük Faiz + Vergi</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{dailyInterest ? formatCurrency(dailyInterest.total, 'TRY') : '-'}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Dönem Faizi + Vergi</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhInterestWithTax, 'TRY')}</span>
                                                 </div>
-                                                {showKmhEstimatedMinimum ? (
-                                                    <div className="flex justify-between text-sm">
-                                                        <span style={{ color: 'var(--text-secondary)' }}>30 Günlük Faiz + Vergi</span>
-                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(monthlyInterest.total, 'TRY')}</span>
-                                                    </div>
-                                                ) : null}
                                                 <div className="flex justify-between text-sm">
-                                                    <span style={{ color: 'var(--text-secondary)' }}>{showKmhEstimatedMinimum ? 'Ekstre Asgari' : 'Asgari Ödeme'}</span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Asgari Anapara (%5)</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPrincipalPayment, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Zorunlu Asgari</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
                                                 </div>
-                                                {showKmhEstimatedMinimum ? (
-                                                    <div className="flex justify-between text-sm">
-                                                        <span style={{ color: 'var(--text-secondary)' }}>Tahmini Normal Asgari</span>
-                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhCalculatedMinimumPayment, 'TRY')}</span>
-                                                    </div>
-                                                ) : null}
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Gecikme Artışı</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: kmhLateCost.total > 0 ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
@@ -371,7 +363,7 @@ export default function DebtTable({
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                                                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Dönem Borcu</span>
+                                                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Güncel Borç</span>
                                                     <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(kmhPeriodDebt + kmhLateCost.total, 'TRY')}</span>
                                                 </div>
                                             </>
@@ -427,15 +419,13 @@ export default function DebtTable({
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhPeriodDebt, 'TRY')}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
-                                                    <span style={{ color: 'var(--text-secondary)' }}>{showKmhEstimatedMinimum ? 'Ekstre Asgari' : 'Asgari Ödeme'}</span>
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Asgari Anapara (%5)</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPrincipalPayment, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Zorunlu Asgari</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhMinimumPayment, 'TRY')}</span>
                                                 </div>
-                                                {showKmhEstimatedMinimum ? (
-                                                    <div className="flex justify-between text-sm">
-                                                        <span style={{ color: 'var(--text-secondary)' }}>Tahmini Asgari</span>
-                                                        <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(kmhCalculatedMinimumPayment, 'TRY')}</span>
-                                                    </div>
-                                                ) : null}
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Gecikme Artışı</span>
                                                     <span className="font-mono privacy-blur tabular-nums" style={{ color: kmhLateCost.total > 0 ? 'var(--accent-danger)' : 'var(--text-primary)' }}>{formatCurrency(kmhLateCost.total, 'TRY')}</span>

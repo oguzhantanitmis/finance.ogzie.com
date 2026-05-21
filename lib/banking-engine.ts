@@ -52,8 +52,6 @@ export function calculateKmhStatement(
     const estimatedInterestWithTax = roundCurrency(estimated.total)
     const interestWithTax = roundCurrency(statementInterestTotal ?? estimatedInterestWithTax)
     const minimumPrincipal = roundCurrency(principal * minPrincipalRate)
-    const statementMinimumPayment = roundCurrency(minimumPrincipal + interestWithTax)
-    const calculatedMinimumPayment = roundCurrency(minimumPrincipal + estimatedInterestWithTax)
 
     return {
         principal: roundCurrency(principal),
@@ -63,9 +61,7 @@ export function calculateKmhStatement(
         interestWithTax,
         periodDebt: roundCurrency(principal + interestWithTax),
         minimumPrincipal,
-        minimumPayment: statementMinimumPayment,
-        statementMinimumPayment,
-        calculatedMinimumPayment,
+        minimumPayment: roundCurrency(minimumPrincipal + interestWithTax),
     }
 }
 
