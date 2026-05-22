@@ -3,8 +3,9 @@
 import { useActionState, useEffect, useState } from 'react'
 import {
     Bell, Calendar, CheckCircle, CreditCard, Info,
-    Lock, LogOut, Settings2, ShieldCheck, User2,
+    Lock, LogOut, Monitor, Moon, Settings2, ShieldCheck, Sun, User2,
 } from 'lucide-react'
+import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
 import { saveEvdsSettingsAction } from '@/app/settings/evds-actions'
@@ -66,6 +67,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 // ─── Ana bileşen ─────────────────────────────────────────────────────────────
 export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
     const prefKey = `finance_prefs:${userProfile.email.toLowerCase()}`
+    const { choice: themeChoice, setChoice: setThemeChoice } = useTheme()
     const [activeTab, setActiveTab] = useState<Tab>('hesap')
 
     // Tercihler — localStorage'dan yükle
@@ -275,11 +277,43 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         </div>
                     </div>
 
+                    {/* Tema */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <Monitor className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Tema</h2>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            {([
+                                { key: 'dark',   label: 'Koyu',   icon: Moon    },
+                                { key: 'light',  label: 'Açık',   icon: Sun     },
+                                { key: 'system', label: 'Sistem', icon: Monitor },
+                            ] as const).map(opt => (
+                                <button
+                                    key={opt.key}
+                                    onClick={() => setThemeChoice(opt.key)}
+                                    className={cn(
+                                        'flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all cursor-pointer',
+                                        themeChoice === opt.key
+                                            ? 'border-[var(--accent-primary)] bg-[var(--accent-info-bg)]'
+                                            : 'border-[var(--border-default)] hover:bg-[var(--bg-hover)]'
+                                    )}
+                                >
+                                    <opt.icon
+                                        className="w-5 h-5"
+                                        style={{ color: themeChoice === opt.key ? 'var(--accent-primary)' : 'var(--text-muted)' }}
+                                    />
+                                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Gizlilik */}
                     <div className="fintech-card p-6 md:p-8">
                         <div className="flex items-center gap-3 mb-5">
                             <Settings2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
-                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gizlilik & Görünüm</h2>
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gizlilik</h2>
                         </div>
                         <div className="flex items-center justify-between p-4 rounded-2xl"
                             style={{ border: '1px solid var(--border-default)' }}>

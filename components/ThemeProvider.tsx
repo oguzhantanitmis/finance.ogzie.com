@@ -2,43 +2,59 @@
 
 import { createContext, useCallback, useContext, useEffect, useSyncExternalStore, type ReactNode } from 'react'
 
-type Theme = 'dark' | 'light'
+type Theme       = 'dark' | 'light'
+type ThemeChoice = 'dark' | 'light' | 'system'
 
 interface ThemeContextValue {
-    theme: Theme
+    theme: Theme        // gerçek uygulanan tema (system → çözülmüş)
+    choice: ThemeChoice // kullanıcı seçimi
+    setChoice: (c: ThemeChoice) => void
     toggleTheme: () => void
-    setTheme: (theme: Theme) => void
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
     theme: 'dark',
+    choice: 'dark',
+    setChoice: () => {},
     toggleTheme: () => {},
-    setTheme: () => {},
 })
 
-const STORAGE_KEY = 'ogzie-theme'
+const STORAGE_KEY        = 'ogzie-theme'
 const THEME_CHANGE_EVENT = 'ogzie-theme-change'
 
-function readTheme(): Theme {
+function readChoice(): ThemeChoice {
     if (typeof window === 'undefined') return 'dark'
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null
-    if (stored === 'light' || stored === 'dark') return stored
-    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
+    return 'dark'
 }
 
-function subscribeTheme(callback: () => void) {
+function resolveTheme(choice: ThemeChoice): Theme {
+    if (typeof window === 'undefined') return 'dark'
+    if (choice === 'system') {
+        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+    }
+    return choice
+}
+
+function subscribe(callback: () => void) {
     if (typeof window === 'undefined') return () => {}
+    const mql = window.matchMedia('(prefers-color-scheme: light)')
+
     window.addEventListener('storage', callback)
     window.addEventListener(THEME_CHANGE_EVENT, callback)
+    mql.addEventListener('change', callback)
 
     return () => {
         window.removeEventListener('storage', callback)
         window.removeEventListener(THEME_CHANGE_EVENT, callback)
+        mql.removeEventListener('change', callback)
     }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-    const theme = useSyncExternalStore<Theme>(subscribeTheme, readTheme, () => 'dark')
+    const choice = useSyncExternalStore<ThemeChoice>(subscribe, readChoice, () => 'dark')
+    const theme  = useSyncExternalStore<Theme>(subscribe, () => resolveTheme(readChoice()), () => 'dark')
 
     useEffect(() => {
         const root = document.documentElement
@@ -46,17 +62,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.classList.add(theme)
     }, [theme])
 
-    const setTheme = useCallback((t: Theme) => {
-        localStorage.setItem(STORAGE_KEY, t)
+    const setChoice = useCallback((c: ThemeChoice) => {
+        localStorage.setItem(STORAGE_KEY, c)
         window.dispatchEvent(new Event(THEME_CHANGE_EVENT))
     }, [])
+
     const toggleTheme = useCallback(() => {
-        const nextTheme = readTheme() === 'dark' ? 'light' : 'dark'
-        setTheme(nextTheme)
-    }, [setTheme])
+        const next: ThemeChoice = readChoice() === 'dark' ? 'light' : 'dark'
+        setChoice(next)
+    }, [setChoice])
 
     return (
-        <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+        <ThemeContext.Provider value={{ theme, choice, setChoice, toggleTheme }}>
             {children}
         </ThemeContext.Provider>
     )

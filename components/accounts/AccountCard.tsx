@@ -46,7 +46,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                         <Icon className="w-5 h-5" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-white">{account.name}</h3>
+                        <h3 className="font-semibold text-[var(--text-primary)]">{account.name}</h3>
                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{meta.label}{account.bankName ? ` • ${account.bankName}` : ''}</p>
                         {account.hasKmh ? (
                             <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -69,7 +69,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                 <div className="relative">
                     <button
                         onClick={() => setShowMenu(!showMenu)}
-                        className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-elevated)] transition-all opacity-0 group-hover:opacity-100"
+                        className="p-2 rounded-xl text-zinc-500 hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-all opacity-0 group-hover:opacity-100"
                     >
                         <MoreHorizontal className="w-4 h-4" />
                     </button>
@@ -77,7 +77,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                     {showMenu && (
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                            <div className="absolute right-0 top-10 z-50 w-48 rounded-2xl border border-[var(--border-default)] bg-[#141414] shadow-xl py-1">
+                            <div className="absolute right-0 top-10 z-50 w-48 rounded-2xl border border-[var(--border-default)] bg-[var(--bg-card)] shadow-xl py-1">
                                 <button onClick={() => { onEdit(account); setShowMenu(false) }} className="flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-[var(--bg-hover)] w-full">
                                     <Pencil className="w-3.5 h-3.5" /> Düzenle
                                 </button>
@@ -100,7 +100,7 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
             <div className="flex items-end justify-between">
                 <div>
                     <p className="text-xs text-zinc-500 uppercase tracking-[0.25em] mb-1">Bakiye</p>
-                    <p className={cn('text-2xl font-bold privacy-blur', isNegative ? 'text-[color:var(--accent-danger)]' : 'text-white')}>
+                    <p className={cn('text-2xl font-bold privacy-blur', isNegative ? 'text-[color:var(--accent-danger)]' : 'text-[var(--text-primary)]')}>
                         {formatCurrency(account.balance, account.currency)}
                     </p>
                 </div>
@@ -131,25 +131,25 @@ export default function AccountCard({ account, onEdit, onDelete, onAdjust, onTra
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
                             <p className="text-zinc-500 mb-1">Anapara Borcu</p>
-                            <p className={cn('font-semibold privacy-blur', kmhUsage > 0 ? 'text-red-300' : 'text-white')}>
+                            <p className={cn('font-semibold privacy-blur', kmhUsage > 0 ? 'text-red-300' : 'text-[var(--text-primary)]')}>
                                 {formatCurrency(kmhPrincipal, account.currency)}
                             </p>
                         </div>
                         <div>
                             <p className="text-zinc-500 mb-1">Dönem Borcu</p>
-                            <p className={cn('font-semibold privacy-blur', kmhPeriodDebt > 0 ? 'text-red-300' : 'text-white')}>
+                            <p className={cn('font-semibold privacy-blur', kmhPeriodDebt > 0 ? 'text-red-300' : 'text-[var(--text-primary)]')}>
                                 {formatCurrency(kmhPeriodDebt, account.currency)}
                             </p>
                         </div>
                         <div>
                             <p className="text-zinc-500 mb-1">Asgari Ödeme</p>
-                            <p className="font-semibold privacy-blur text-white">
+                            <p className="font-semibold privacy-blur text-[var(--text-primary)]">
                                 {account.kmhMinimumPayment != null ? formatCurrency(account.kmhMinimumPayment, account.currency) : '-'}
                             </p>
                         </div>
                         <div>
                             <p className="text-zinc-500 mb-1">Kesim / Son Ödeme</p>
-                            <p className="font-semibold text-white">
+                            <p className="font-semibold text-[var(--text-primary)]">
                                 {account.kmhCutOffDay ? `${account.kmhCutOffDay}. gün` : 'Kesim yok'}
                                 {' / '}
                                 {account.kmhPaymentDueDay ? `${account.kmhPaymentDueDay}. gün` : 'Son ödeme yok'}

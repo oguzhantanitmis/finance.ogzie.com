@@ -134,7 +134,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                             onClick={() => setFilter(item)}
                             className={cn(
                                 'px-4 py-2 rounded-xl text-sm transition-all',
-                                filter === item ? 'bg-white text-black font-semibold' : 'text-zinc-400 hover:text-white',
+                                filter === item ? 'bg-white text-black font-semibold' : 'text-zinc-400 hover:text-[var(--text-primary)]',
                             )}
                         >
                             {item === 'all' ? 'Tümü' : item === 'receivable' ? 'Bana Borçlu' : 'Benim Borçlarım'}
@@ -159,13 +159,13 @@ export default function PeopleWorkspace({ people, summary }: Props) {
             ) : (
                 <div className="space-y-3">
                     {filtered.map((person) => (
-                        <div key={person.id} className="fintech-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-white/20 transition-all">
+                        <div key={person.id} className="fintech-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-[var(--border-hover)] transition-all">
                             <Link href={`/people/${person.id}`} className="flex items-center gap-4 min-w-0">
-                                <div className="w-11 h-11 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center text-white font-bold shrink-0">
+                                <div className="w-11 h-11 rounded-2xl bg-[var(--bg-elevated)] flex items-center justify-center text-[var(--text-primary)] font-bold shrink-0">
                                     {person.name.charAt(0).toUpperCase()}
                                 </div>
                                 <div className="min-w-0">
-                                    <h3 className="font-semibold text-white truncate">{person.name}</h3>
+                                    <h3 className="font-semibold text-[var(--text-primary)] truncate">{person.name}</h3>
                                     <p className="text-xs text-zinc-500 truncate privacy-blur">
                                         {person.activeCount} açık kayıt
                                         {person.phone ? ` • ${person.phone}` : ''}
@@ -203,7 +203,7 @@ export default function PeopleWorkspace({ people, summary }: Props) {
                                     </button>
                                     <button
                                         onClick={() => setEditingPerson(person)}
-                                        className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-[var(--bg-elevated)] transition-colors"
+                                        className="p-2 rounded-xl text-zinc-500 hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
                                         aria-label={`${person.name} kaydını düzenle`}
                                     >
                                         <Pencil className="w-4 h-4" />

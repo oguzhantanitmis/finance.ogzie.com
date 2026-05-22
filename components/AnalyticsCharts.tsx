@@ -15,8 +15,9 @@ import {
 import { useFinance } from './FinanceContext'
 import { cn } from '@/lib/utils'
 
-const COLORS = ['#ffffff', '#2a2a2a', '#3f3f3f', '#525252', '#737373', '#9ca3af', '#d4d4d8']
-const DEBT_COLORS = ['#ef4444', '#b91c1c', '#7f1d1d', '#f87171', '#fca5a5']
+// Chart renkleri tema-uyumlu: CSS değişkenleriyle hem dark hem light'ta okunaklı
+const COLORS      = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)']
+const DEBT_COLORS = ['var(--accent-danger)', 'var(--accent-warning)', 'var(--accent-critical)', 'var(--accent-purple)', 'var(--accent-info)']
 
 type DistributionItem = {
     name: string

@@ -97,7 +97,7 @@ export default function CreditCardVisual({ card, flippable = false, className = 
                 <div 
                     className="absolute inset-0 w-full h-full rounded-2xl p-6 backface-hidden flex flex-col justify-between overflow-hidden shadow-2xl border border-white/10"
                     style={{
-                        background: `linear-gradient(135deg, ${cardBgColor}ee, ${cardBgColor}88, #111)`,
+                        background: `linear-gradient(135deg, ${cardBgColor}ee, ${cardBgColor}aa, ${cardBgColor}55)`,
                         boxShadow: `0 15px 35px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.25), 0 0 25px ${cardBgColor}33`,
                     }}
                 >
