@@ -8,90 +8,49 @@ import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
-interface AISettingsData {
-    connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
-    model: string
-    baseUrl: string
-    hasProject: boolean
-    hasOrg: boolean
-}
-
-interface CardSettingsData {
-    contractualRate: number
-    defaultRate: number
-    cashAdvanceRate: number
-    minPaymentRateBelow50k: number
-    minPaymentRateAbove50k: number
-    kkdfRate: number
-    bsmvRate: number
-    notes: string | null
-    lastUpdated: string
-}
-
 export default async function SettingsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
     const canUseAi = isSuperuser(user)
 
-    const aiSettings: AISettingsData = {
-        connectionStatus: 'BEKLENİYOR',
-        model: process.env.OPENAI_MODEL ?? 'gpt-5-mini',
-        baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
-        hasProject: Boolean(process.env.OPENAI_PROJECT),
-        hasOrg: Boolean(process.env.OPENAI_ORG),
+    // AI durumu: ağ çağrısı yapmadan env bazlı hızlı kontrol
+    const aiSettings = {
+        isConfigured: Boolean(process.env.OPENAI_API_KEY),
+        model:        process.env.OPENAI_MODEL      ?? 'gpt-4o-mini',
+        baseUrl:      process.env.OPENAI_BASE_URL   ?? 'https://api.openai.com/v1',
+        hasProject:   Boolean(process.env.OPENAI_PROJECT),
+        hasOrg:       Boolean(process.env.OPENAI_ORG),
     }
-    let cardSettingsData: CardSettingsData | null = null
-    const evdsSettings = await getEvdsSettings(user.id).catch(() => ({
-        hasApiKey: false,
-        apiKeySource: 'none' as const,
-        cacheMinutes: 180,
-        series: DEFAULT_EVDS_SERIES,
-    }))
 
-    try {
-        const cardSettings = await getCardFinanceSettings(user.id)
+    const [cardSettings, evdsSettings] = await Promise.all([
+        getCardFinanceSettings(user.id).catch(() => null),
+        getEvdsSettings(user.id).catch(() => ({
+            hasApiKey: false,
+            apiKeySource: 'none' as const,
+            cacheMinutes: 180,
+            series: DEFAULT_EVDS_SERIES,
+        })),
+    ])
 
-        const apiKey = process.env.OPENAI_API_KEY
-        if (canUseAi && apiKey) {
-            try {
-                const res = await fetch(`${aiSettings.baseUrl}/models`, {
-                    headers: { 'Authorization': `Bearer ${apiKey}` },
-                    next: { revalidate: 3600 },
-                })
-                if (res.ok) {
-                    aiSettings.connectionStatus = 'HAZIR'
-                } else {
-                    aiSettings.connectionStatus = 'BAĞLANTI HATASI'
-                }
-            } catch {
-                aiSettings.connectionStatus = 'BAĞLANTI HATASI'
-            }
-        }
-        
-        if (cardSettings) {
-            cardSettingsData = {
-                contractualRate: cardSettings.contractualRate,
-                defaultRate: cardSettings.defaultRate,
-                cashAdvanceRate: cardSettings.cashAdvanceRate,
-                minPaymentRateBelow50k: normalizeFractionRate(cardSettings.minPaymentRateBelow50k, 0.2),
-                minPaymentRateAbove50k: normalizeFractionRate(cardSettings.minPaymentRateAbove50k, 0.4),
-                kkdfRate: normalizeFractionRate(cardSettings.kkdfRate, 0.15),
-                bsmvRate: normalizeFractionRate(cardSettings.bsmvRate, 0.15),
-                notes: cardSettings.notes,
-                lastUpdated: cardSettings.lastUpdated.toISOString(),
-            }
-        }
-    } catch (e) {
-        console.error('SettingsPage error:', e)
-    }
+    const cardSettingsData = cardSettings ? {
+        contractualRate:       cardSettings.contractualRate,
+        defaultRate:           cardSettings.defaultRate,
+        cashAdvanceRate:       cardSettings.cashAdvanceRate,
+        minPaymentRateBelow50k: normalizeFractionRate(cardSettings.minPaymentRateBelow50k, 0.2),
+        minPaymentRateAbove50k: normalizeFractionRate(cardSettings.minPaymentRateAbove50k, 0.4),
+        kkdfRate:              normalizeFractionRate(cardSettings.kkdfRate, 0.15),
+        bsmvRate:              normalizeFractionRate(cardSettings.bsmvRate, 0.15),
+        notes:                 cardSettings.notes,
+        lastUpdated:           cardSettings.lastUpdated.toISOString(),
+    } : null
 
     return (
         <PageShell width="normal">
-            <header className="mb-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Ayarlar</h1>
-                <p className="text-zinc-400 max-w-3xl">
-                    Genel kart faiz oranları ve uygulama ayarları.
+            <header className="mb-8">
+                <p className="text-xs uppercase tracking-[0.3em] mb-2" style={{ color: 'var(--text-muted)' }}>Finans paneli</p>
+                <h1 className="text-3xl md:text-4xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>Ayarlar</h1>
+                <p className="mt-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Hesap, güvenlik, tercihler ve faiz oranları.
                 </p>
             </header>
             <SettingsWorkspace

@@ -1,7 +1,10 @@
 'use client'
 
-import { useActionState, useState } from 'react'
-import { CreditCard, Settings2, Bell, Shield, CheckCircle, User2, Lock, Calendar, LogOut } from 'lucide-react'
+import { useActionState, useEffect, useState } from 'react'
+import {
+    Bell, Calendar, CheckCircle, CreditCard, Info,
+    Lock, LogOut, Settings2, ShieldCheck, User2,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
 import { saveEvdsSettingsAction } from '@/app/settings/evds-actions'
@@ -21,374 +24,423 @@ interface Props {
     cardSettings: CardSettingsData | null
     evdsSettings: EvdsSettings
     aiSettings: {
-        connectionStatus: 'HAZIR' | 'BAĞLANTI HATASI' | 'BEKLENİYOR'
+        isConfigured: boolean
         model: string
         baseUrl: string
         hasProject: boolean
         hasOrg: boolean
     }
     canUseAi: boolean
-    userProfile: {
-        name: string
-        email: string
-        createdAt: string
-    }
+    userProfile: { name: string; email: string; createdAt: string }
 }
 
+type Tab = 'hesap' | 'tercihler' | 'faiz' | 'api'
 type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'HYBRID'
 
-const DEBT_STRATEGIES: { key: DebtStrategy; title: string; description: string; icon: string }[] = [
-    { key: 'AVALANCHE', title: 'Çığ Yöntemi', description: 'En yüksek faizli borçtan başla.', icon: '🏔️' },
-    { key: 'SNOWBALL', title: 'Kartopu Yöntemi', description: 'En düşük bakiyeli borçtan başla.', icon: '⛄' },
-    { key: 'HYBRID', title: 'Hibrit Yöntem', description: 'Faiz ve bakiye dengesini gözetir.', icon: '⚡' },
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+    { key: 'hesap',     label: 'Hesap & Güvenlik', icon: User2 },
+    { key: 'tercihler', label: 'Tercihler',         icon: Bell },
+    { key: 'faiz',      label: 'Faiz Oranları',     icon: CreditCard },
+    { key: 'api',       label: 'API & AI',           icon: Settings2 },
 ]
 
-function toPercentInput(value: number | null | undefined, fallbackFraction: number) {
-    return +(((value ?? fallbackFraction) * 100).toFixed(2))
+function toPercentInput(value: number | null | undefined, fallback: number) {
+    return +(((value ?? fallback) * 100).toFixed(2))
 }
 
+// ─── Toggle bileşeni ─────────────────────────────────────────────────────────
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+    return (
+        <label className="relative inline-flex items-center cursor-pointer" aria-label={label}>
+            <input type="checkbox" className="sr-only peer" checked={checked} onChange={e => onChange(e.target.checked)} />
+            <div className="w-11 h-6 rounded-full transition-colors peer-checked:bg-[var(--accent-success)]"
+                style={{ background: checked ? 'var(--accent-success)' : 'var(--bg-elevated)' }} />
+            <div className={cn(
+                'absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
+                checked && 'translate-x-5'
+            )} />
+        </label>
+    )
+}
+
+// ─── Ana bileşen ─────────────────────────────────────────────────────────────
 export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
-    const preferenceStorageKey = `finance_prefs:${userProfile.email.toLowerCase()}`
+    const prefKey = `finance_prefs:${userProfile.email.toLowerCase()}`
+    const [activeTab, setActiveTab] = useState<Tab>('hesap')
+
+    // Tercihler — localStorage'dan yükle
     const [debtStrategy, setDebtStrategy] = useState<DebtStrategy>('AVALANCHE')
-    const [privacyMode, setPrivacyMode] = useState(true)
+    const [privacyMode,  setPrivacyMode]  = useState(true)
     const [notifications, setNotifications] = useState({
         paymentReminder: true, budgetAlert: true, goalProgress: true, weeklyReport: false,
     })
-    const [saved, setSaved] = useState(false)
+    const [prefSaved, setPrefSaved] = useState(false)
 
-    const [profileState, profileAction] = useActionState(updateProfileAction, EMPTY_ACTION_RESULT)
-    const [passwordState, passwordAction] = useActionState(changePasswordAction, EMPTY_ACTION_RESULT)
-    const [evdsState, evdsAction] = useActionState(saveEvdsSettingsAction, EMPTY_ACTION_RESULT)
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(prefKey)
+            if (saved) {
+                const p = JSON.parse(saved)
+                if (p.debtStrategy)   setDebtStrategy(p.debtStrategy)
+                if (p.notifications)  setNotifications(prev => ({ ...prev, ...p.notifications }))
+                if (typeof p.privacyMode === 'boolean') setPrivacyMode(p.privacyMode)
+            }
+        } catch { /* ignore */ }
+    }, [prefKey])
 
-    function handleSavePreferences() {
-        if (typeof window !== 'undefined') {
-            localStorage.setItem(preferenceStorageKey, JSON.stringify({ debtStrategy, privacyMode, notifications }))
-        }
-        setSaved(true)
-        setTimeout(() => setSaved(false), 3000)
+    function savePreferences() {
+        localStorage.setItem(prefKey, JSON.stringify({ debtStrategy, privacyMode, notifications }))
+        setPrefSaved(true)
+        setTimeout(() => setPrefSaved(false), 3000)
     }
 
+    const [profileState, profileAction]   = useActionState(updateProfileAction, EMPTY_ACTION_RESULT)
+    const [passwordState, passwordAction] = useActionState(changePasswordAction, EMPTY_ACTION_RESULT)
+    const [evdsState,     evdsAction]     = useActionState(saveEvdsSettingsAction, EMPTY_ACTION_RESULT)
+
+    // Tabs göster: canUseAi değilse API sekmesi gizli
+    const visibleTabs = canUseAi ? TABS : TABS.filter(t => t.key !== 'api')
+
     return (
-        <div className="space-y-8">
-            {saved && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3 text-[color:var(--accent-success)] text-sm font-medium">
-                    <CheckCircle className="w-4 h-4" /> Tercihler kaydedildi.
+        <div className="space-y-6">
+
+            {/* Tab bar */}
+            <div className="filter-group overflow-x-auto scrollbar-hide">
+                {visibleTabs.map(tab => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={cn('filter-tab flex items-center gap-2', activeTab === tab.key && 'filter-tab-active')}
+                    >
+                        <tab.icon className="w-3.5 h-3.5 shrink-0" />
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* ══════════ HESAP & GÜVENLİK ══════════ */}
+            {activeTab === 'hesap' && (
+                <div className="space-y-6">
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                            <User2 className="w-5 h-5" style={{ color: 'var(--accent-primary)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Profil</h2>
+                        </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Profil formu */}
+                            <form action={profileAction} className="space-y-4">
+                                <div>
+                                    <label className="form-label">Ad Soyad</label>
+                                    <input name="name" defaultValue={userProfile.name} className="form-input" required />
+                                </div>
+                                <div>
+                                    <label className="form-label">E-posta</label>
+                                    <input value={userProfile.email} className="form-input opacity-60" readOnly />
+                                </div>
+                                <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    <Calendar className="w-3.5 h-3.5" />
+                                    Kayıt: {new Date(userProfile.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                </p>
+                                <FormMessage success={profileState.success} message={profileState.message} />
+                                <SubmitButton label="Profili Güncelle" pendingLabel="Güncelleniyor..." />
+                            </form>
+
+                            {/* Şifre formu */}
+                            <form action={passwordAction} className="space-y-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <Lock className="w-4 h-4" style={{ color: 'var(--accent-warning)' }} />
+                                    <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Şifre Değiştir</h3>
+                                </div>
+                                <div>
+                                    <label className="form-label">Mevcut Şifre</label>
+                                    <input name="currentPassword" type="password" className="form-input" required />
+                                </div>
+                                <div>
+                                    <label className="form-label">Yeni Şifre</label>
+                                    <input name="newPassword" type="password" className="form-input" required minLength={8} />
+                                </div>
+                                <div>
+                                    <label className="form-label">Yeni Şifre (Tekrar)</label>
+                                    <input name="confirmPassword" type="password" className="form-input" required minLength={8} />
+                                </div>
+                                <FormMessage success={passwordState.success} message={passwordState.message} />
+                                <SubmitButton label="Şifreyi Değiştir" pendingLabel="Değiştiriliyor..." />
+                            </form>
+                        </div>
+                    </div>
+
+                    {/* Oturum güvenliği */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <ShieldCheck className="w-5 h-5" style={{ color: 'var(--accent-success)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Oturum Güvenliği</h2>
+                        </div>
+                        <div className="rounded-xl p-4 mb-5" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-default)' }}>
+                            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                <strong style={{ color: 'var(--text-primary)' }}>Beni hatırla:</strong> 30 gün JWT
+                                &nbsp;·&nbsp; <strong style={{ color: 'var(--text-primary)' }}>Normal oturum:</strong> 8 saat JWT
+                                &nbsp;·&nbsp; Şifre değişimi tüm cihazlarda oturumu kapatır.
+                            </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                            style={{ paddingTop: '1rem', borderTop: '1px solid var(--border-default)' }}>
+                            <div>
+                                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Tüm cihazlardan çıkış</p>
+                                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                                    Aktif tüm JWT oturumları geçersiz hale getirilir.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!confirm('Tüm cihazlardaki oturumlar sonlandırılacak. Devam?')) return
+                                    await signOutAllDevicesAction()
+                                }}
+                                className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
+                                style={{ color: 'var(--accent-danger)', borderColor: 'var(--accent-danger-border)' }}
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Tüm oturumları sonlandır
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 
-            {/* ===== Hesap Bilgileri ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <User2 className="w-5 h-5" style={{ color: 'var(--accent-primary)' }} />
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Hesap Bilgileri</h2>
+            {/* ══════════ TERCİHLER ══════════ */}
+            {activeTab === 'tercihler' && (
+                <div className="space-y-6">
+                    {prefSaved && (
+                        <div className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium"
+                            style={{ background: 'var(--accent-success-bg)', border: '1px solid var(--accent-success-border)', color: 'var(--accent-success)' }}>
+                            <CheckCircle className="w-4 h-4" /> Tercihler kaydedildi.
+                        </div>
+                    )}
+
+                    {/* Borç stratejisi */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-2">
+                            <CreditCard className="w-5 h-5" style={{ color: 'var(--accent-purple)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Borç Ödeme Stratejisi</h2>
+                        </div>
+                        <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+                            Birden fazla borç olduğunda ödeme planı hangi stratejiyle oluşturulsun?
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {[
+                                { key: 'AVALANCHE' as DebtStrategy, title: 'Çığ Yöntemi',    desc: 'En yüksek faizden başla',      icon: '🏔️' },
+                                { key: 'SNOWBALL'  as DebtStrategy, title: 'Kartopu Yöntemi', desc: 'En düşük bakiyeden başla',      icon: '⛄' },
+                                { key: 'HYBRID'   as DebtStrategy, title: 'Hibrit',           desc: 'Faiz ve bakiye dengesi',        icon: '⚡' },
+                            ].map(s => (
+                                <button key={s.key} onClick={() => setDebtStrategy(s.key)}
+                                    className={cn('text-left p-4 rounded-2xl border transition-all cursor-pointer',
+                                        debtStrategy === s.key
+                                            ? 'border-[var(--accent-purple)] bg-[var(--accent-purple-bg)]'
+                                            : 'border-[var(--border-default)] bg-transparent hover:bg-[var(--bg-hover)]'
+                                    )}>
+                                    <span className="text-2xl">{s.icon}</span>
+                                    <h3 className="font-semibold mt-2 mb-1 text-sm" style={{ color: 'var(--text-primary)' }}>{s.title}</h3>
+                                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.desc}</p>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Bildirimler */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <Bell className="w-5 h-5" style={{ color: 'var(--accent-warning)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bildirim Tercihleri</h2>
+                        </div>
+                        <div className="space-y-3">
+                            {([
+                                { key: 'paymentReminder', label: 'Ödeme Hatırlatıcıları', desc: 'Yaklaşan kart ve abonelik ödemeleri' },
+                                { key: 'budgetAlert',     label: 'Bütçe Uyarıları',       desc: 'Harcama limiti aşıldığında' },
+                                { key: 'goalProgress',    label: 'Hedef İlerlemesi',       desc: 'Yeni ilerleme kaydedildiğinde' },
+                                { key: 'weeklyReport',    label: 'Haftalık Rapor',          desc: 'Haftalık finansal durum özeti' },
+                            ] as const).map(item => (
+                                <div key={item.key} className="flex items-center justify-between p-4 rounded-2xl transition-all"
+                                    style={{ border: '1px solid var(--border-default)', background: 'transparent' }}>
+                                    <div>
+                                        <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{item.label}</p>
+                                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.desc}</p>
+                                    </div>
+                                    <Toggle
+                                        checked={notifications[item.key]}
+                                        onChange={v => setNotifications(prev => ({ ...prev, [item.key]: v }))}
+                                        label={item.label}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Gizlilik */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <Settings2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gizlilik & Görünüm</h2>
+                        </div>
+                        <div className="flex items-center justify-between p-4 rounded-2xl"
+                            style={{ border: '1px solid var(--border-default)' }}>
+                            <div>
+                                <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Gizlilik Modu</p>
+                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Tutarları bulanıklaştır (ekran paylaşımı için ideal)</p>
+                            </div>
+                            <Toggle checked={privacyMode} onChange={setPrivacyMode} label="Gizlilik Modu" />
+                        </div>
+                        <button onClick={savePreferences} className="w-full btn-primary py-3.5 mt-5">
+                            Tercihleri Kaydet
+                        </button>
+                    </div>
                 </div>
+            )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Profile Form */}
-                    <form action={profileAction} className="space-y-4">
-                        <div>
-                            <label className="form-label">Ad Soyad</label>
-                            <input name="name" defaultValue={userProfile.name} className="form-input" required />
+            {/* ══════════ FAİZ ORANLARI ══════════ */}
+            {activeTab === 'faiz' && (
+                <div className="fintech-card p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-2">
+                        <CreditCard className="w-5 h-5" style={{ color: 'var(--accent-warning)' }} />
+                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Genel Kart Faiz Oranları</h2>
+                    </div>
+                    <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+                        &ldquo;Genel oranları kullan&rdquo; seçili kartlara uygulanır.
+                    </p>
+                    <form action={saveCardFinanceSettingsAction} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div><label className="form-label">Akdi Faiz (%)</label><input name="contractualRate" type="number" step="0.01" defaultValue={cardSettings?.contractualRate ?? 4.25} className="form-input" required /></div>
+                            <div><label className="form-label">Temerrüt Faiz (%)</label><input name="defaultRate" type="number" step="0.01" defaultValue={cardSettings?.defaultRate ?? 4.75} className="form-input" required /></div>
+                            <div><label className="form-label">Nakit Avans (%)</label><input name="cashAdvanceRate" type="number" step="0.01" defaultValue={cardSettings?.cashAdvanceRate ?? 5.0} className="form-input" required /></div>
+                            <div><label className="form-label">Asgari Ödeme ≤50k (%)</label><input name="minPaymentRateBelow50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateBelow50k, 0.30)} className="form-input" required /></div>
+                            <div><label className="form-label">Asgari Ödeme &gt;50k (%)</label><input name="minPaymentRateAbove50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateAbove50k, 0.40)} className="form-input" required /></div>
+                            <div><label className="form-label">KKDF (%)</label><input name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.kkdfRate, 0.15)} className="form-input" required /></div>
+                            <div><label className="form-label">BSMV (%)</label><input name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.bsmvRate, 0.15)} className="form-input" required /></div>
                         </div>
-                        <div>
-                            <label className="form-label">E-posta</label>
-                            <input value={userProfile.email} className="form-input opacity-60" readOnly />
-                        </div>
-                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-                            <Calendar className="w-3.5 h-3.5" />
-                            Kayıt: {new Date(userProfile.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </div>
-                        <FormMessage success={profileState.success} message={profileState.message} />
-                        <SubmitButton label="Profili Güncelle" pendingLabel="Güncelleniyor..." />
-                    </form>
-
-                    {/* Password Form */}
-                    <form action={passwordAction} className="space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Lock className="w-4 h-4" style={{ color: 'var(--accent-warning)' }} />
-                            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Şifre Değiştir</h3>
-                        </div>
-                        <div>
-                            <label className="form-label">Mevcut Şifre</label>
-                            <input name="currentPassword" type="password" className="form-input" required />
-                        </div>
-                        <div>
-                            <label className="form-label">Yeni Şifre</label>
-                            <input name="newPassword" type="password" className="form-input" required minLength={8} />
-                        </div>
-                        <div>
-                            <label className="form-label">Yeni Şifre (Tekrar)</label>
-                            <input name="confirmPassword" type="password" className="form-input" required minLength={8} />
-                        </div>
-                        <FormMessage success={passwordState.success} message={passwordState.message} />
-                        <SubmitButton label="Şifreyi Değiştir" pendingLabel="Değiştiriliyor..." />
-                        {passwordState.success && (
-                            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                                Şifre değişimi tüm cihazlardaki oturumları sonlandırır.
+                        <textarea name="notes" placeholder="Notlar (opsiyonel)" defaultValue={cardSettings?.notes ?? ''} className="form-input min-h-20" />
+                        {cardSettings?.lastUpdated && (
+                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                Son güncelleme: {new Date(cardSettings.lastUpdated).toLocaleString('tr-TR')}
                             </p>
                         )}
+                        <SubmitButton label="Kaydet" pendingLabel="Kaydediliyor..." className="btn-primary w-full py-3.5" />
                     </form>
                 </div>
+            )}
 
-                {/* Tüm cihazlardan çıkış */}
-                <div
-                    className="mt-6 pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                    style={{ borderTop: '1px solid var(--border-default)' }}
-                >
-                    <div>
-                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Tüm cihazlardan çıkış</p>
-                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            Mevcut oturum hariç tüm aktif JWT oturumları sonlandırılır.
-                        </p>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={async () => {
-                            if (!confirm('Tüm cihazlardaki oturumlar sonlandırılacak. Devam?')) return
-                            await signOutAllDevicesAction()
-                        }}
-                        className="btn-secondary flex items-center gap-2 text-sm whitespace-nowrap"
-                        style={{ color: 'var(--accent-danger)', borderColor: 'var(--accent-danger-border)' }}
-                    >
-                        <LogOut className="w-4 h-4" />
-                        Tüm oturumları sonlandır
-                    </button>
-                </div>
-            </div>
-
-            {/* ===== Borç Ödeme Stratejisi ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <Shield className="w-5 h-5 text-violet-400" />
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Borç Ödeme Stratejisi</h2>
-                </div>
-                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-                    Birden fazla borcunuz olduğunda hangi strateji ile ödeme planı oluşturulacağını seçin.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {DEBT_STRATEGIES.map((s) => (
-                        <button key={s.key} onClick={() => setDebtStrategy(s.key)} className={cn(
-                            'text-left p-4 rounded-2xl border transition-all cursor-pointer',
-                            debtStrategy === s.key ? 'border-violet-500/40 bg-violet-500/10' : 'border-[var(--border-subtle)] bg-white/[0.02] hover:bg-white/[0.05]'
-                        )}>
-                            <span className="text-2xl">{s.icon}</span>
-                            <h3 className="font-semibold mt-2 mb-1 text-sm" style={{ color: 'var(--text-primary)' }}>{s.title}</h3>
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{s.description}</p>
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            {/* ===== Bildirim Tercihleri ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <Bell className="w-5 h-5 text-[color:var(--accent-warning)]" />
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bildirim Tercihleri</h2>
-                </div>
-                <div className="space-y-3">
-                    {([
-                        { key: 'paymentReminder', label: 'Ödeme Hatırlatıcıları', desc: 'Yaklaşan kart, abonelik ve sabit gider ödemeleri' },
-                        { key: 'budgetAlert', label: 'Bütçe Uyarıları', desc: 'Harcama limiti aşıldığında uyarı' },
-                        { key: 'goalProgress', label: 'Hedef İlerlemesi', desc: 'Hedeflerinize yeni ilerleme kaydedildiğinde' },
-                        { key: 'weeklyReport', label: 'Haftalık Rapor', desc: 'Her hafta finansal durum özeti' },
-                    ] as const).map((item) => (
-                        <label key={item.key} className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer">
-                            <div>
-                                <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>{item.label}</p>
-                                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.desc}</p>
-                            </div>
-                            <div className="relative">
-                                <input type="checkbox" checked={notifications[item.key]} onChange={(e) => setNotifications((prev) => ({ ...prev, [item.key]: e.target.checked }))} className="sr-only peer" />
-                                <div className="w-11 h-6 bg-zinc-700 peer-checked:bg-emerald-500 rounded-full transition-colors" />
-                                <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
-                            </div>
-                        </label>
-                    ))}
-                </div>
-            </div>
-
-            {/* ===== Gizlilik ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <Settings2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Gizlilik & Görünüm</h2>
-                </div>
-                <label className="flex items-center justify-between p-4 rounded-2xl border border-[var(--border-subtle)] hover:bg-[var(--bg-hover)] transition-all cursor-pointer">
-                    <div>
-                        <p className="font-medium text-sm" style={{ color: 'var(--text-primary)' }}>Gizlilik Modu</p>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Tutarları bulanıklaştır (ekran paylaşımı için ideal)</p>
-                    </div>
-                    <div className="relative">
-                        <input type="checkbox" checked={privacyMode} onChange={(e) => setPrivacyMode(e.target.checked)} className="sr-only peer" />
-                        <div className="w-11 h-6 bg-zinc-700 peer-checked:bg-emerald-500 rounded-full transition-colors" />
-                        <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-5 transition-transform" />
-                    </div>
-                </label>
-                <button onClick={handleSavePreferences} className="w-full mt-6 py-3.5 btn-primary rounded-2xl">
-                    Tercihleri Kaydet
-                </button>
-            </div>
-
-            {canUseAi ? (
-                <div className="fintech-card p-6 md:p-8">
-                    <div className="flex items-center gap-3 mb-6">
-                        <Settings2 className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
-                        <div>
+            {/* ══════════ API & AI (sadece superuser) ══════════ */}
+            {activeTab === 'api' && canUseAi && (
+                <div className="space-y-6">
+                    {/* CollectAPI */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-2">
+                            <Settings2 className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
                             <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>CollectAPI Ayarları</h2>
-                            <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-                                Bu sağlayıcı ayarları tüm kullanıcıların piyasa kartlarına uygulanır. Anahtar boşsa dashboard uyarı durumunda kalır.
-                            </p>
                         </div>
-                    </div>
-
-                    <form action={evdsAction} className="space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_180px] gap-4">
-                            <div>
-                                <label className="form-label">CollectAPI API anahtarı</label>
-                                <input
-                                    name="apiKey"
-                                    type="password"
-                                    autoComplete="off"
-                                    placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girmezsen mevcut anahtar korunur' : 'CollectAPI API anahtarını gir'}
-                                    className="form-input"
-                                />
-                                {evdsSettings.hasApiKey && evdsSettings.apiKeySource === 'user' ? (
-                                    <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-                                        <input name="keepExistingApiKey" type="checkbox" defaultChecked className="rounded border-[var(--border-default)] bg-[var(--bg-input)]" />
-                                        Mevcut API anahtarını koru
-                                    </label>
-                                ) : null}
-                            </div>
-                            <div>
-                                <label className="form-label">Cache süresi (dk)</label>
-                                <input name="cacheMinutes" type="number" min="15" step="15" defaultValue={evdsSettings.cacheMinutes} className="form-input" />
-                                <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>CollectAPI’ye gereksiz istek atmamak için en az 15 dk.</p>
-                            </div>
-                        </div>
-
-                        <div className="data-table-wrapper">
-                            <table className="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Göster</th>
-                                        <th>Kart adı</th>
-                                        <th>CollectAPI eşleşmesi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {evdsSettings.series.map((series) => {
-                                        const endpoint = series.code === 'XAU_GRAM' || series.code === 'XAU_REPUBLIC'
-                                            ? '/economy/goldPrice'
-                                            : '/economy/allCurrency'
-                                        const providerKey = series.sellSeriesCode || series.buySeriesCode || series.code
-
-                                        return (
-                                            <tr key={series.code}>
-                                                <td>
-                                                    <input
-                                                        name={`${series.code}_enabled`}
-                                                        type="checkbox"
-                                                        defaultChecked={series.enabled}
-                                                        className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
-                                                </td>
-                                                <td>
-                                                    <input type="hidden" name={`${series.code}_buy`} defaultValue={series.buySeriesCode} />
-                                                    <input type="hidden" name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} />
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>{endpoint}</span>
-                                                        <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>{providerKey}</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            Döviz kartları CollectAPI allCurrency, altın kartları goldPrice endpointinden beslenir; satır bulunamazsa serbestPiyasa fallback’i denenir. Token değerini başında apikey olmadan girebilirsin.
+                        <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+                            Piyasa kuru kartları bu sağlayıcıdan beslenir. Tüm kullanıcılara uygulanır.
                         </p>
-
-                        <FormMessage success={evdsState.success} message={evdsState.message} />
-                        <SubmitButton label="CollectAPI Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
-                    </form>
-                </div>
-            ) : null}
-
-            {/* ===== Kart Faiz Ayarları ===== */}
-            <div className="fintech-card p-6 md:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                    <CreditCard className="w-5 h-5 text-[color:var(--accent-warning)]" />
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Genel Kart Faiz Oranları</h2>
-                </div>
-                <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-                    Bu oranlar, &quot;Genel oranları kullan&quot; seçili olan tüm kartlara uygulanır.
-                </p>
-                <form action={saveCardFinanceSettingsAction} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div><label className="form-label">Akdi Faiz (%)</label><input name="contractualRate" type="number" step="0.01" defaultValue={cardSettings?.contractualRate ?? 4.25} className="form-input" required /></div>
-                        <div><label className="form-label">Temerrüt Faiz (%)</label><input name="defaultRate" type="number" step="0.01" defaultValue={cardSettings?.defaultRate ?? 4.75} className="form-input" required /></div>
-                        <div><label className="form-label">Nakit Avans Faiz (%)</label><input name="cashAdvanceRate" type="number" step="0.01" defaultValue={cardSettings?.cashAdvanceRate ?? 5.0} className="form-input" required /></div>
-                        <div><label className="form-label">Asgari Ödeme ≤50k (%)</label><input name="minPaymentRateBelow50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateBelow50k, 0.30)} className="form-input" required /></div>
-                        <div><label className="form-label">Asgari Ödeme &gt;50k (%)</label><input name="minPaymentRateAbove50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateAbove50k, 0.40)} className="form-input" required /></div>
-                        <div><label className="form-label">KKDF (%)</label><input name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.kkdfRate, 0.15)} className="form-input" required /></div>
-                        <div><label className="form-label">BSMV (%)</label><input name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.bsmvRate, 0.15)} className="form-input" required /></div>
-                    </div>
-                    <textarea name="notes" placeholder="Notlar (opsiyonel)" defaultValue={cardSettings?.notes ?? ''} className="form-input min-h-20" />
-                    {cardSettings?.lastUpdated && (
-                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Son güncelleme: {new Date(cardSettings.lastUpdated).toLocaleString('tr-TR')}</p>
-                    )}
-                    <button type="submit" className="w-full btn-primary py-4 rounded-2xl">Kaydet</button>
-                </form>
-            </div>
-
-            {/* ===== AI Durumu ===== */}
-            {canUseAi ? (
-                <div className="fintech-card p-6 md:p-8">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center">
-                            <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" /></svg>
-                        </div>
-                        <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--text-primary)' }}>AI Çalışma Durumu</h2>
-                    </div>
-                    <div className="space-y-3">
-                        {[
-                            { label: 'Efektif sağlayıcı', value: 'OPENAI', always: true },
-                            { label: 'OPENAI_API_KEY', value: aiSettings.connectionStatus === 'HAZIR' ? 'HAZIR' : 'HATA', always: true, isError: aiSettings.connectionStatus !== 'HAZIR' },
-                            { label: 'Aktif Model', value: aiSettings.model, always: true },
-                            { label: 'Proxy/Gateway', value: 'VAR', always: aiSettings.baseUrl !== 'https://api.openai.com/v1' },
-                            { label: 'OPENAI_PROJECT', value: aiSettings.hasProject ? 'VAR' : 'YOK', always: true },
-                            { label: 'OPENAI_ORG', value: aiSettings.hasOrg ? 'VAR' : 'YOK', always: true },
-                        ].filter((r) => r.always).map((row) => (
-                            <div key={row.label} className="rounded-3xl p-4 md:p-5 flex items-center justify-between transition-all" style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-subtle)' }}>
-                                <span className="font-medium" style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-                                <span className={cn(
-                                    "px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase",
-                                    row.isError ? "bg-red-500/20 text-[color:var(--accent-danger)]" : "bg-zinc-800 text-zinc-100"
-                                )}>{row.value}</span>
+                        <form action={evdsAction} className="space-y-5">
+                            <div className="grid grid-cols-1 lg:grid-cols-[1fr_180px] gap-4">
+                                <div>
+                                    <label className="form-label">CollectAPI API anahtarı</label>
+                                    <input name="apiKey" type="password" autoComplete="off"
+                                        placeholder={evdsSettings.hasApiKey ? 'Yeni anahtar girilmezse mevcut korunur' : 'CollectAPI API anahtarını gir'}
+                                        className="form-input" />
+                                    {evdsSettings.hasApiKey && evdsSettings.apiKeySource === 'user' && (
+                                        <label className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                                            <input name="keepExistingApiKey" type="checkbox" defaultChecked />
+                                            Mevcut anahtarı koru
+                                        </label>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="form-label">Cache süresi (dk)</label>
+                                    <input name="cacheMinutes" type="number" min="15" step="15" defaultValue={evdsSettings.cacheMinutes} className="form-input" />
+                                    <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Min. 15 dk önerilir.</p>
+                                </div>
                             </div>
-                        ))}
+
+                            <div className="data-table-wrapper">
+                                <table className="data-table">
+                                    <thead>
+                                        <tr><th>Göster</th><th>Kart adı</th><th>Endpoint / Key</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {evdsSettings.series.map(series => {
+                                            const endpoint = ['XAU_GRAM','XAU_REPUBLIC'].includes(series.code) ? '/economy/goldPrice' : '/economy/allCurrency'
+                                            const key = series.sellSeriesCode || series.buySeriesCode || series.code
+                                            return (
+                                                <tr key={series.code}>
+                                                    <td>
+                                                        <input name={`${series.code}_enabled`} type="checkbox" defaultChecked={series.enabled}
+                                                            className="h-4 w-4 rounded" />
+                                                    </td>
+                                                    <td>
+                                                        <input name={`${series.code}_label`} defaultValue={series.label} className="form-input" />
+                                                    </td>
+                                                    <td>
+                                                        <input type="hidden" name={`${series.code}_buy`}  defaultValue={series.buySeriesCode} />
+                                                        <input type="hidden" name={`${series.code}_sell`} defaultValue={series.sellSeriesCode} />
+                                                        <span className="font-mono text-xs block" style={{ color: 'var(--text-secondary)' }}>{endpoint}</span>
+                                                        <span className="font-mono text-xs"    style={{ color: 'var(--text-muted)'  }}>{key}</span>
+                                                    </td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <FormMessage success={evdsState.success} message={evdsState.message} />
+                            <SubmitButton label="CollectAPI Ayarlarını Kaydet" pendingLabel="Kaydediliyor..." />
+                        </form>
+                    </div>
+
+                    {/* AI Durumu */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <Info className="w-5 h-5" style={{ color: 'var(--accent-primary)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>AI Çalışma Durumu</h2>
+                        </div>
+                        <div className="space-y-3">
+                            {[
+                                { label: 'API Anahtarı',    value: aiSettings.isConfigured ? 'HAZIR'  : 'EKSİK',   ok: aiSettings.isConfigured },
+                                { label: 'Model',           value: aiSettings.model,                                ok: true },
+                                { label: 'OPENAI_PROJECT',  value: aiSettings.hasProject   ? 'VAR'    : 'YOK',      ok: aiSettings.hasProject },
+                                { label: 'OPENAI_ORG',      value: aiSettings.hasOrg       ? 'VAR'    : 'YOK',      ok: aiSettings.hasOrg },
+                                { label: 'Base URL',        value: aiSettings.baseUrl,                              ok: true },
+                            ].map(row => (
+                                <div key={row.label} className="flex items-center justify-between p-4 rounded-xl"
+                                    style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-default)' }}>
+                                    <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
+                                    <span className={cn(
+                                        'text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider',
+                                        row.ok ? 'bg-[var(--accent-success-bg)] text-[var(--accent-success)]'
+                                               : 'bg-[var(--accent-danger-bg)] text-[var(--accent-danger)]'
+                                    )}>
+                                        {row.value}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Uygulama bilgileri */}
+                    <div className="fintech-card p-6">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Info className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                            <h2 className="font-bold" style={{ color: 'var(--text-primary)' }}>Uygulama Bilgileri</h2>
+                        </div>
+                        <div className="space-y-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                            <p>• Para birimi: TRY (varsayılan)</p>
+                            <p>• Finansal hesaplamalar .toFixed(2) hassasiyetinde</p>
+                            <p>• LedgerEntry kayıtları immutable</p>
+                            <p>• Tüm bakiye hareketleri atomic ($transaction)</p>
+                        </div>
                     </div>
                 </div>
-            ) : null}
+            )}
 
-            {/* ===== Uygulama Bilgileri ===== */}
-            <div className="fintech-card p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <Settings2 className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
-                    <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Uygulama Bilgileri</h2>
-                </div>
-                <div className="space-y-3 text-sm" style={{ color: 'var(--text-muted)' }}>
-                    <p>• Para birimi: TRY (varsayılan)</p>
-                    <p>• Finansal hesaplamalar .toFixed(2) hassasiyetinde yapılır</p>
-                    <p>• LedgerEntry kayıtları değiştirilemez (immutable)</p>
-                    <p>• Tüm bakiye hareketleri atomik ($transaction) güvencesindedir</p>
-                </div>
-            </div>
         </div>
     )
 }

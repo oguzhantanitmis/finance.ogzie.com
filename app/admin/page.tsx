@@ -25,6 +25,11 @@ export default async function AdminPage() {
         role: user.role,
         isActive: user.isActive,
         lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
+        lastLoginIp: user.lastLoginIp ?? null,
+        failedLoginAttempts: user.failedLoginAttempts ?? 0,
+        isLocked: user.lockedUntil ? user.lockedUntil > new Date() : false,
+        lockedUntil: user.lockedUntil?.toISOString() ?? null,
+        sessionVersion: user.sessionVersion ?? 1,
         createdAt: user.createdAt.toISOString(),
         dataCount: Object.values(user._count).reduce((sum, count) => sum + count, 0),
     }))

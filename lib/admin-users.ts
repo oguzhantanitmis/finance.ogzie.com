@@ -21,6 +21,10 @@ export async function getManagedUsers() {
             role: true,
             isActive: true,
             lastLoginAt: true,
+            lastLoginIp: true,
+            failedLoginAttempts: true,
+            lockedUntil: true,
+            sessionVersion: true,
             createdAt: true,
             _count: {
                 select: {

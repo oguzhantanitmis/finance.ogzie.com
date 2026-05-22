@@ -96,3 +96,31 @@ export async function sendSmtpTestEmailAction(
         return getActionErrorResult<SmtpField>(error, 'SMTP test e-postası gönderilemedi.')
     }
 }
+
+export async function resetUserSessionsAction(targetUserId: string): Promise<ActionResult> {
+    try {
+        await requireSuperuser()
+        await (await import('@/lib/prisma')).prisma.user.update({
+            where: { id: targetUserId },
+            data: { sessionVersion: { increment: 1 } },
+        })
+        revalidatePath('/admin')
+        return createSuccessResult('Kullanıcı oturumları sıfırlandı.')
+    } catch (error) {
+        return getActionErrorResult(error, 'Oturumlar sıfırlanamadı.')
+    }
+}
+
+export async function unlockUserAction(targetUserId: string): Promise<ActionResult> {
+    try {
+        await requireSuperuser()
+        await (await import('@/lib/prisma')).prisma.user.update({
+            where: { id: targetUserId },
+            data: { failedLoginAttempts: 0, lockedUntil: null },
+        })
+        revalidatePath('/admin')
+        return createSuccessResult('Hesap kilidi kaldırıldı.')
+    } catch (error) {
+        return getActionErrorResult(error, 'Kilit kaldırılamadı.')
+    }
+}
