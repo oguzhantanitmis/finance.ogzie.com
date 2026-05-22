@@ -9,7 +9,7 @@ import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/lib/utils'
 import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
 import { saveEvdsSettingsAction } from '@/app/settings/evds-actions'
-import { updateProfileAction, changePasswordAction, signOutAllDevicesAction } from '@/app/settings/profile-actions'
+import { updateProfileAction, changePasswordAction, signOutAllDevicesAction, updatePreferencesAction } from '@/app/settings/profile-actions'
 import FormMessage from '@/components/ui/FormMessage'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT } from '@/lib/action-result'
@@ -32,7 +32,14 @@ interface Props {
         hasOrg: boolean
     }
     canUseAi: boolean
-    userProfile: { name: string; email: string; createdAt: string }
+    userProfile: {
+        name: string
+        email: string
+        createdAt: string
+        preferredCurrency: string
+        locale: string
+        timezone: string
+    }
 }
 
 type Tab = 'hesap' | 'tercihler' | 'faiz' | 'api'
@@ -98,6 +105,7 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
 
     const [profileState, profileAction]   = useActionState(updateProfileAction, EMPTY_ACTION_RESULT)
     const [passwordState, passwordAction] = useActionState(changePasswordAction, EMPTY_ACTION_RESULT)
+    const [prefsState,    prefsAction]    = useActionState(updatePreferencesAction, EMPTY_ACTION_RESULT)
     const [evdsState,     evdsAction]     = useActionState(saveEvdsSettingsAction, EMPTY_ACTION_RESULT)
 
     // Tabs göster: canUseAi değilse API sekmesi gizli
@@ -307,6 +315,48 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    {/* Bölgesel & Para Birimi */}
+                    <div className="fintech-card p-6 md:p-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <CreditCard className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bölgesel & Para Birimi</h2>
+                        </div>
+                        <form action={prefsAction} className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="form-label">Tercih Edilen Para Birimi</label>
+                                    <select name="preferredCurrency" defaultValue={userProfile.preferredCurrency} className="form-input form-select">
+                                        <option value="TRY">₺ Türk Lirası (TRY)</option>
+                                        <option value="USD">$ ABD Doları (USD)</option>
+                                        <option value="EUR">€ Euro (EUR)</option>
+                                        <option value="GBP">£ İngiliz Sterlini (GBP)</option>
+                                        <option value="XAU">Au Gram Altın (XAU)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label">Locale</label>
+                                    <select name="locale" defaultValue={userProfile.locale} className="form-input form-select">
+                                        <option value="tr-TR">Türkçe (tr-TR)</option>
+                                        <option value="en-US">English (en-US)</option>
+                                        <option value="en-GB">English UK (en-GB)</option>
+                                        <option value="de-DE">Deutsch (de-DE)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label">Saat Dilimi</label>
+                                    <select name="timezone" defaultValue={userProfile.timezone} className="form-input form-select">
+                                        <option value="Europe/Istanbul">Europe/Istanbul (TR)</option>
+                                        <option value="Europe/London">Europe/London (UK)</option>
+                                        <option value="Europe/Berlin">Europe/Berlin (DE)</option>
+                                        <option value="UTC">UTC</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <FormMessage success={prefsState.success} message={prefsState.message} />
+                            <SubmitButton label="Tercihleri Kaydet" pendingLabel="Kaydediliyor..." />
+                        </form>
                     </div>
 
                     {/* Gizlilik */}

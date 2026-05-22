@@ -58,7 +58,14 @@ export default async function SettingsPage() {
                 evdsSettings={evdsSettings}
                 aiSettings={aiSettings}
                 canUseAi={canUseAi}
-                userProfile={{ name: user.name ?? '', email: user.email, createdAt: user.createdAt.toISOString() }}
+                userProfile={{
+                    name: user.name ?? '',
+                    email: user.email,
+                    createdAt: user.createdAt.toISOString(),
+                    preferredCurrency: user.preferredCurrency ?? 'TRY',
+                    locale: user.locale ?? 'tr-TR',
+                    timezone: user.timezone ?? 'Europe/Istanbul',
+                }}
             />
         </PageShell>
     )

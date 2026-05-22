@@ -30,7 +30,7 @@ export async function createUserAction(
     const data = resolveFormData(previousState, formData)
 
     try {
-        await requireSuperuser()
+        const currentUser = await requireSuperuser()
         const email = toRequiredString(data.get('email'), 'email', 'E-posta')
         const password = toRequiredString(data.get('password'), 'password', 'Şifre')
         const user = await createManagedUser({
@@ -59,6 +59,7 @@ export async function createUserAction(
             message = 'Kullanıcı oluşturuldu. SMTP ayarlı olmadığı için e-posta gönderilmedi.'
         }
 
+        await logAction(currentUser.id, 'USER_CREATED', user.id, { email: user.email, role: user.role })
         revalidatePath('/admin')
         return createSuccessResult(message, user.id)
     } catch (error) {
@@ -69,11 +70,63 @@ export async function createUserAction(
 export async function deleteUserAction(userId: string): Promise<ActionResult> {
     try {
         const currentUser = await requireSuperuser()
-        await deleteManagedUser(currentUser.id, userId)
+        if (currentUser.id === userId) {
+            throw new Error('Kendi hesabınızı silemezsiniz.')
+        }
+        // Soft-delete: deletedAt + isActive=false; veriyi koru
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.user.update({
+            where: { id: userId },
+            data: {
+                deletedAt: new Date(),
+                isActive: false,
+                sessionVersion: { increment: 1 },
+            },
+        })
+        await logAction(currentUser.id, 'USER_DELETED', userId)
         revalidatePath('/admin')
-        return createSuccessResult('Kullanıcı ve bağlı verileri silindi.', userId)
+        return createSuccessResult('Kullanıcı arşivlendi (soft-delete). Geri yüklenebilir.', userId)
     } catch (error) {
         return getActionErrorResult(error, 'Kullanıcı silinemedi.')
+    }
+}
+
+export async function restoreUserAction(userId: string): Promise<ActionResult> {
+    try {
+        const currentUser = await requireSuperuser()
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.user.update({
+            where: { id: userId },
+            data: { deletedAt: null, isActive: true },
+        })
+        await logAction(currentUser.id, 'USER_RESTORED', userId)
+        revalidatePath('/admin')
+        return createSuccessResult('Kullanıcı geri yüklendi.')
+    } catch (error) {
+        return getActionErrorResult(error, 'Kullanıcı geri yüklenemedi.')
+    }
+}
+
+export async function hardDeleteUserAction(userId: string): Promise<ActionResult> {
+    try {
+        const currentUser = await requireSuperuser()
+        await deleteManagedUser(currentUser.id, userId)
+        await logAction(currentUser.id, 'USER_HARD_DELETED', userId)
+        revalidatePath('/admin')
+        return createSuccessResult('Kullanıcı ve tüm verileri kalıcı olarak silindi.')
+    } catch (error) {
+        return getActionErrorResult(error, 'Kullanıcı kalıcı silinemedi.')
+    }
+}
+
+async function logAction(actorId: string, action: string, targetId?: string, metadata?: object) {
+    try {
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.userActionLog.create({
+            data: { actorId, action, targetId, metadata: metadata as never },
+        })
+    } catch (e) {
+        console.error('action log error:', e)
     }
 }
 
@@ -99,11 +152,13 @@ export async function sendSmtpTestEmailAction(
 
 export async function resetUserSessionsAction(targetUserId: string): Promise<ActionResult> {
     try {
-        await requireSuperuser()
-        await (await import('@/lib/prisma')).prisma.user.update({
+        const currentUser = await requireSuperuser()
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.user.update({
             where: { id: targetUserId },
             data: { sessionVersion: { increment: 1 } },
         })
+        await logAction(currentUser.id, 'SESSIONS_RESET', targetUserId)
         revalidatePath('/admin')
         return createSuccessResult('Kullanıcı oturumları sıfırlandı.')
     } catch (error) {
@@ -113,11 +168,13 @@ export async function resetUserSessionsAction(targetUserId: string): Promise<Act
 
 export async function unlockUserAction(targetUserId: string): Promise<ActionResult> {
     try {
-        await requireSuperuser()
-        await (await import('@/lib/prisma')).prisma.user.update({
+        const currentUser = await requireSuperuser()
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.user.update({
             where: { id: targetUserId },
             data: { failedLoginAttempts: 0, lockedUntil: null },
         })
+        await logAction(currentUser.id, 'USER_UNLOCKED', targetUserId)
         revalidatePath('/admin')
         return createSuccessResult('Hesap kilidi kaldırıldı.')
     } catch (error) {

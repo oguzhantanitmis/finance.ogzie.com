@@ -19,6 +19,10 @@ model User {
   name        String?
   role        UserRole  @default(USER)
   isActive              Boolean   @default(true)
+  deletedAt             DateTime?
+  preferredCurrency     String    @default("TRY")
+  locale                String    @default("tr-TR")
+  timezone              String    @default("Europe/Istanbul")
   lastLoginAt           DateTime?
   lastLoginIp           String?
   failedLoginAttempts   Int       @default(0)
@@ -58,8 +62,42 @@ model User {
   debtObligations     DebtObligation[]
   debtPayments        DebtPayment[]
 
+  loginHistory        LoginHistory[]
+  actionLogsAsActor   UserActionLog[]  @relation("ActionActor")
+
   @@index([role])
   @@index([isActive])
+  @@index([deletedAt])
+}
+
+model LoginHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  ip        String?
+  userAgent String?  @db.Text
+  success   Boolean
+  reason    String?  // "wrong_password" | "locked" | "ok" | "inactive"
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model UserActionLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  targetId   String?
+  action     String   // "USER_CREATED" | "USER_DELETED" | "USER_LOCKED" | "USER_UNLOCKED" | "SESSIONS_RESET" | "SETTINGS_UPDATED"
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation("ActionActor", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([actorId, createdAt])
+  @@index([targetId, createdAt])
+  @@index([action, createdAt])
 }
 
 enum BillingCycle {

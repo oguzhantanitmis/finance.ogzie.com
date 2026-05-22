@@ -9,6 +9,16 @@ const LOCK_DURATION_MS    = 15 * 60 * 1000;
 const SESSION_SHORT_SECONDS = 8  * 60 * 60;
 const SESSION_LONG_SECONDS  = 30 * 24 * 60 * 60;
 
+async function logLogin(userId: string, success: boolean, reason: string, ip: string | null, userAgent: string | null) {
+    try {
+        await prisma.loginHistory.create({
+            data: { userId, success, reason, ip, userAgent: userAgent?.slice(0, 1000) ?? null },
+        });
+    } catch (e) {
+        console.error('login history error:', e);
+    }
+}
+
 export const authOptions: NextAuthOptions = {
     session: { strategy: "jwt", maxAge: SESSION_LONG_SECONDS },
     pages:   { signIn: "/login" },
@@ -27,75 +37,59 @@ export const authOptions: NextAuthOptions = {
                 const rememberMe = credentials.rememberMe === "true";
                 const ip = (req?.headers?.["x-forwarded-for"] as string | undefined)
                     ?.split(",")[0]?.trim() ?? null;
+                const userAgent = (req?.headers?.["user-agent"] as string | undefined) ?? null;
 
-                // --- Temel kullanıcı sorgusu (her zaman çalışan kolonlar) ---
                 const user = await prisma.user.findUnique({ where: { email } });
-                if (!user || !user.isActive) return null;
+                if (!user) return null;
+                if (!user.isActive || user.deletedAt) {
+                    await logLogin(user.id, false, 'inactive', ip, userAgent);
+                    return null;
+                }
 
-                // --- Brute-force + kilit (yeni kolonlar varsa) ---
-                // Yeni DB kolonları migrate edilmemişse bu blok sessizce atlanır.
-                const hasNewCols = 'failedLoginAttempts' in user;
-
-                if (hasNewCols) {
-                    const u = user as typeof user & {
-                        failedLoginAttempts: number
-                        lockedUntil: Date | null
-                        sessionVersion: number
-                    };
-
-                    if (u.lockedUntil && u.lockedUntil > new Date()) {
-                        const min = Math.ceil((u.lockedUntil.getTime() - Date.now()) / 60_000);
-                        throw new Error(`LOCKED:${min}`);
-                    }
+                // Kilitli mi?
+                if (user.lockedUntil && user.lockedUntil > new Date()) {
+                    const min = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60_000);
+                    await logLogin(user.id, false, 'locked', ip, userAgent);
+                    throw new Error(`LOCKED:${min}`);
                 }
 
                 const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
 
                 if (!isPasswordValid) {
-                    if (hasNewCols) {
-                        const u = user as typeof user & { failedLoginAttempts: number };
-                        const attempts = u.failedLoginAttempts + 1;
-                        const willLock = attempts >= MAX_FAILED_ATTEMPTS;
-                        await prisma.user.update({
-                            where: { id: user.id },
-                            data: {
-                                ...(hasNewCols ? {
-                                    failedLoginAttempts: attempts,
-                                    lockedUntil: willLock ? new Date(Date.now() + LOCK_DURATION_MS) : null,
-                                } : {}),
-                            } as object,
-                        });
-                        if (willLock) throw new Error("LOCKED:15");
-                        throw new Error(`ATTEMPTS:${MAX_FAILED_ATTEMPTS - attempts}`);
-                    }
-                    return null;
+                    const attempts = user.failedLoginAttempts + 1;
+                    const willLock = attempts >= MAX_FAILED_ATTEMPTS;
+                    await prisma.user.update({
+                        where: { id: user.id },
+                        data: {
+                            failedLoginAttempts: attempts,
+                            lockedUntil: willLock ? new Date(Date.now() + LOCK_DURATION_MS) : null,
+                        },
+                    });
+                    await logLogin(user.id, false, 'wrong_password', ip, userAgent);
+                    if (willLock) throw new Error("LOCKED:15");
+                    throw new Error(`ATTEMPTS:${MAX_FAILED_ATTEMPTS - attempts}`);
                 }
 
-                // --- Başarılı giriş ---
+                // Başarılı giriş
                 const role = resolveUserRole(user.email, user.role);
                 await prisma.user.update({
                     where: { id: user.id },
                     data: {
                         role,
                         lastLoginAt: new Date(),
-                        ...(hasNewCols ? {
-                            lastLoginIp: ip,
-                            failedLoginAttempts: 0,
-                            lockedUntil: null,
-                        } : {}),
-                    } as object,
+                        lastLoginIp: ip,
+                        failedLoginAttempts: 0,
+                        lockedUntil: null,
+                    },
                 });
-
-                const sessionVersion = hasNewCols
-                    ? (user as typeof user & { sessionVersion: number }).sessionVersion
-                    : 1;
+                await logLogin(user.id, true, 'ok', ip, userAgent);
 
                 return {
                     id:             user.id,
                     email:          user.email,
                     name:           user.name ?? undefined,
                     role,
-                    sessionVersion,
+                    sessionVersion: user.sessionVersion,
                     rememberMe,
                 };
             },

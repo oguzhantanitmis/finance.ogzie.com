@@ -9,13 +9,11 @@ export async function getCurrentUser() {
     if (!session?.user?.email) return null
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-    if (!user || !user.isActive) return null
+    if (!user || !user.isActive || user.deletedAt) return null
 
-    // sessionVersion kontrolü — yeni kolonlar migrate edildikten sonra aktif olur
-    const hasNewCols   = 'sessionVersion' in user
-    const dbVersion    = hasNewCols ? (user as typeof user & { sessionVersion: number }).sessionVersion : 1
+    // sessionVersion eşleşmiyorsa oturum geçersiz
     const tokenVersion = session.user.sessionVersion ?? 1
-    if (hasNewCols && dbVersion !== tokenVersion) return null
+    if (user.sessionVersion !== tokenVersion) return null
 
     const role = resolveUserRole(user.email, user.role)
     if (role !== user.role) {

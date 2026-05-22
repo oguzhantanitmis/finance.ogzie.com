@@ -61,6 +61,28 @@ export async function changePasswordAction(_prev: ActionResult, formData: FormDa
     return createSuccessResult('Şifre başarıyla değiştirildi. Yeniden giriş yapmanız gerekecek.')
 }
 
+export async function updatePreferencesAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+    const user = await getCurrentUser()
+    if (!user) return createErrorResult('Oturum bulunamadı.')
+
+    const preferredCurrency = (formData.get('preferredCurrency') as string | null) ?? 'TRY'
+    const locale            = (formData.get('locale')            as string | null) ?? 'tr-TR'
+    const timezone          = (formData.get('timezone')          as string | null) ?? 'Europe/Istanbul'
+
+    const allowedCurrencies = ['TRY', 'USD', 'EUR', 'GBP', 'XAU']
+    if (!allowedCurrencies.includes(preferredCurrency)) {
+        return createErrorResult('Geçersiz para birimi.')
+    }
+
+    await prisma.user.update({
+        where: { id: user.id },
+        data: { preferredCurrency, locale, timezone },
+    })
+
+    revalidatePath('/settings')
+    return createSuccessResult('Tercihler kaydedildi.')
+}
+
 export async function signOutAllDevicesAction(): Promise<ActionResult> {
     const user = await getCurrentUser()
     if (!user) return createErrorResult('Oturum bulunamadı.')
