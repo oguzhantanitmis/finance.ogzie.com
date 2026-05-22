@@ -18,15 +18,16 @@ model User {
   password    String
   name        String?
   role        UserRole  @default(USER)
-  isActive              Boolean   @default(true)
-  lastLoginAt           DateTime?
-  lastLoginIp           String?
-  failedLoginAttempts   Int       @default(0)
-  lockedUntil           DateTime?
-  sessionVersion        Int       @default(1)
-  passwordResetToken    String?   @unique
-  passwordResetExpiry   DateTime?
-  riskScore             Int       @default(100)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  // AUTH_V2 — db:push sonrası eklenecek:
+  // lastLoginIp           String?
+  // failedLoginAttempts   Int       @default(0)
+  // lockedUntil           DateTime?
+  // sessionVersion        Int       @default(1)
+  // passwordResetToken    String?   @unique
+  // passwordResetExpiry   DateTime?
+  riskScore   Int       @default(100)
   netWorth    Float     @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

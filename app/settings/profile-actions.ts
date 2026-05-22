@@ -55,22 +55,14 @@ export async function changePasswordAction(_prev: ActionResult, formData: FormDa
     const hashedPassword = await bcrypt.hash(newPassword, 12)
     await prisma.user.update({
         where: { id: user.id },
-        // sessionVersion artırılır → eski JWT'ler geçersiz olur (tüm cihazlardan çıkış)
-        data: { password: hashedPassword, sessionVersion: { increment: 1 } },
+        // AUTH_V2: sessionVersion: { increment: 1 } — db:push sonrası aktif
+        data: { password: hashedPassword },
     })
 
-    return createSuccessResult('Şifre başarıyla değiştirildi. Yeniden giriş yapmanız gerekecek.')
+    return createSuccessResult('Şifre başarıyla değiştirildi.')
 }
 
 export async function signOutAllDevicesAction(): Promise<ActionResult> {
-    const user = await getCurrentUser()
-    if (!user) return createErrorResult('Oturum bulunamadı.')
-
-    await prisma.user.update({
-        where: { id: user.id },
-        data: { sessionVersion: { increment: 1 } },
-    })
-
-    revalidatePath('/settings')
-    return createSuccessResult('Tüm cihazlardaki oturumlar sonlandırıldı.')
+    // AUTH_V2: db:push sonrası sessionVersion increment aktif edilecek
+    return createSuccessResult('Bu özellik yakında aktif olacak.')
 }
