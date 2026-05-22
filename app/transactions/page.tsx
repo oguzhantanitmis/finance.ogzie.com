@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 
+import ExportButton from '@/components/ui/ExportButton'
 import PageShell from '@/components/PageShell'
 import TransactionsWorkspace from '@/components/transactions/TransactionsWorkspace'
 import { getAccounts } from '@/lib/account-service'
@@ -91,12 +92,15 @@ export default async function TransactionsPage() {
 
     return (
         <PageShell width="genis">
-            <header className="mb-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">İşlem Defteri</h1>
-                <p className="text-zinc-400 max-w-3xl">
-                    Tüm finansal hareketlerin birleşik kaydı. Manuel gelir/gider ekle, tahsilat, ödeme, transfer ve kart ödeme hareketlerini takip et.
-                </p>
+            <header className="mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">İşlem Defteri</h1>
+                    <p className="text-zinc-400 max-w-3xl">
+                        Tüm finansal hareketlerin birleşik kaydı. Manuel gelir/gider ekle, tahsilat, ödeme, transfer ve kart ödeme hareketlerini takip et.
+                    </p>
+                </div>
+                <ExportButton endpoint="/api/export/transactions" label="İşlemleri İndir" />
             </header>
             <TransactionsWorkspace
                 entries={serializedEntries}

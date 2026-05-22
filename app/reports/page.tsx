@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import PageShell from '@/components/PageShell'
 import ReportsWorkspace from '@/components/reports/ReportsWorkspace'
+import ExportButton from '@/components/ui/ExportButton'
 import { getMonthlyReports, getExpenseBreakdown, getNetWorthHistory, getProfessionalReportDashboard } from '@/lib/report-service'
 import { getCurrentUser } from '@/lib/server-auth'
 
@@ -28,12 +29,15 @@ export default async function ReportsPage() {
 
     return (
         <PageShell width="genis">
-            <header className="mb-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Raporlar</h1>
-                <p className="text-zinc-400 max-w-3xl">
-                    Aylık gelir-gider akışı, harcama kırılımı ve net varlık trendi.
-                </p>
+            <header className="mb-10 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Raporlar</h1>
+                    <p className="text-zinc-400 max-w-3xl">
+                        Aylık gelir-gider akışı, harcama kırılımı ve net varlık trendi.
+                    </p>
+                </div>
+                <ExportButton endpoint="/api/export/reports" label="Rapor İndir" />
             </header>
             <ReportsWorkspace monthly={monthly} expenses={expenses} netWorthHistory={netWorthHistory} dashboard={dashboard} />
         </PageShell>
