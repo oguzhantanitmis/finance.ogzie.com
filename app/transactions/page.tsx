@@ -5,7 +5,10 @@ import PageShell from '@/components/PageShell'
 import TransactionsWorkspace from '@/components/transactions/TransactionsWorkspace'
 import { getAccounts } from '@/lib/account-service'
 import { getLedgerEntries, getLedgerSummary } from '@/lib/ledger-service'
+import { isDbConnectionError, withDbRetry } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/server-auth'
+
+import TransactionsErrorBanner from './error-banner'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,12 +61,16 @@ export default async function TransactionsPage() {
     let totalIncome = 0
     let totalExpense = 0
     let total = 0
+    let loadError: 'none' | 'connection' | 'unknown' = 'none'
 
     try {
-        const [{ entries, total: t }, summary] = await Promise.all([
-            getLedgerEntries(user.id, undefined, 100),
-            getLedgerSummary(user.id),
-        ])
+        const [{ entries, total: t }, summary] = await withDbRetry(
+            () => Promise.all([
+                getLedgerEntries(user.id, undefined, 100),
+                getLedgerSummary(user.id),
+            ]),
+            { retries: 2, delayMs: 400 }
+        )
         total = t
         totalIncome = summary.totalIncome
         totalExpense = summary.totalExpense
@@ -81,6 +88,7 @@ export default async function TransactionsPage() {
         }))
     } catch (e) {
         console.error('TransactionsPage data fetch error:', e)
+        loadError = isDbConnectionError(e) ? 'connection' : 'unknown'
     }
 
     // Hesap listesi
@@ -102,6 +110,7 @@ export default async function TransactionsPage() {
                 </div>
                 <ExportButton endpoint="/api/export/transactions" label="İşlemleri İndir" />
             </header>
+            {loadError !== 'none' && <TransactionsErrorBanner kind={loadError} />}
             <TransactionsWorkspace
                 entries={serializedEntries}
                 totalIncome={totalIncome}

@@ -2,13 +2,16 @@ import { getServerSession } from 'next-auth'
 
 import { authOptions } from '@/lib/auth'
 import { isSuperuser, resolveUserRole } from '@/lib/authz'
-import { prisma } from '@/lib/prisma'
+import { prisma, withDbRetry } from '@/lib/prisma'
 
 export async function getCurrentUser() {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return null
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } })
+    // Retry: cold-start veya geçici bağlantı sorunu için
+    const user = await withDbRetry(() =>
+        prisma.user.findUnique({ where: { email: session.user.email! } })
+    )
     if (!user || !user.isActive || user.deletedAt) return null
 
     // sessionVersion eşleşmiyorsa oturum geçersiz
@@ -17,7 +20,9 @@ export async function getCurrentUser() {
 
     const role = resolveUserRole(user.email, user.role)
     if (role !== user.role) {
-        return prisma.user.update({ where: { id: user.id }, data: { role } })
+        return withDbRetry(() =>
+            prisma.user.update({ where: { id: user.id }, data: { role } })
+        )
     }
 
     return user
