@@ -12,7 +12,29 @@ export default async function DebtsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
-    const { debts, people, paymentObligations } = await getDebtWorkspaceData(user.id)
+    let debts: Awaited<ReturnType<typeof getDebtWorkspaceData>>['debts'] = []
+    let people: Awaited<ReturnType<typeof getDebtWorkspaceData>>['people'] = []
+    let paymentObligations: Awaited<ReturnType<typeof getDebtWorkspaceData>>['paymentObligations'] = []
+
+    try {
+        const data = await getDebtWorkspaceData(user.id)
+        debts = data.debts
+        people = data.people
+        paymentObligations = data.paymentObligations
+    } catch (err) {
+        // Detaylı log — production runtime'da Vercel logs'a yansır
+        const e = err as { message?: string; code?: string; meta?: unknown; stack?: string; name?: string }
+        console.error('🔴 [/debts] getDebtWorkspaceData FAILED:', {
+            userId: user.id,
+            name: e?.name,
+            code: e?.code,
+            message: e?.message,
+            meta: e?.meta,
+            stack: e?.stack?.split('\n').slice(0, 5).join(' | '),
+        })
+        // Re-throw → ErrorBoundary devreye girer, ama log artık tam
+        throw err
+    }
 
     return (
         <PageShell width="genis">
