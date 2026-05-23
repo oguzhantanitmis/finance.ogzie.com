@@ -80,6 +80,166 @@ export async function getExpenseBreakdown(userId: string) {
         .sort((a, b) => b.amount - a.amount)
 }
 
+/**
+ * Son N gün için kategori bazlı toplam (top 10).
+ * Pie/bar chart için optimize.
+ */
+export async function getCategoryBreakdown(userId: string, days = 30) {
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+
+    const entries = await prisma.ledgerEntry.findMany({
+        where: { userId, amount: { lt: 0 }, date: { gte: since } },
+        select: { category: true, amount: true },
+    })
+
+    const byCategory = new Map<string, number>()
+    for (const e of entries) {
+        const cat = e.category?.trim() || 'Kategorisiz'
+        byCategory.set(cat, (byCategory.get(cat) ?? 0) + Math.abs(e.amount))
+    }
+
+    return Array.from(byCategory.entries())
+        .map(([category, amount]) => ({ category, amount: +amount.toFixed(2) }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 10)
+}
+
+/**
+ * Son 90 gün günlük gelir/gider toplamları — heatmap + günlük trend.
+ */
+export async function getDailyCashflow(userId: string, days = 90) {
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+    since.setHours(0, 0, 0, 0)
+
+    const entries = await prisma.ledgerEntry.findMany({
+        where: { userId, date: { gte: since } },
+        select: { date: true, amount: true },
+        orderBy: { date: 'asc' },
+    })
+
+    const buckets = new Map<string, { income: number; expense: number }>()
+    for (const e of entries) {
+        const day = e.date.toISOString().slice(0, 10) // YYYY-MM-DD
+        if (!buckets.has(day)) buckets.set(day, { income: 0, expense: 0 })
+        const b = buckets.get(day)!
+        if (e.amount > 0) b.income += e.amount
+        else b.expense += Math.abs(e.amount)
+    }
+
+    return Array.from(buckets.entries())
+        .map(([date, v]) => ({
+            date,
+            income: +v.income.toFixed(2),
+            expense: +v.expense.toFixed(2),
+            net: +(v.income - v.expense).toFixed(2),
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+/**
+ * Bu ay vs geçen ay karşılaştırması — yüzdesel değişim.
+ */
+export async function getPeriodComparison(userId: string) {
+    const now = new Date()
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59)
+
+    async function sumPeriod(start: Date, end: Date) {
+        const entries = await prisma.ledgerEntry.findMany({
+            where: { userId, date: { gte: start, lte: end } },
+            select: { amount: true, type: true },
+        })
+        const income = entries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
+        const expense = entries.filter(e => e.amount < 0).reduce((s, e) => s + Math.abs(e.amount), 0)
+        const txCount = entries.length
+        return {
+            income: +income.toFixed(2),
+            expense: +expense.toFixed(2),
+            net: +(income - expense).toFixed(2),
+            txCount,
+        }
+    }
+
+    const [thisMonth, lastMonth] = await Promise.all([
+        sumPeriod(thisMonthStart, now),
+        sumPeriod(lastMonthStart, lastMonthEnd),
+    ])
+
+    function pctChange(curr: number, prev: number): number {
+        if (prev === 0) return curr > 0 ? 100 : 0
+        return +(((curr - prev) / Math.abs(prev)) * 100).toFixed(1)
+    }
+
+    return {
+        thisMonth,
+        lastMonth,
+        change: {
+            income: pctChange(thisMonth.income, lastMonth.income),
+            expense: pctChange(thisMonth.expense, lastMonth.expense),
+            net: pctChange(thisMonth.net, lastMonth.net),
+            txCount: pctChange(thisMonth.txCount, lastMonth.txCount),
+        },
+    }
+}
+
+/**
+ * En yoğun harcama/gelir günleri — top 5 her biri.
+ */
+export async function getTopDays(userId: string, days = 60) {
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+
+    const entries = await prisma.ledgerEntry.findMany({
+        where: { userId, date: { gte: since } },
+        select: { date: true, amount: true, description: true, type: true },
+    })
+
+    const dayMap = new Map<string, { income: number; expense: number; topTx?: { desc: string; amount: number } }>()
+    for (const e of entries) {
+        const day = e.date.toISOString().slice(0, 10)
+        if (!dayMap.has(day)) dayMap.set(day, { income: 0, expense: 0 })
+        const d = dayMap.get(day)!
+        if (e.amount > 0) d.income += e.amount
+        else d.expense += Math.abs(e.amount)
+    }
+
+    const all = Array.from(dayMap.entries()).map(([date, v]) => ({ date, ...v }))
+    return {
+        topIncomeDays: all.filter(d => d.income > 0).sort((a, b) => b.income - a.income).slice(0, 5),
+        topExpenseDays: all.filter(d => d.expense > 0).sort((a, b) => b.expense - a.expense).slice(0, 5),
+    }
+}
+
+/**
+ * İşlem türlerinin yüzdesel dağılımı — donut için.
+ */
+export async function getTransactionTypeMix(userId: string, days = 30) {
+    const since = new Date()
+    since.setDate(since.getDate() - days)
+
+    const entries = await prisma.ledgerEntry.findMany({
+        where: { userId, date: { gte: since } },
+        select: { type: true, amount: true },
+    })
+
+    const byType = new Map<string, number>()
+    for (const e of entries) {
+        byType.set(e.type, (byType.get(e.type) ?? 0) + Math.abs(e.amount))
+    }
+    const total = Array.from(byType.values()).reduce((s, n) => s + n, 0)
+
+    return Array.from(byType.entries())
+        .map(([type, amount]) => ({
+            type,
+            amount: +amount.toFixed(2),
+            percent: total > 0 ? +((amount / total) * 100).toFixed(1) : 0,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+}
+
 export async function getProfessionalReportDashboard(userId: string, date = new Date()) {
     const monthStart = startOfMonth(date)
     const monthEnd = endOfMonth(date)
