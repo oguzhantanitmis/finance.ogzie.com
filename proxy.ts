@@ -29,6 +29,6 @@ export const config = {
         // - /login: giriş sayfası
         // - /api/auth: NextAuth + forgot-password + reset-password
         // - _next, favicon, manifest, static asset uzantıları
-        "/((?!login|api/auth|api/debug|_next/static|_next/image|favicon\\.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+        "/((?!login|api/auth|_next/static|_next/image|favicon\\.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
     ],
 }
