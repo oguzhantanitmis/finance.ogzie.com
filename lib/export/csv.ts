@@ -29,20 +29,27 @@ export function buildCsv(options: CsvOptions): CsvResponse {
     ]
 
     const csv = Papa.unparse(data, {
-        quotes: true,
-        delimiter: ',',
+        quotes: true,        // Tüm hücreleri çift tırnak içinde — Türkçe ve özel karakter güvenliği
+        quoteChar: '"',
+        escapeChar: '"',
+        delimiter: ';',      // Türkçe Excel için noktalı virgül (TR locale virgülü ondalık ayırıcı kabul eder)
         newline: '\r\n',
     })
 
-    const body = bom ? '﻿' + csv : csv
+    // Excel'in CSV'yi UTF-8 + locale-aware açabilmesi için:
+    // 1. BOM (Byte Order Mark) — UTF-8 işareti
+    // 2. "sep=;" header (Microsoft Excel uyumluluğu)
+    const prefix = bom ? '﻿sep=;\r\n' : 'sep=;\r\n'
+    const body = prefix + csv
     const filename = buildFilename(slug, 'csv')
 
     return {
         body,
         filename,
         headers: {
+            // RFC 5987 — Türkçe karakterli dosya adı için filename*=UTF-8''<encoded>
             'Content-Type': 'text/csv; charset=utf-8',
-            'Content-Disposition': `attachment; filename="${filename}"`,
+            'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         },
     }
 }

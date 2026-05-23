@@ -1,7 +1,20 @@
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+import { ROBOTO_BOLD_BASE64, ROBOTO_REGULAR_BASE64 } from './fonts/roboto'
 import { buildFilename, formatDateTimeForExport } from './format'
+
+const FONT_FAMILY = 'Roboto'
+
+/** Roboto TTF'yi jsPDF VFS'ine yükle ve aktif font yap.
+ *  Türkçe karakter (ı, İ, ğ, Ğ, ş, Ş, ç, Ç, ö, Ö, ü, Ü) + tüm latin-ext desteği. */
+function registerTurkishFont(doc: jsPDF) {
+    doc.addFileToVFS('Roboto-Regular.ttf', ROBOTO_REGULAR_BASE64)
+    doc.addFileToVFS('Roboto-Bold.ttf',    ROBOTO_BOLD_BASE64)
+    doc.addFont('Roboto-Regular.ttf', FONT_FAMILY, 'normal')
+    doc.addFont('Roboto-Bold.ttf',    FONT_FAMILY, 'bold')
+    doc.setFont(FONT_FAMILY, 'normal')
+}
 
 // Ogzie marka rengi
 const BRAND_COLOR: [number, number, number]   = [59, 130, 246]  // blue-500
@@ -61,6 +74,8 @@ export function buildPdf(options: PdfOptions): PdfResponse {
     const { slug, title, subtitle, summary, tables, footer, user } = options
 
     const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
+    registerTurkishFont(doc)
+
     const pageWidth  = doc.internal.pageSize.getWidth()
     const margin = 40
 
@@ -69,11 +84,11 @@ export function buildPdf(options: PdfOptions): PdfResponse {
     doc.rect(0, 0, pageWidth, 60, 'F')
 
     doc.setTextColor(255, 255, 255)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont(FONT_FAMILY, 'bold')
     doc.setFontSize(18)
-    doc.text('OGZIE FINANS', margin, 38)
+    doc.text('OGZİE FİNANS', margin, 38)
 
-    doc.setFont('helvetica', 'normal')
+    doc.setFont(FONT_FAMILY, 'normal')
     doc.setFontSize(9)
     doc.text(title.toUpperCase(), pageWidth - margin, 38, { align: 'right' })
 
@@ -81,13 +96,13 @@ export function buildPdf(options: PdfOptions): PdfResponse {
     let cursorY = 90
 
     doc.setTextColor(...TEXT_COLOR)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont(FONT_FAMILY, 'bold')
     doc.setFontSize(22)
     doc.text(title, margin, cursorY)
     cursorY += 8
 
     if (subtitle) {
-        doc.setFont('helvetica', 'normal')
+        doc.setFont(FONT_FAMILY, 'normal')
         doc.setFontSize(10)
         doc.setTextColor(...MUTED_COLOR)
         doc.text(subtitle, margin, cursorY + 14)
@@ -104,22 +119,20 @@ export function buildPdf(options: PdfOptions): PdfResponse {
         summary.forEach((item, i) => {
             const x = margin + i * (cardW + 8)
 
-            // Kart arka plan
             doc.setFillColor(248, 250, 252)
             doc.setDrawColor(226, 232, 240)
             doc.setLineWidth(0.5)
             doc.roundedRect(x, cursorY, cardW, cardH, 4, 4, 'FD')
 
-            // Label
             doc.setTextColor(...MUTED_COLOR)
-            doc.setFont('helvetica', 'normal')
+            doc.setFont(FONT_FAMILY, 'normal')
             doc.setFontSize(7)
-            doc.text(item.label.toUpperCase(), x + 10, cursorY + 14)
+            // Türkçe büyük harf — locale-aware (İ/I, i)
+            doc.text(item.label.toLocaleUpperCase('tr-TR'), x + 10, cursorY + 14)
 
-            // Value
             const [r, g, b] = toneColor(item.tone)
             doc.setTextColor(r, g, b)
-            doc.setFont('helvetica', 'bold')
+            doc.setFont(FONT_FAMILY, 'bold')
             doc.setFontSize(13)
             doc.text(item.value, x + 10, cursorY + 36)
         })
@@ -133,7 +146,7 @@ export function buildPdf(options: PdfOptions): PdfResponse {
 
         if (table.title) {
             doc.setTextColor(...TEXT_COLOR)
-            doc.setFont('helvetica', 'bold')
+            doc.setFont(FONT_FAMILY, 'bold')
             doc.setFontSize(12)
             doc.text(table.title, margin, cursorY)
             cursorY += 12
@@ -152,7 +165,8 @@ export function buildPdf(options: PdfOptions): PdfResponse {
             body: table.rows.map(r => r.map(cell => (cell == null ? '-' : String(cell)))),
             margin: { left: margin, right: margin },
             styles: {
-                font: 'helvetica',
+                font: FONT_FAMILY,
+                fontStyle: 'normal',
                 fontSize: 9,
                 cellPadding: 6,
                 textColor: TEXT_COLOR,
@@ -160,21 +174,25 @@ export function buildPdf(options: PdfOptions): PdfResponse {
                 lineWidth: 0.25,
             },
             headStyles: {
+                font: FONT_FAMILY,
+                fontStyle: 'bold',
                 fillColor: BRAND_COLOR,
                 textColor: [255, 255, 255],
-                fontStyle: 'bold',
                 fontSize: 8,
                 halign: 'left',
+            },
+            bodyStyles: {
+                font: FONT_FAMILY,
+                fontStyle: 'normal',
             },
             alternateRowStyles: {
                 fillColor: [249, 250, 251],
             },
             columnStyles,
             didDrawPage: () => {
-                // Footer her sayfada
                 const pageHeight = doc.internal.pageSize.getHeight()
                 doc.setTextColor(...MUTED_COLOR)
-                doc.setFont('helvetica', 'normal')
+                doc.setFont(FONT_FAMILY, 'normal')
                 doc.setFontSize(8)
                 const footerText = [
                     footer ?? 'Ogzie Finans',
@@ -201,7 +219,8 @@ export function buildPdf(options: PdfOptions): PdfResponse {
         filename,
         headers: {
             'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="${filename}"`,
+            // RFC 5987 — Türkçe karakter güvenli filename
+            'Content-Disposition': `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
         },
     }
 }
