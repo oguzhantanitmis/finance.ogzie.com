@@ -1,10 +1,12 @@
+import { cache } from 'react'
 import { getServerSession } from 'next-auth'
 
 import { authOptions } from '@/lib/auth'
 import { isSuperuser, resolveUserRole } from '@/lib/authz'
 import { prisma, withDbRetry } from '@/lib/prisma'
 
-export async function getCurrentUser() {
+// İstek başına tek kullanıcı sorgusu (layout + sayfa + servisler paylaşır)
+export const getCurrentUser = cache(async () => {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) return null
 
@@ -26,7 +28,7 @@ export async function getCurrentUser() {
     }
 
     return user
-}
+})
 
 export async function requireCurrentUser() {
     const user = await getCurrentUser()

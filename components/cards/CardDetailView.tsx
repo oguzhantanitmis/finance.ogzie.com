@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { makeCardPayment, addCardTransaction, deleteCreditCard, updateCardPoints, drawCashAdvance, installmentizeTransaction } from '@/app/cards/actions'
 import { useRouter } from 'next/navigation'
+import { formatCurrency } from '@/lib/utils'
 import { analyzeInterestForPeriod, simulateMinimumPaymentTrap } from '@/lib/card-engine/interest-engine'
 import { formatCostBreakdown } from '@/lib/card-engine/tax-engine'
 import { previewPayment } from '@/lib/card-engine/payment-engine'
@@ -17,9 +18,6 @@ import { getLimitWarningLevel, getLimitWarningColor } from '@/lib/card-engine/ty
 import CardFormModal from '@/components/cards/CardFormModal'
 import CreditCardVisual from './CreditCardVisual'
 
-function formatCurrency(n: number): string {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n)
-}
 
 function formatDate(d: string | Date): string {
     return new Date(d).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' })

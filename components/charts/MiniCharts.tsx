@@ -12,6 +12,8 @@
 
 import type { ReactNode } from 'react'
 
+import { formatTryAmountCompact } from '@/lib/display-currency'
+
 export type Accent = 'info' | 'success' | 'danger' | 'warning' | 'purple'
 const v = (a: Accent) => `var(--accent-${a})`
 
@@ -90,9 +92,9 @@ export function Spark({
   )
 }
 
-/** Yardımcı: TL biçimlendirme */
+/** Yardımcı: tutar biçimlendirme — kullanıcının ana para birimine çevirir */
 export function tl(n: number) {
-  return '₺' + new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(n))
+  return formatTryAmountCompact(n)
 }
 
 /** Dairesel skor göstergesi (0-100) — eşiklere göre renklenir */

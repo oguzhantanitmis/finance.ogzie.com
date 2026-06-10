@@ -3,9 +3,11 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthProvider from "@/components/AuthProvider";
 import AppShell from "@/components/AppShell";
+import CurrencyProvider from "@/components/CurrencyProvider";
 import { FinanceProvider } from "@/components/FinanceContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { getUserDisplayCurrency } from "@/lib/currency-service";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,11 +32,13 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const displayCurrency = await getUserDisplayCurrency();
+
   return (
     <html lang="tr" className="dark" suppressHydrationWarning>
       <body
@@ -45,7 +49,9 @@ export default function RootLayout({
           <ThemeProvider>
             <ToastProvider>
               <FinanceProvider>
-                <AppShell>{children}</AppShell>
+                <CurrencyProvider code={displayCurrency.code} rate={displayCurrency.rate}>
+                  <AppShell>{children}</AppShell>
+                </CurrencyProvider>
               </FinanceProvider>
             </ToastProvider>
           </ThemeProvider>

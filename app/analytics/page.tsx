@@ -3,6 +3,8 @@ import { PieChart, TrendingUp } from 'lucide-react'
 
 import PageShell from '@/components/PageShell'
 import AnalyticsMobile, { type CategorySlice } from '@/components/analytics/AnalyticsMobile'
+import { getUserDisplayCurrency } from '@/lib/currency-service'
+import { setActiveDisplayCurrency } from '@/lib/display-currency'
 import { monthKeyShortTr } from '@/lib/mobile-format'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { getCategoryBreakdown, getMonthlyReports } from '@/lib/report-service'
@@ -45,6 +47,9 @@ export default async function AnalyticsPage() {
         ...(restTotal > 0 ? [{ label: 'Diğer', amount: +restTotal.toFixed(2), color: CATEGORY_ACCENTS[4] as CategorySlice['color'] }] : []),
     ]
     const last6 = monthly.slice(-6)
+
+    // JSX'teki formatCurrency çağrıları için görüntüleme para birimi
+    setActiveDisplayCurrency(await getUserDisplayCurrency())
 
     return (
         <PageShell width="genis">

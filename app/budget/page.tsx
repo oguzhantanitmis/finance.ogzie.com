@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import BudgetWorkspace from '@/components/budget/BudgetWorkspace'
 import BudgetMobile from '@/components/budget/BudgetMobile'
 import PageShell from '@/components/PageShell'
+import { getUserDisplayCurrency } from '@/lib/currency-service'
+import { setActiveDisplayCurrency } from '@/lib/display-currency'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { getCurrentUser } from '@/lib/server-auth'
 import { formatCurrency } from '@/lib/utils'
@@ -23,6 +25,9 @@ export default async function BudgetPage() {
 
     const summary = await getMonthlyBudgetSummary(user.id)
     const month = monthValue(summary.month)
+
+    // JSX'teki formatCurrency çağrıları için görüntüleme para birimi
+    setActiveDisplayCurrency(await getUserDisplayCurrency())
 
     return (
         <PageShell width="genis">

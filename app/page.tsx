@@ -17,6 +17,8 @@ import { syncBudgetAlerts } from '@/lib/reminder-engine'
 import { getCurrentUser } from '@/lib/server-auth'
 import { formatAlertTypeLabel, formatCategoryLabel, formatObligationSourceLabel } from '@/lib/ui-text'
 import { formatCurrency } from '@/lib/utils'
+import { setActiveDisplayCurrency } from '@/lib/display-currency'
+import { getUserDisplayCurrency } from '@/lib/currency-service'
 import { getDashboardData } from '@/lib/dashboard-service'
 import { getMarketTicker, type MarketTickerResult } from '@/lib/evds-service'
 import { calculateHealthScore, type HealthScoreResult } from '@/lib/health-score-service'
@@ -88,6 +90,10 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
         healthScore,
         activeGoal,
     }).catch(() => [])
+
+    // Görüntüleme para birimi — JSX'teki formatCurrency çağrıları için
+    // (son await'ten sonra: senkron render boyunca geçerli kalır)
+    setActiveDisplayCurrency(await getUserDisplayCurrency())
 
     return (
         <div className="animate-fade-in-up">

@@ -13,7 +13,7 @@ import {
     Cell,
 } from 'recharts'
 import { useFinance } from './FinanceContext'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { TrendingUp, PieChart as PieChartIcon } from 'lucide-react'
 
 type ChartPoint = {
@@ -46,7 +46,7 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
             >
                 <p className="text-xs mb-1.5 font-medium" style={{ color: 'var(--text-muted)' }}>{label}</p>
                 <p className="font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
+                    {formatCurrency(value, 'TRY')}
                 </p>
             </div>
         )
@@ -68,7 +68,7 @@ const PieTooltip = ({ active, payload }: TooltipProps) => {
             >
                 <p className="text-xs mb-1 font-medium" style={{ color: 'var(--text-muted)' }}>{name}</p>
                 <p className="font-bold tabular-nums" style={{ color: 'var(--text-primary)' }}>
-                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
+                    {formatCurrency(value, 'TRY')}
                 </p>
             </div>
         )

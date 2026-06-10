@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Award, Check, ArrowRight, Percent } from 'lucide-react'
 import { getLimitWarningLevel, getLimitWarningColor } from '@/lib/card-engine/types'
+import { formatCurrency } from '@/lib/utils'
 import CreditCardVisual from './CreditCardVisual'
 
 interface CardData {
@@ -28,9 +29,6 @@ interface CardData {
 }
 
 
-function formatCurrency(n: number): string {
-    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n)
-}
 
 function calculateDebt(card: CardData): number {
     if (card.currentDebt && card.currentDebt > 0) return card.currentDebt

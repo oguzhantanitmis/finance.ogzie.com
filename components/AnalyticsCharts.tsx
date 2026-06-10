@@ -13,7 +13,7 @@ import {
     CartesianGrid,
 } from 'recharts'
 import { useFinance } from './FinanceContext'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 
 // Chart renkleri tema-uyumlu: CSS değişkenleriyle hem dark hem light'ta okunaklı
 const COLORS      = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', 'var(--chart-6)']
@@ -54,7 +54,7 @@ function ChartTooltip({ active, payload, hideAmounts }: ChartTooltipProps) {
         >
             <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>{name}</p>
             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                {hideAmounts ? '***' : new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
+                {hideAmounts ? '***' : formatCurrency(value, 'TRY')}
             </p>
         </div>
     )
@@ -75,7 +75,7 @@ function AmountTooltip({ active, payload, hideAmounts }: ChartTooltipProps) {
             }}
         >
             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                {hideAmounts ? '***' : new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value)}
+                {hideAmounts ? '***' : formatCurrency(value, 'TRY')}
             </p>
         </div>
     )
@@ -126,7 +126,7 @@ export default function AnalyticsCharts({
                     <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
                         <span className="text-xs text-zinc-500 uppercase tracking-widest">Toplam Varlık</span>
                         <span className={cn("text-2xl font-bold", hideAmounts && "blur-md")}>
-                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(totalAssets)}
+                            {formatCurrency(totalAssets, 'TRY')}
                         </span>
                     </div>
                 </div>
@@ -140,7 +140,7 @@ export default function AnalyticsCharts({
                             <div className="flex items-center gap-4">
                                 <span className="text-zinc-500 text-xs">%{Math.round((item.value / totalAssets) * 100)}</span>
                                 <span className={cn("font-medium", hideAmounts && "blur-sm")}>
-                                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(item.value)}
+                                    {formatCurrency(item.value, 'TRY')}
                                 </span>
                             </div>
                         </div>
@@ -173,7 +173,7 @@ export default function AnalyticsCharts({
                     <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
                         <span className="text-xs text-zinc-500 uppercase tracking-widest">Toplam Borç</span>
                         <span className={cn("text-2xl font-bold text-red-500", hideAmounts && "blur-md")}>
-                            {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(totalDebts)}
+                            {formatCurrency(totalDebts, 'TRY')}
                         </span>
                     </div>
                 </div>
@@ -187,7 +187,7 @@ export default function AnalyticsCharts({
                             <div className="flex items-center gap-4">
                                 <span className="text-zinc-500 text-xs">%{Math.round((item.value / (totalDebts || 1)) * 100)}</span>
                                 <span className={cn("font-medium", hideAmounts && "blur-sm")}>
-                                    {new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(item.value)}
+                                    {formatCurrency(item.value, 'TRY')}
                                 </span>
                             </div>
                         </div>
