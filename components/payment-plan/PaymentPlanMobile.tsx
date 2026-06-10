@@ -35,6 +35,12 @@ export default function PaymentPlanMobile({ plan }: { plan: PlanData }) {
       </div>
 
       <h3 className="text-[11px] font-bold uppercase tracking-widest px-0.5" style={{ color: 'var(--text-muted)' }}>Ödeme Sırası</h3>
+      {plan.steps.length === 0 && (
+        <div className="fintech-card p-6 text-center">
+          <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Ödeme planı boş</p>
+          <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>Aktif borç bulunamadı ya da veriler şu an yüklenemedi. Sayfayı yenilemeyi deneyebilirsin.</p>
+        </div>
+      )}
       <div className="space-y-2.5">
         {plan.steps.map((st) => (
           <div key={st.order} className={`fintech-card p-[15px] flex items-center gap-3.5 ${st.focus ? 'kpi-card kpi-card-success' : ''}`}>

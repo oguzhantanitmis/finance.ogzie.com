@@ -5,6 +5,7 @@
    Yerleşim: components/cards/CardsMobile.tsx
    ============================================================ */
 
+import { useRouter } from 'next/navigation'
 import { tl } from '@/components/charts/MiniCharts'
 
 export interface CreditCardItem {
@@ -15,6 +16,7 @@ export interface CreditCardItem {
 }
 
 export default function CardsMobile({ cards }: { cards: CreditCardItem[] }) {
+  const router = useRouter()
   const totalDebt = cards.reduce((a, b) => a + b.debt, 0)
   const totalLimit = cards.reduce((a, b) => a + b.limit, 0)
   const util = totalLimit ? Math.round((totalDebt / totalLimit) * 100) : 0
@@ -34,7 +36,7 @@ export default function CardsMobile({ cards }: { cards: CreditCardItem[] }) {
 
       <div className="flex items-center justify-between px-0.5">
         <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Kartlarım</h3>
-        <button className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Kart Ekle</button>
+        <button onClick={() => router.push('/cards?new=1')} className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Kart Ekle</button>
       </div>
 
       <div className="space-y-3.5">

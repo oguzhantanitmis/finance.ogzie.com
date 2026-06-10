@@ -1,6 +1,7 @@
 import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 import CardGrid from '@/components/cards/CardGrid'
 import CardsMobile, { type CreditCardItem } from '@/components/cards/CardsMobile'
 import AddCardButton from '@/components/cards/AddCardButton'
@@ -85,7 +86,9 @@ export default async function CardsPage() {
                         <h1 className="text-3xl font-bold tracking-tight">Kredi Kartlarım</h1>
                         <p className="text-zinc-500">Tüm kartlarını tek ekrandan yönet.</p>
                     </div>
-                    <AddCardButton />
+                    <Suspense>
+                        <AddCardButton />
+                    </Suspense>
                 </header>
 
                 <CardGrid cards={cards} />

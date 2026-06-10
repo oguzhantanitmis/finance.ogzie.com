@@ -5,6 +5,7 @@
    Yerleşim: components/recurring/SubscriptionsMobile.tsx
    ============================================================ */
 
+import { useRouter } from 'next/navigation'
 import { Repeat } from 'lucide-react'
 import { tl } from '@/components/charts/MiniCharts'
 
@@ -12,6 +13,7 @@ export interface SubItem { id: string; name: string; amount: number; next: strin
 export interface RecurringItem { id: string; name: string; amount: number; cat: string; dueDay: number }
 
 export default function SubscriptionsMobile({ subscriptions, recurring }: { subscriptions: SubItem[]; recurring: RecurringItem[] }) {
+  const router = useRouter()
   const subTotal = subscriptions.reduce((a, b) => a + b.amount, 0)
   const recTotal = recurring.reduce((a, b) => a + b.amount, 0)
 
@@ -32,9 +34,12 @@ export default function SubscriptionsMobile({ subscriptions, recurring }: { subs
 
       <div className="flex items-center justify-between px-0.5">
         <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Abonelikler</h3>
-        <button className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Ekle</button>
+        <button onClick={() => router.push('/expenses?new=1')} className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Ekle</button>
       </div>
       <div className="fintech-card p-1.5">
+        {subscriptions.length === 0 && (
+          <p className="px-2.5 py-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>Henüz abonelik yok.</p>
+        )}
         {subscriptions.map((s, i) => (
           <div key={s.id} className="flex items-center gap-3 px-2.5 py-3" style={{ borderBottom: i < subscriptions.length - 1 ? '1px solid var(--border-default)' : 'none' }}>
             <div className="w-[38px] h-[38px] rounded-xl shrink-0 flex items-center justify-center text-white font-extrabold text-[15px]" style={{ background: `hsl(${s.hue ?? 210} 55% 42%)` }}>{s.name.charAt(0)}</div>
@@ -49,6 +54,9 @@ export default function SubscriptionsMobile({ subscriptions, recurring }: { subs
 
       <h3 className="text-[11px] font-bold uppercase tracking-widest px-0.5" style={{ color: 'var(--text-muted)' }}>Sabit Giderler</h3>
       <div className="fintech-card p-1.5">
+        {recurring.length === 0 && (
+          <p className="px-2.5 py-4 text-center text-xs" style={{ color: 'var(--text-muted)' }}>Henüz sabit gider yok.</p>
+        )}
         {recurring.map((r, i) => (
           <div key={r.id} className="flex items-center gap-3 px-2.5 py-3" style={{ borderBottom: i < recurring.length - 1 ? '1px solid var(--border-default)' : 'none' }}>
             <div className="w-[38px] h-[38px] rounded-xl shrink-0 flex items-center justify-center" style={{ background: 'var(--accent-info-bg)', color: 'var(--accent-info)' }}>

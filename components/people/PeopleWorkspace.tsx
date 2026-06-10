@@ -23,13 +23,15 @@ export default function PeopleWorkspace({ people, summary }: Props) {
     const [showAddRecord, setShowAddRecord] = useState(false)
     const [selectedPersonId, setSelectedPersonId] = useState<string | null>(people[0]?.id ?? null)
 
-    // Hızlı işlem derin bağlantısı: /people?new=1 → alacak/verecek kaydı (kişi yoksa kişi ekleme)
+    // Hızlı işlem derin bağlantıları:
+    // /people?new=person → kişi ekleme; /people?new=1 → alacak/verecek kaydı (kişi yoksa kişi ekleme)
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
     useEffect(() => {
-        if (!searchParams.get('new')) return
-        if (people.length > 0) {
+        const n = searchParams.get('new')
+        if (!n) return
+        if (n !== 'person' && people.length > 0) {
             setSelectedPersonId(people[0].id)
             setShowAddRecord(true)
         } else {

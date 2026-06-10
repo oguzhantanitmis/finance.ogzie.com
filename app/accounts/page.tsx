@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
 import PageShell from '@/components/PageShell'
 import AccountsWorkspace from '@/components/accounts/AccountsWorkspace'
@@ -83,11 +84,13 @@ export default async function AccountsPage() {
                     </p>
                 </header>
 
-                <AccountsWorkspace
-                    initialAccounts={accounts}
-                    totalBalance={totalBalance}
-                    availableCash={availableCash}
-                />
+                <Suspense>
+                    <AccountsWorkspace
+                        initialAccounts={accounts}
+                        totalBalance={totalBalance}
+                        availableCash={availableCash}
+                    />
+                </Suspense>
             </div>
         </PageShell>
     )

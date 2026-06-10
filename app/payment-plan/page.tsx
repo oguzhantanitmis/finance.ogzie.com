@@ -5,6 +5,7 @@ import PaymentPlanWorkspace from '@/components/payment-plan/PaymentPlanWorkspace
 import PaymentPlanMobile, { type PlanData } from '@/components/payment-plan/PaymentPlanMobile'
 import { generatePaymentPlan, type Strategy, type PaymentPlan } from '@/lib/debt-priority-engine'
 import { monthYearTr } from '@/lib/mobile-format'
+import { withDbRetry } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -40,14 +41,17 @@ export default async function PaymentPlanPage() {
     }
 
     try {
-        const [safe, avalanche, snowball, cashflow, risk, goal] = await Promise.all([
-            generatePaymentPlan(user.id, 'SAFE'),
-            generatePaymentPlan(user.id, 'AVALANCHE'),
-            generatePaymentPlan(user.id, 'SNOWBALL'),
-            generatePaymentPlan(user.id, 'CASHFLOW'),
-            generatePaymentPlan(user.id, 'RISK'),
-            generatePaymentPlan(user.id, 'GOAL'),
-        ])
+        const [safe, avalanche, snowball, cashflow, risk, goal] = await withDbRetry(
+            () => Promise.all([
+                generatePaymentPlan(user.id, 'SAFE'),
+                generatePaymentPlan(user.id, 'AVALANCHE'),
+                generatePaymentPlan(user.id, 'SNOWBALL'),
+                generatePaymentPlan(user.id, 'CASHFLOW'),
+                generatePaymentPlan(user.id, 'RISK'),
+                generatePaymentPlan(user.id, 'GOAL'),
+            ]),
+            { retries: 2, delayMs: 400 }
+        )
         plans = { SAFE: safe, AVALANCHE: avalanche, SNOWBALL: snowball, CASHFLOW: cashflow, RISK: risk, GOAL: goal }
     } catch (e) {
         console.error('PaymentPlanPage error:', e)
@@ -58,7 +62,8 @@ export default async function PaymentPlanPage() {
     const mobilePlan: PlanData = {
         strategy: 'Güvenli Mod',
         payoffDate: monthYearTr(safe.estimatedFinishDate),
-        monthlyBudget: safe.totalAvailable,
+        // Bütçe yokken motor hesap bakiyelerine düşer; eksi bakiye "aylık bütçe" olarak anlamsız
+        monthlyBudget: Math.max(0, safe.totalAvailable),
         saved: Math.max(0, safe.interestSavingEstimate),
         steps: safe.items.map((it, i) => ({
             order: i + 1,

@@ -25,6 +25,9 @@ export default function AnalyticsMobile({ categories, netTrend, months }: {
           </>
         } />
         <div className="flex-1 flex flex-col gap-[7px]">
+          {categories.length === 0 && (
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Henüz harcama verisi yok.</span>
+          )}
           {categories.map((c) => (
             <span key={c.label} className="flex items-center gap-[7px] text-xs" style={{ color: 'var(--text-secondary)' }}>
               <i className="w-[9px] h-[9px] rounded-sm" style={{ background: `var(--accent-${c.color})` }} />{c.label}

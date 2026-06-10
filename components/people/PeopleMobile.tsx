@@ -5,6 +5,7 @@
    Yerleşim: components/people/PeopleMobile.tsx
    ============================================================ */
 
+import { useRouter } from 'next/navigation'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { tl } from '@/components/charts/MiniCharts'
 
@@ -16,6 +17,7 @@ export interface PersonItem {
 }
 
 export default function PeopleMobile({ people }: { people: PersonItem[] }) {
+  const router = useRouter()
   const owesYou = people.reduce((a, b) => a + b.owesYou, 0)
   const youOwe = people.reduce((a, b) => a + b.youOwe, 0)
   const signed = (n: number) => (n > 0 ? '+' : '') + tl(n)
@@ -41,7 +43,7 @@ export default function PeopleMobile({ people }: { people: PersonItem[] }) {
 
       <div className="flex items-center justify-between px-0.5">
         <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Kişiler</h3>
-        <button className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Kişi Ekle</button>
+        <button onClick={() => router.push('/people?new=person')} className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Kişi Ekle</button>
       </div>
 
       <div className="space-y-2.5">

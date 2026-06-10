@@ -31,6 +31,14 @@ export default function SimulationMobile({ data }: { data: SimData }) {
       </div>
 
       <h3 className="text-[11px] font-bold uppercase tracking-widest px-0.5" style={{ color: 'var(--text-muted)' }}>Senaryo Seç</h3>
+      {data.scenarios.length === 0 && (
+        <div className="fintech-card p-6 text-center">
+          <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Senaryo üretilemedi</p>
+          <p className="text-xs mt-1.5" style={{ color: 'var(--text-muted)' }}>
+            Karşılaştırma için aylık bütçe gerekir. Bütçe sayfasından gelir ekleyince &quot;ne olurdu?&quot; senaryoları burada belirir.
+          </p>
+        </div>
+      )}
       <div className="space-y-2.5">
         {data.scenarios.map((sc) => {
           const on = sc.id === sel

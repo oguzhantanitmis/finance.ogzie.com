@@ -5,7 +5,7 @@ import SimulationMobile, { type SimData } from '@/components/simulations/Simulat
 import { generatePaymentPlan } from '@/lib/debt-priority-engine'
 import { monthDiff, monthYearTr } from '@/lib/mobile-format'
 import { getCurrentUser } from '@/lib/server-auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, withDbRetry } from '@/lib/prisma'
 import { getAvailableCash } from '@/lib/account-service'
 
 export const dynamic = 'force-dynamic'
@@ -52,7 +52,7 @@ export default async function SimulationsPage() {
     let simData: SimData = { base: { payoff: '—', interest: 0 }, scenarios: [] }
 
     try {
-        const [subscriptions, debts, cards, incomes, availCash] = await Promise.all([
+        const [subscriptions, debts, cards, incomes, availCash] = await withDbRetry(() => Promise.all([
             prisma.subscription.findMany({ where: { userId: user.id, isActive: true, status: 'ACTIVE' }, select: { id: true, name: true, amount: true, monthlyNormalizedAmount: true } }),
             prisma.debtAccount.findMany({ where: { userId: user.id, status: { not: 'CLOSED' }, currentBalance: { gt: 0 } }, select: { id: true, name: true, currentBalance: true, counterpartyName: true } }),
             prisma.creditCard.findMany({
@@ -61,7 +61,7 @@ export default async function SimulationsPage() {
             }),
             prisma.incomeSource.findMany({ where: { userId: user.id }, select: { amount: true, billingCycle: true } }),
             getAvailableCash(user.id),
-        ])
+        ]), { retries: 2, delayMs: 400 })
         subs = subscriptions.map((s) => ({ id: s.id, name: s.name, monthly: s.monthlyNormalizedAmount ?? s.amount }))
         debtsList = debts.map((d) => ({ id: d.id, name: d.counterpartyName ? `${d.name} (${d.counterpartyName})` : d.name, balance: d.currentBalance }))
         cardsList = cards.map((c) => ({

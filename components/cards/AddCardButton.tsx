@@ -1,12 +1,23 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 import CardFormModal from '@/components/cards/CardFormModal'
 
 export default function AddCardButton() {
     const [isOpen, setIsOpen] = useState(false)
+
+    // Hızlı işlem derin bağlantısı: /cards?new=1 → kart ekleme modalını aç
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        if (!searchParams.get('new')) return
+        setIsOpen(true)
+        router.replace(pathname, { scroll: false })
+    }, [searchParams, router, pathname])
 
     return (
         <>

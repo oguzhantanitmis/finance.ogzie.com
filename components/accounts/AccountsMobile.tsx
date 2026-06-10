@@ -5,6 +5,7 @@
    Yerleşim: components/accounts/AccountsMobile.tsx
    ============================================================ */
 
+import { useRouter } from 'next/navigation'
 import { Landmark, Wallet, Gauge } from 'lucide-react'
 import { tl } from '@/components/charts/MiniCharts'
 
@@ -19,6 +20,7 @@ const ACCENT: Record<AccountType, string> = { bank: 'info', cash: 'success', kmh
 const LABEL: Record<AccountType, string> = { bank: 'Banka Hesabı', cash: 'Nakit', kmh: 'Esnek Hesap (KMH)' }
 
 export default function AccountsMobile({ accounts }: { accounts: AccountItem[] }) {
+  const router = useRouter()
   const cashTotal = accounts.filter((x) => x.type !== 'kmh').reduce((s, x) => s + x.balance, 0)
   const kmhCount = accounts.filter((x) => x.type === 'kmh').length
 
@@ -32,7 +34,7 @@ export default function AccountsMobile({ accounts }: { accounts: AccountItem[] }
 
       <div className="flex items-center justify-between px-0.5">
         <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Hesaplarım</h3>
-        <button className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Hesap Ekle</button>
+        <button onClick={() => router.push('/accounts?new=1')} className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Hesap Ekle</button>
       </div>
 
       <div className="space-y-2.5">

@@ -21,11 +21,15 @@ export default async function AnalyticsPage() {
         redirect('/login')
     }
 
-    const [summary, categoryBreakdown, monthly] = await Promise.all([
+    const [summary, recentBreakdown, monthly] = await Promise.all([
         getMonthlyBudgetSummary(user.id),
         getCategoryBreakdown(user.id, 30).catch(() => []),
         getMonthlyReports(user.id, 6).catch(() => []),
     ])
+    // Son 30 günde harcama yoksa pencereyi 6 aya genişlet — donut boş kalmasın
+    const categoryBreakdown = recentBreakdown.length > 0
+        ? recentBreakdown
+        : await getCategoryBreakdown(user.id, 180).catch(() => [])
     const topSubscriptions = [...summary.subscriptions]
         .sort((left, right) => right.monthlyNormalizedAmount - left.monthlyNormalizedAmount)
         .slice(0, 5)

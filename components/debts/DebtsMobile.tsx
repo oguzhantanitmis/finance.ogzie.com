@@ -39,6 +39,18 @@ export default function DebtsMobile({ debts }: { debts: DebtItem[] }) {
     .filter((x) => x.value > 0)
   const due = [...debts].sort((a, b) => parseInt(a.nextDue) - parseInt(b.nextDue))
 
+  if (debts.length === 0) {
+    return (
+      <div className="fintech-card p-6 flex flex-col items-center text-center gap-2.5">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: 'var(--accent-success-bg)', color: 'var(--accent-success)' }}>
+          <Landmark className="h-5 w-5" />
+        </span>
+        <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Aktif borç kaydı yok</p>
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Kredi, kart veya şahsi borç eklediğinde özet ve ödeme takvimi burada görünür.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* özet */}

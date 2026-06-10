@@ -5,6 +5,9 @@
    Yerleşim: components/goals/GoalsMobile.tsx
    ============================================================ */
 
+import { useRouter } from 'next/navigation'
+import { Target } from 'lucide-react'
+
 import { Donut, tl } from '@/components/charts/MiniCharts'
 
 type Accent = 'info' | 'success' | 'danger' | 'warning' | 'purple'
@@ -14,12 +17,22 @@ export interface GoalItem {
 }
 
 export default function GoalsMobile({ goals }: { goals: GoalItem[] }) {
+  const router = useRouter()
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between px-0.5">
         <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'var(--text-muted)' }}>Aktif Hedefler</h3>
-        <button className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Hedef Ekle</button>
+        <button onClick={() => router.push('/goals?new=1')} className="text-[12.5px] font-semibold" style={{ color: 'var(--accent-primary)' }}>Hedef Ekle</button>
       </div>
+      {goals.length === 0 && (
+        <div className="fintech-card p-6 flex flex-col items-center text-center gap-2.5">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl" style={{ background: 'var(--accent-info-bg)', color: 'var(--accent-info)' }}>
+            <Target className="h-5 w-5" />
+          </span>
+          <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Henüz aktif hedef yok</p>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Borç kapatma veya birikim hedefi belirle, ilerlemeni buradan takip et.</p>
+        </div>
+      )}
       <div className="space-y-3">
         {goals.map((g) => (
           <div key={g.id} className="fintech-card p-4">
