@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
 import PageShell from '@/components/PageShell'
 import AccountsWorkspace from '@/components/accounts/AccountsWorkspace'
+import AccountsMobile, { type AccountItem } from '@/components/accounts/AccountsMobile'
 import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
 import { getAccounts, getTotalBalance, getAvailableCash } from '@/lib/account-service'
 import { prisma } from '@/lib/prisma'
@@ -56,21 +58,40 @@ export default async function AccountsPage() {
         console.error('AccountsPage data fetch error:', e)
     }
 
+    // Mobil eşleme: 'kmh' yalnız eksi bakiyede — mobil nakit başlığı getAvailableCash ile tutarlı kalır
+    const mobileAccounts: AccountItem[] = accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.hasKmh && a.balance < 0 ? 'kmh'
+            : a.type === 'CASH' || a.type === 'WALLET' ? 'cash'
+            : 'bank',
+        bank: a.bankName ?? (a.type === 'CASH' || a.type === 'WALLET' ? 'Nakit' : '—'),
+        balance: a.balance,
+        kmhLimit: a.kmhLimit ?? undefined,
+    }))
+
     return (
         <PageShell width="genis">
-            <header className="mb-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Hesap Yönetimi</h1>
-                <p className="text-zinc-400 max-w-3xl">
-                    Banka hesaplarını, nakit ve cüzdan bakiyelerini tek yerden yönet. Transfer yap, bakiye düzelt ve toplam durumunu izle.
-                </p>
-            </header>
+            <div className="lg:hidden">
+                <AccountsMobile accounts={mobileAccounts} />
+            </div>
+            <div className="hidden lg:block">
+                <header className="mb-10">
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Hesap Yönetimi</h1>
+                    <p className="text-zinc-400 max-w-3xl">
+                        Banka hesaplarını, nakit ve cüzdan bakiyelerini tek yerden yönet. Transfer yap, bakiye düzelt ve toplam durumunu izle.
+                    </p>
+                </header>
 
-            <AccountsWorkspace
-                initialAccounts={accounts}
-                totalBalance={totalBalance}
-                availableCash={availableCash}
-            />
+                <Suspense>
+                    <AccountsWorkspace
+                        initialAccounts={accounts}
+                        totalBalance={totalBalance}
+                        availableCash={availableCash}
+                    />
+                </Suspense>
+            </div>
         </PageShell>
     )
 }

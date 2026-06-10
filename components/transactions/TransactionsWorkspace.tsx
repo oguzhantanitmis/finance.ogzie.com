@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard, ReceiptText, Settings, Search, Plus, X, Loader2 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { addIncomeAction, addExpenseAction } from '@/app/transactions/actions'
@@ -86,6 +87,18 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
     }, [accounts])
 
     const hasDirtyForm = Boolean(amount || description || category || date !== today || isCash)
+
+    // Hızlı işlem derin bağlantısı: /transactions?new=income|expense → modalı aç
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        const n = searchParams.get('new')
+        if (n !== 'income' && n !== 'expense') return
+        resetForm()
+        setModal(n)
+        router.replace(pathname, { scroll: false })
+    }, [searchParams, resetForm, router, pathname])
 
     const requestCloseModal = useCallback(() => {
         if (hasDirtyForm && !confirm('Formda girilmiş bilgi var. Kapatmak istiyor musunuz?')) return

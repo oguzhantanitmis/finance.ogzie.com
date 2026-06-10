@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import {
-    Home, Wallet, CreditCard, PieChart, MessageSquare, Shield, ShieldOff,
+    Home, Wallet, CreditCard, PieChart, Shield, ShieldOff,
     Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen,
     Target, BarChart3, Activity, Wand2, Settings, Sun, Moon, Menu, X,
     ChevronLeft, ChevronRight, ShieldCheck,
@@ -76,14 +76,6 @@ export default function Navbar() {
                 ...(isSuperuser ? [{ name: 'Admin', icon: ShieldCheck, path: '/admin' }] : []),
             ]
         }
-    ]
-
-    const mobileQuickLinks = [
-        { name: 'Genel Bakış', icon: Home, path: '/' },
-        { name: 'İşlemler', icon: BookOpen, path: '/transactions' },
-        { name: 'Borçlar', icon: CreditCard, path: '/debts' },
-        { name: 'Kişiler', icon: Users, path: '/people' },
-        { name: 'Raporlar', icon: BarChart3, path: '/reports' },
     ]
 
     return (
@@ -365,35 +357,6 @@ export default function Navbar() {
                 </div>
             )}
 
-            {/* Mobile Bottom Quick Nav */}
-            <nav
-                className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-2"
-                style={{
-                    background: 'var(--bg-card)',
-                    borderTop: '1px solid var(--border-default)',
-                }}
-            >
-                {mobileQuickLinks.map((item) => {
-                    const isActive = pathname === item.path || (item.path !== '/' && pathname.startsWith(item.path))
-                    return (
-                        <Link
-                            key={item.path}
-                            href={item.path}
-                            className={cn(
-                                "flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-[52px]",
-                                isActive ? "font-medium" : ""
-                            )}
-                            style={isActive
-                                ? { color: 'var(--accent-primary)' }
-                                : { color: 'var(--text-muted)' }
-                            }
-                        >
-                            <item.icon className="w-5 h-5" />
-                            <span className="text-[10px]">{item.name.split(' ')[0]}</span>
-                        </Link>
-                    )
-                })}
-            </nav>
         </>
     )
 }

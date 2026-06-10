@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
 import { AlertTriangle, CheckCircle2, CreditCard, Landmark, Plus, Users, Clock, Check } from 'lucide-react'
 import type { DebtType } from '@prisma/client'
@@ -104,6 +105,16 @@ export default function DebtsWorkspace({
 }) {
     const [showAdd, setShowAdd] = useState(false)
     const [createType, setCreateType] = useState<CreateDebtType>('LOAN')
+
+    // Hızlı işlem derin bağlantısı: /debts?new=1 → borç ekleme modalını aç
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        if (!searchParams.get('new')) return
+        setShowAdd(true)
+        router.replace(pathname, { scroll: false })
+    }, [searchParams, router, pathname])
     const [editingDebt, setEditingDebt] = useState<DebtView | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [pendingInstallmentId, setPendingInstallmentId] = useState<string | null>(null)

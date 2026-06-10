@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
 import ExportButton from '@/components/ui/ExportButton'
 import PageShell from '@/components/PageShell'
@@ -111,13 +112,15 @@ export default async function TransactionsPage() {
                 <ExportButton endpoint="/api/export/transactions" label="İşlemleri İndir" />
             </header>
             {loadError !== 'none' && <TransactionsErrorBanner kind={loadError} />}
-            <TransactionsWorkspace
-                entries={serializedEntries}
-                totalIncome={totalIncome}
-                totalExpense={totalExpense}
-                total={total}
-                accounts={accounts}
-            />
+            <Suspense>
+                <TransactionsWorkspace
+                    entries={serializedEntries}
+                    totalIncome={totalIncome}
+                    totalExpense={totalExpense}
+                    total={total}
+                    accounts={accounts}
+                />
+            </Suspense>
         </PageShell>
     )
 }

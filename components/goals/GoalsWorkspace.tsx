@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Target, CheckCircle, Clock, Trash2, Pencil, TrendingUp, TrendingDown, Sparkles, AlertTriangle } from 'lucide-react'
 
 import { createGoalAction, deleteGoalAction, updateGoalAction } from '@/app/goals/actions'
@@ -54,6 +55,16 @@ function calculateGoalSpeed(goal: GoalData) {
 export default function GoalsWorkspace({ goals }: Props) {
     const [showAdd, setShowAdd] = useState(false)
     const [editingGoal, setEditingGoal] = useState<GoalData | null>(null)
+
+    // Hızlı işlem derin bağlantısı: /goals?new=1 → hedef ekleme modalını aç
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        if (!searchParams.get('new')) return
+        setShowAdd(true)
+        router.replace(pathname, { scroll: false })
+    }, [searchParams, router, pathname])
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [celebratingGoal, setCelebratingGoal] = useState<string | null>(null)
     const [, startDeleteTransition] = useTransition()

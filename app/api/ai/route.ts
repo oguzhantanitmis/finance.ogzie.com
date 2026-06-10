@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
+import { isOverQuota, recordUsage } from '@/lib/ai-usage'
 import { answerFinanceAssistant } from '@/lib/finance-assistant'
 import { requireSuperuser } from '@/lib/server-auth'
 
@@ -73,6 +74,7 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
         body: JSON.stringify({
             model,
             stream: true,
+            stream_options: { include_usage: true },
             messages: [
                 { role: 'system', content: buildSystemPrompt() },
                 { role: 'user', content: buildChatPrompt(context, userMessage) },
@@ -90,11 +92,18 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
     return response.body
 }
 
+type OpenAIUsage = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+
 /** SSE stream parser — converts OpenAI SSE format to plain text chunks */
-function createTextStream(openaiStream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+function createTextStream(
+    openaiStream: ReadableStream<Uint8Array>,
+    onUsage?: (usage: OpenAIUsage) => Promise<void>,
+): ReadableStream<Uint8Array> {
     const encoder = new TextEncoder()
     const decoder = new TextDecoder()
     let buffer = ''
+    // stream_options.include_usage: [DONE]'dan önce choices boş + usage dolu son chunk gelir
+    let capturedUsage: OpenAIUsage | null = null
 
     return new ReadableStream({
         async start(controller) {
@@ -116,6 +125,7 @@ function createTextStream(openaiStream: ReadableStream<Uint8Array>): ReadableStr
 
                         try {
                             const parsed = JSON.parse(data)
+                            if (parsed.usage) capturedUsage = parsed.usage
                             const content = parsed.choices?.[0]?.delta?.content
                             if (content) {
                                 controller.enqueue(encoder.encode(content))
@@ -128,6 +138,14 @@ function createTextStream(openaiStream: ReadableStream<Uint8Array>): ReadableStr
             } catch (err) {
                 console.error('Stream read error:', err)
             } finally {
+                // close'tan ÖNCE await: serverless'ta fonksiyon ömrü içinde DB yazımı garanti
+                if (capturedUsage && onUsage) {
+                    try {
+                        await onUsage(capturedUsage)
+                    } catch (e) {
+                        console.error('recordUsage error:', e)
+                    }
+                }
                 controller.close()
                 reader.releaseLock()
             }
@@ -211,11 +229,19 @@ export async function POST(req: Request) {
             })
         }
 
+        // Kota kontrolü — dolu ise OpenAI'a HİÇ gitme, ücretsiz yerel özet dön
+        if (await isOverQuota(user.id, user.aiMonthlyTokenLimit)) {
+            return NextResponse.json({
+                text: 'Aylık AI kotan doldu. Verilerinden hazırlanan ücretsiz özet:\n\n' + generateFormattedFallback(context),
+                quota: 'exceeded',
+            })
+        }
+
         // Try streaming first
         const openaiStream = await streamOpenAI(context, prompt)
 
         if (openaiStream) {
-            const textStream = createTextStream(openaiStream)
+            const textStream = createTextStream(openaiStream, (usage) => recordUsage(user.id, usage))
             return new Response(textStream, {
                 headers: {
                     'Content-Type': 'text/plain; charset=utf-8',
@@ -247,6 +273,9 @@ export async function POST(req: Request) {
 
             if (fallbackRes.ok) {
                 const data = await fallbackRes.json()
+                if (data.usage) {
+                    await recordUsage(user.id, data.usage).catch((e) => console.error('recordUsage error:', e))
+                }
                 const text = data.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
                 return NextResponse.json({ text })
             }

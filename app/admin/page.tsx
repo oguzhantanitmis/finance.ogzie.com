@@ -1,10 +1,15 @@
 import { redirect } from 'next/navigation'
 
 import AdminUsersWorkspace from '@/components/admin/AdminUsersWorkspace'
+import AdminAITokens, { type AITokenUser } from '@/components/admin/AdminAITokens'
 import PageShell from '@/components/PageShell'
 import { getManagedUsers } from '@/lib/admin-users'
+import { currentPeriod } from '@/lib/ai-usage'
 import { getSmtpStatus } from '@/lib/email/smtp'
+import { prisma } from '@/lib/prisma'
 import { requireSuperuser } from '@/lib/server-auth'
+
+import { updateAiLimitAction } from './actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +23,31 @@ export default async function AdminPage() {
 
     const users = await getManagedUsers()
     const smtpStatus = getSmtpStatus()
+
+    // AI token kullanımı — içinde bulunulan ay
+    const period = currentPeriod()
+    const aiUsers = await prisma.user.findMany({
+        where: { deletedAt: null },
+        select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            aiMonthlyTokenLimit: true,
+            aiUsages: { where: { period }, select: { totalTokens: true, costUsd: true, requests: true } },
+        },
+    })
+    const aiRows: AITokenUser[] = aiUsers.map((u) => ({
+        id: u.id,
+        name: u.name ?? u.email,
+        email: u.email,
+        role: u.role === 'SUPERUSER' ? 'SUPERUSER' : 'USER',
+        used: u.aiUsages[0]?.totalTokens ?? 0,
+        limit: u.aiMonthlyTokenLimit ?? 0,
+        costUsd: u.aiUsages[0]?.costUsd ?? 0,
+        requests: u.aiUsages[0]?.requests ?? 0,
+    }))
+    const monthLabel = new Date().toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
     const serializedUsers = users.map((user) => ({
         id: user.id,
         email: user.email,
@@ -45,6 +75,10 @@ export default async function AdminPage() {
             </header>
 
             <AdminUsersWorkspace users={serializedUsers} currentUserId={currentUser.id} currentUserEmail={currentUser.email} smtpStatus={smtpStatus} />
+
+            <div className="mt-12">
+                <AdminAITokens users={aiRows} month={monthLabel} onUpdateLimit={updateAiLimitAction} />
+            </div>
         </PageShell>
     )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, ArrowDownLeft, ArrowUpRight, AlertTriangle, Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -21,6 +22,24 @@ export default function PeopleWorkspace({ people, summary }: Props) {
     const [showAdd, setShowAdd] = useState(false)
     const [showAddRecord, setShowAddRecord] = useState(false)
     const [selectedPersonId, setSelectedPersonId] = useState<string | null>(people[0]?.id ?? null)
+
+    // Hızlı işlem derin bağlantıları:
+    // /people?new=person → kişi ekleme; /people?new=1 → alacak/verecek kaydı (kişi yoksa kişi ekleme)
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        const n = searchParams.get('new')
+        if (!n) return
+        if (n !== 'person' && people.length > 0) {
+            setSelectedPersonId(people[0].id)
+            setShowAddRecord(true)
+        } else {
+            setShowAdd(true)
+        }
+        router.replace(pathname, { scroll: false })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams, router, pathname])
     const [editingPerson, setEditingPerson] = useState<PersonWithSummary | null>(null)
     const [filter, setFilter] = useState<'all' | 'receivable' | 'payable'>('all')
     const [feedback, setFeedback] = useState<ActionResult | null>(null)

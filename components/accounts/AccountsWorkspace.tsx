@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useEffect, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, ArrowLeftRight } from 'lucide-react'
 import type { Account } from '@prisma/client'
 
@@ -36,6 +37,16 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
     const [updateState, updateAction] = useActionState(updateAccountAction, EMPTY_ACTION_RESULT)
     const [adjustState, adjustAction] = useActionState(adjustBalanceAction, EMPTY_ACTION_RESULT)
     const [transferState, transferFormAction] = useActionState(transferAction, EMPTY_ACTION_RESULT)
+
+    // Hızlı işlem derin bağlantısı: /accounts?new=1 → hesap ekleme modalını aç
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        if (!searchParams.get('new')) return
+        setModal('add')
+        router.replace(pathname, { scroll: false })
+    }, [searchParams, router, pathname])
 
     function handleEdit(account: Account) {
         setSelectedAccount(account)
