@@ -31,7 +31,7 @@ export default function MarketTicker({ ticker, canRefresh = false }: { ticker: M
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
                 <div>
                     <p className="text-xs uppercase tracking-[0.25em]" style={{ color: 'var(--text-muted)' }}>Piyasa kartları</p>
-                    <h2 className="text-xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>CollectAPI piyasa verileri</h2>
+                    <h2 className="text-xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>Piyasa verileri</h2>
                     <p className={cn(
                         'text-sm mt-1',
                         ticker.status === 'ok' ? 'text-[color:var(--text-secondary)]' : 'text-[color:var(--accent-warning)]',
@@ -53,9 +53,9 @@ export default function MarketTicker({ ticker, canRefresh = false }: { ticker: M
                 <div className="rounded-2xl p-5" style={{ border: '1px dashed var(--border-default)', background: 'var(--bg-hover)' }}>
                     <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>
                         {ticker.status === 'missing_key'
-                            ? 'CollectAPI API anahtarı girilmedi'
+                            ? 'Piyasa verisi anahtarı girilmedi'
                             : ticker.status === 'invalid_key'
-                                ? 'CollectAPI API anahtarı yeniden kaydedilmeli'
+                                ? 'Piyasa verisi anahtarı yeniden kaydedilmeli'
                                 : 'Gösterilecek piyasa verisi yok'}
                     </p>
                     <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>

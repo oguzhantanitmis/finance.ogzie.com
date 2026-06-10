@@ -62,7 +62,7 @@ async function DashboardContent({ userId, canUseAi }: { userId: string; canUseAi
     let activeGoal: Awaited<ReturnType<typeof getActiveGoalForDashboard>> | null = null
     let marketTicker: MarketTickerResult = {
         status: 'missing_key',
-        message: 'CollectAPI API anahtarı girilmedi.',
+        message: 'Piyasa verisi anahtarı girilmedi.',
         lastUpdatedAt: null,
         cacheMinutes: 180,
         items: [],

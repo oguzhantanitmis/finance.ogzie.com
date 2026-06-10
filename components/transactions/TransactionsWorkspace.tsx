@@ -158,17 +158,17 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
 
             {/* Özet + Aksiyonlar */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="fintech-card p-5">
+                <div className="fintech-card p-5 min-w-0">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Giriş</p>
-                    <p className="text-2xl font-bold text-[color:var(--accent-success)] privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
+                    <p className="text-xl sm:text-2xl font-bold leading-tight break-all text-[color:var(--accent-success)] privacy-blur">{formatCurrency(totalIncome, 'TRY')}</p>
                 </div>
-                <div className="fintech-card p-5">
+                <div className="fintech-card p-5 min-w-0">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Çıkış</p>
-                    <p className="text-2xl font-bold text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
+                    <p className="text-xl sm:text-2xl font-bold leading-tight break-all text-[color:var(--accent-danger)] privacy-blur">{formatCurrency(totalExpense, 'TRY')}</p>
                 </div>
-                <div className="fintech-card p-5">
+                <div className="fintech-card p-5 min-w-0">
                     <p className="text-xs uppercase tracking-[0.25em] text-zinc-500 mb-2">Toplam Kayıt</p>
-                    <p className="text-2xl font-bold text-white">{total}</p>
+                    <p className="text-xl sm:text-2xl font-bold leading-tight" style={{ color: 'var(--text-primary)' }}>{total}</p>
                 </div>
             </div>
 
@@ -231,14 +231,14 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                         const Icon = meta.icon
                         const isPositive = entry.amount > 0
                         return (
-                            <div key={entry.id} className="fintech-card p-4 flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--bg-hover)]', meta.color)}>
+                            <div key={entry.id} className="fintech-card p-4 flex items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className={cn('w-9 h-9 shrink-0 rounded-xl flex items-center justify-center bg-[var(--bg-hover)]', meta.color)}>
                                         <Icon className="w-4 h-4" />
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{entry.description || meta.label}</p>
-                                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{entry.description || meta.label}</p>
+                                        <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             <span>{meta.label}</span>
                                             {entry.category && <span>• {entry.category}</span>}
                                             {entry.account && <span>• {entry.account.name}</span>}
@@ -254,7 +254,7 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         ) : null}
                                     </div>
                                 </div>
-                                <p className={cn('font-bold tabular-nums privacy-blur', isPositive ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
+                                <p className={cn('font-bold tabular-nums privacy-blur shrink-0 text-right text-sm sm:text-base max-w-[45%] break-all leading-tight', isPositive ? 'text-[color:var(--accent-success)]' : 'text-[color:var(--accent-danger)]')}>
                                     {isPositive ? '+' : ''}{formatCurrency(entry.amount, entry.currency)}
                                 </p>
                             </div>

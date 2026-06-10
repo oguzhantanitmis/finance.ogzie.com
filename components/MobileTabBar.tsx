@@ -106,7 +106,7 @@ export default function MobileTabBar() {
               <button
                 onClick={() => setSheet(false)}
                 className="mt-4 w-full rounded-2xl py-3 font-semibold"
-                style={{ background: 'var(--accent-primary)', color: '#fff' }}
+                style={{ background: 'var(--fab-bg, var(--accent-primary))', color: '#fff' }}
               >
                 Kapat
               </button>
@@ -137,8 +137,8 @@ export default function MobileTabBar() {
             aria-label="Hızlı işlem"
             className="-mt-[18px] flex h-[58px] w-[58px] items-center justify-center rounded-[20px] text-white transition-transform active:scale-90"
             style={{
-              background: 'var(--accent-primary)',
-              boxShadow: '0 8px 20px -4px var(--accent-primary), 0 4px 10px rgba(0,0,0,.2)',
+              background: 'var(--fab-bg, var(--accent-primary))',
+              boxShadow: '0 8px 20px -4px var(--fab-bg, var(--accent-primary)), 0 4px 10px rgba(0,0,0,.2)',
             }}
           >
             <motion.span animate={{ rotate: sheet ? 45 : 0 }} transition={{ type: 'spring', stiffness: 320, damping: 20 }}>

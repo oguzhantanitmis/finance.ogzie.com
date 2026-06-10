@@ -557,8 +557,8 @@ async function getLatestStoredRates(userId: string, settings: EvdsSettings): Pro
             warning: latest
                 ? undefined
                 : latestAttempt
-                    ? 'CollectAPI denendi ancak bu kart için değer bulunamadı.'
-                    : 'Aktif kart, ancak CollectAPI henüz bu veri için değer döndürmedi.',
+                    ? 'Veri kaynağı denendi ancak bu kart için değer bulunamadı.'
+                    : 'Aktif kart, ancak henüz bu veri için değer alınamadı.',
         })
     }
 
@@ -681,11 +681,11 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         return {
             status: hasAnyRate(items) ? 'stale' : 'invalid_key',
             message: hasAnyRate(items)
-                ? 'CollectAPI API anahtarı çözülemedi. Son başarılı veri gösteriliyor.'
-                : 'CollectAPI API anahtarı çözülemedi. Lütfen Ayarlar > CollectAPI bölümünden API anahtarını yeniden kaydedin.',
+                ? 'Piyasa verisi anahtarı çözülemedi. Son başarılı veri gösteriliyor.'
+                : 'Piyasa verisi anahtarı çözülemedi. Lütfen Ayarlar > CollectAPI bölümünden API anahtarını yeniden kaydedin.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasAnyRate(items) ? markStoredRatesStale(items, 'Son başarılı CollectAPI verisi') : items,
+            items: hasAnyRate(items) ? markStoredRatesStale(items, 'Son başarılı piyasa verisi') : items,
         }
     }
 
@@ -693,7 +693,7 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         const items = await getLatestStoredRates(userId, settings)
         return {
             status: 'missing_key',
-            message: 'CollectAPI API anahtarı girilmedi.',
+            message: 'Piyasa verisi anahtarı girilmedi.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -767,7 +767,7 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         if (storedCount === 0 && !hasAnyRate(items)) {
             return {
                 status: 'empty',
-                message: 'CollectAPI bağlantısı başarılı ancak seçili kartlar için veri bulunamadı.',
+                message: 'Bağlantı başarılı ancak seçili kartlar için piyasa verisi bulunamadı.',
                 lastUpdatedAt: null,
                 cacheMinutes: settings.cacheMinutes,
                 items,
@@ -779,8 +779,8 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
         return {
             status: 'ok',
             message: missingRateCount > 0
-                ? `Piyasa verileri CollectAPI üzerinden güncellendi; ${missingRateCount} aktif kart için veri bulunamadı.`
-                : 'Piyasa verileri CollectAPI üzerinden güncellendi.',
+                ? `Piyasa verileri güncellendi; ${missingRateCount} aktif kart için veri bulunamadı.`
+                : 'Piyasa verileri güncellendi.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -795,14 +795,14 @@ export async function refreshEvdsRates(userId: string): Promise<MarketTickerResu
             status: invalidAuth && !hasStoredRate ? 'invalid_key' : hasStoredRate ? 'stale' : 'error',
             message: invalidAuth
                 ? hasStoredRate
-                    ? 'CollectAPI API anahtarı geçersiz görünüyor. Son başarılı veri gösteriliyor.'
-                    : 'CollectAPI API anahtarı geçersiz veya paket bu API için yetkili değil.'
+                    ? 'Piyasa verisi anahtarı geçersiz görünüyor. Son başarılı veri gösteriliyor.'
+                    : 'Piyasa verisi anahtarı geçersiz veya paket bu API için yetkili değil.'
                 : hasStoredRate
-                    ? 'CollectAPI verisi alınamadı. Son başarılı veri gösteriliyor.'
-                    : `CollectAPI verisi alınamadı: ${String(error)}`,
+                    ? 'Piyasa verisi alınamadı. Son başarılı veri gösteriliyor.'
+                    : `Piyasa verisi alınamadı: ${String(error)}`,
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
-            items: hasStoredRate ? markStoredRatesStale(items, 'Son başarılı CollectAPI verisi') : items,
+            items: hasStoredRate ? markStoredRatesStale(items, 'Son başarılı piyasa verisi') : items,
         }
     }
 }
@@ -818,7 +818,7 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
     if (apiKeyState.status === 'invalid') {
         return {
             status: 'invalid_key',
-            message: 'CollectAPI API anahtarı çözülemedi. Lütfen Ayarlar > CollectAPI bölümünden API anahtarını yeniden kaydedin.',
+            message: 'Piyasa verisi anahtarı çözülemedi. Lütfen Ayarlar > CollectAPI bölümünden API anahtarını yeniden kaydedin.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -828,7 +828,7 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
     if (!apiKeyState.apiKey) {
         return {
             status: 'missing_key',
-            message: 'CollectAPI API anahtarı girilmedi.',
+            message: 'Piyasa verisi anahtarı girilmedi.',
             lastUpdatedAt: getResultLastUpdatedAt(items),
             cacheMinutes: settings.cacheMinutes,
             items,
@@ -847,7 +847,7 @@ export async function getMarketTicker(userId: string): Promise<MarketTickerResul
             ? missingRateCount > 0
                 ? `Piyasa verileri cache üzerinden gösteriliyor; ${missingRateCount} aktif kart için henüz veri yok.`
                 : 'Piyasa verileri cache üzerinden gösteriliyor.'
-            : 'Aktif piyasa kartları var ancak henüz CollectAPI verisi yok.',
+            : 'Aktif piyasa kartları var ancak henüz piyasa verisi yok.',
         lastUpdatedAt: getResultLastUpdatedAt(items),
         cacheMinutes: settings.cacheMinutes,
         items,

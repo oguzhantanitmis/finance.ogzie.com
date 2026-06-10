@@ -135,9 +135,12 @@ html.light {
   --text-muted: #969CA8;
   --text-inverse: #FFFFFF;
 
-  /* Vurgu — koyu mürekkep (FAB, aktif sekme, primary buton, link) */
+  /* Vurgu — koyu mürekkep (aktif sekme, primary buton, link) */
   --accent-primary: #1B1E25;
   --accent-primary-hover: #2C313B;
+
+  /* FAB + hızlı işlem birincil butonu — açık temada siyah yerine canlı mavi */
+  --fab-bg: #2563EB;
 
   /* Semantik renkler — temiz, kontrastlı */
   --accent-success: #1F8A53;
