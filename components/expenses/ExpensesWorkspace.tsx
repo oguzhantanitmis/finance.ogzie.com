@@ -2,6 +2,7 @@
 
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Calendar, Landmark, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
@@ -46,6 +47,16 @@ export default function ExpensesWorkspace({
 }) {
     const [tab, setTab] = useState<TabFilter>('all')
     const [addMode, setAddMode] = useState<AddMode>(null)
+
+    // Hızlı işlem derin bağlantısı: /expenses?new=1 → abonelik/sabit gider ekleme seçicisini aç
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    useEffect(() => {
+        if (!searchParams.get('new')) return
+        setAddMode('choose')
+        router.replace(pathname, { scroll: false })
+    }, [searchParams, router, pathname])
     const [editItem, setEditItem] = useState<UnifiedItem | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [, startDelete] = useTransition()

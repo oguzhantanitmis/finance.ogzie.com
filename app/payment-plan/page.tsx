@@ -2,7 +2,9 @@ import { redirect } from 'next/navigation'
 
 import PageShell from '@/components/PageShell'
 import PaymentPlanWorkspace from '@/components/payment-plan/PaymentPlanWorkspace'
+import PaymentPlanMobile, { type PlanData } from '@/components/payment-plan/PaymentPlanMobile'
 import { generatePaymentPlan, type Strategy, type PaymentPlan } from '@/lib/debt-priority-engine'
+import { monthYearTr } from '@/lib/mobile-format'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -51,16 +53,37 @@ export default async function PaymentPlanPage() {
         console.error('PaymentPlanPage error:', e)
     }
 
+    // Mobil ekran: desktop varsayılanı olan SAFE stratejisi
+    const safe = plans.SAFE
+    const mobilePlan: PlanData = {
+        strategy: 'Güvenli Mod',
+        payoffDate: monthYearTr(safe.estimatedFinishDate),
+        monthlyBudget: safe.totalAvailable,
+        saved: Math.max(0, safe.interestSavingEstimate),
+        steps: safe.items.map((it, i) => ({
+            order: i + 1,
+            name: it.name,
+            rate: +it.interestRate.toFixed(2),
+            remaining: it.balance,
+            focus: i === 0,
+        })),
+    }
+
     return (
         <PageShell width="genis">
-            <header className="mb-10">
-                <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
-                <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Borç Ödeme Planı</h1>
-                <p className="text-zinc-400 max-w-3xl">
-                    3 farklı stratejiyle borçlarını önceliklendir. Güvenli mod, çığ modu (faiz minimize) veya kartopu modu (motivasyon).
-                </p>
-            </header>
-            <PaymentPlanWorkspace plans={plans} />
+            <div className="lg:hidden">
+                <PaymentPlanMobile plan={mobilePlan} />
+            </div>
+            <div className="hidden lg:block">
+                <header className="mb-10">
+                    <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Finans paneli</p>
+                    <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Borç Ödeme Planı</h1>
+                    <p className="text-zinc-400 max-w-3xl">
+                        3 farklı stratejiyle borçlarını önceliklendir. Güvenli mod, çığ modu (faiz minimize) veya kartopu modu (motivasyon).
+                    </p>
+                </header>
+                <PaymentPlanWorkspace plans={plans} />
+            </div>
         </PageShell>
     )
 }

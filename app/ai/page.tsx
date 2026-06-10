@@ -1,16 +1,18 @@
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getAlgorithmicInsights, generateAvalancheInsights } from '@/app/actions/ai-actions'
 import InsightCard from '@/components/ai/InsightCard'
-import { Wand2, BrainCircuit, RefreshCw } from 'lucide-react'
-import { revalidatePath } from 'next/cache'
+import AssistantMobile from '@/components/ai/AssistantMobile'
+import { currentPeriod } from '@/lib/ai-usage'
+import { isSuperuser } from '@/lib/authz'
+import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/server-auth'
+import { Wand2, BrainCircuit } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AIPage() {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) {
+    const user = await getCurrentUser()
+    if (!user) {
         redirect('/login')
     }
 
@@ -18,7 +20,16 @@ export default async function AIPage() {
     await generateAvalancheInsights()
     const { insights } = await getAlgorithmicInsights()
 
-    return (
+    // /api/ai superuser korumalı — chat yalnız AI kullanabilenlere
+    const canUseAi = isSuperuser(user)
+    const usageRow = canUseAi
+        ? await prisma.aiUsage.findUnique({
+              where: { userId_period: { userId: user.id, period: currentPeriod() } },
+              select: { totalTokens: true },
+          }).catch(() => null)
+        : null
+
+    const insightsView = (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 p-6 md:p-8">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between border-b border-zinc-800/50 pb-8">
@@ -62,5 +73,22 @@ export default async function AIPage() {
                 )}
             </div>
         </div>
+    )
+
+    return (
+        <>
+            {/* Mobil: chat üst bar (57px) ile alt tab bar (72px) arasını doldurur */}
+            <div className="lg:hidden px-4 pt-3 pb-2 h-[calc(100dvh-57px-72px-env(safe-area-inset-bottom))] flex flex-col">
+                {canUseAi ? (
+                    <AssistantMobile
+                        used={usageRow?.totalTokens ?? 0}
+                        limit={user.aiMonthlyTokenLimit}
+                    />
+                ) : (
+                    insightsView
+                )}
+            </div>
+            <div className="hidden lg:block">{insightsView}</div>
+        </>
     )
 }

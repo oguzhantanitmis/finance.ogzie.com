@@ -31,6 +31,7 @@ model User {
   passwordResetToken    String?   @unique
   passwordResetExpiry   DateTime?
   riskScore             Int       @default(100)
+  aiMonthlyTokenLimit   Int       @default(30000) // 0 = limitsiz
   netWorth    Float     @default(0)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -64,10 +65,30 @@ model User {
 
   loginHistory        LoginHistory[]
   actionLogsAsActor   UserActionLog[]  @relation("ActionActor")
+  aiUsages            AiUsage[]
 
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
+}
+
+// AI token tüketimi — kullanıcı + ay başına tek satır (upsert)
+model AiUsage {
+  id               String   @id @default(cuid())
+  userId           String
+  period           String   // "2026-06" (yıl-ay) — aylık toplama için
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  requests         Int      @default(0)
+  costUsd          Float    @default(0)
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, period])
+  @@index([period])
 }
 
 model LoginHistory {

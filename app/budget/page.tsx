@@ -2,6 +2,7 @@ import { startOfMonth } from 'date-fns'
 import { redirect } from 'next/navigation'
 
 import BudgetWorkspace from '@/components/budget/BudgetWorkspace'
+import BudgetMobile from '@/components/budget/BudgetMobile'
 import PageShell from '@/components/PageShell'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
 import { getCurrentUser } from '@/lib/server-auth'
@@ -25,6 +26,17 @@ export default async function BudgetPage() {
 
     return (
         <PageShell width="genis">
+            <div className="lg:hidden">
+                <BudgetMobile
+                    s={{
+                        plannedIncome: summary.plannedIncome,
+                        fixedCommitments: summary.fixedCommitments,
+                        debtCommitments: summary.debtCommitments,
+                        freeCash: summary.freeCash,
+                    }}
+                />
+            </div>
+            <div className="hidden lg:block">
             <header className="mb-10">
                 <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Bütçe yönetimi</p>
                 <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Aylık bütçe merkezi</h1>
@@ -84,6 +96,7 @@ export default async function BudgetPage() {
                     })),
                 }}
             />
+            </div>
         </PageShell>
     )
 }

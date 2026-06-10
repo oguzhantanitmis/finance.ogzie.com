@@ -2,8 +2,10 @@ import PageShell from '@/components/PageShell'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import CardGrid from '@/components/cards/CardGrid'
+import CardsMobile, { type CreditCardItem } from '@/components/cards/CardsMobile'
 import AddCardButton from '@/components/cards/AddCardButton'
 import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
+import { hashHue, hexToHue } from '@/lib/mobile-format'
 import { getCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
@@ -51,6 +53,20 @@ async function getCards() {
     }
 }
 
+function mapToCardItems(cards: NonNullable<Awaited<ReturnType<typeof getCards>>>): CreditCardItem[] {
+    return cards.map((c) => ({
+        id: c.id,
+        bank: c.bankName,
+        last4: c.last4Digits,
+        limit: c.totalLimit,
+        debt: c.currentDebt,
+        min: c.statements[0]?.minimumPayment || Math.round(c.currentDebt * c.minPaymentRate),
+        statementDay: c.cutOffDay,
+        dueDay: c.paymentDueDay,
+        hue: hexToHue(c.color, hashHue(c.id)),
+    }))
+}
+
 export default async function CardsPage() {
     const cards = await getCards()
 
@@ -60,15 +76,20 @@ export default async function CardsPage() {
 
     return (
         <PageShell width="genis">
-            <header className="flex items-center justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Kredi Kartlarım</h1>
-                    <p className="text-zinc-500">Tüm kartlarını tek ekrandan yönet.</p>
-                </div>
-                <AddCardButton />
-            </header>
+            <div className="lg:hidden">
+                <CardsMobile cards={mapToCardItems(cards)} />
+            </div>
+            <div className="hidden lg:block">
+                <header className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">Kredi Kartlarım</h1>
+                        <p className="text-zinc-500">Tüm kartlarını tek ekrandan yönet.</p>
+                    </div>
+                    <AddCardButton />
+                </header>
 
-            <CardGrid cards={cards} />
+                <CardGrid cards={cards} />
+            </div>
         </PageShell>
     )
 }

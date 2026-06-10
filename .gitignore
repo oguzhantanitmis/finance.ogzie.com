@@ -43,3 +43,6 @@ next-env.d.ts
 /app/generated/prisma
 .agent/
 .env*.local
+
+# Tasarım aktarım paketi (referans — koda kopyalandı)
+repo-drop/

@@ -1,7 +1,8 @@
 'use client'
 
 import { X } from 'lucide-react'
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 import { cn } from '@/lib/utils'
 
@@ -44,6 +45,10 @@ export default function Modal({
     const titleId = useId()
     const subtitleId = useId()
     const containerRef = useRef<HTMLDivElement>(null)
+    // Portal hedefi yalnızca client'ta var — SSR'da render etme
+    const [mounted, setMounted] = useState(false)
+
+    useEffect(() => setMounted(true), [])
 
     useEffect(() => {
         const previouslyFocused = document.activeElement as HTMLElement | null
@@ -98,7 +103,10 @@ export default function Modal({
         }
     }, [onClose])
 
-    return (
+    if (!mounted) return null
+
+    // body'ye portal: modal, `hidden lg:block` gibi gizli atalardan etkilenmez
+    return createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div
                 className="fixed inset-0 bg-black/70 backdrop-blur-sm"
@@ -141,6 +149,7 @@ export default function Modal({
                 </div>
                 {children}
             </div>
-        </div>
+        </div>,
+        document.body
     )
 }

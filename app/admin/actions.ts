@@ -119,6 +119,22 @@ export async function hardDeleteUserAction(userId: string): Promise<ActionResult
     }
 }
 
+export async function updateAiLimitAction(userId: string, limit: number): Promise<ActionResult> {
+    try {
+        const currentUser = await requireSuperuser()
+        if (!Number.isInteger(limit) || limit < 0) {
+            throw new ActionError('Limit 0 veya pozitif bir tam sayı olmalı.')
+        }
+        const { prisma } = await import('@/lib/prisma')
+        await prisma.user.update({ where: { id: userId }, data: { aiMonthlyTokenLimit: limit } })
+        await logAction(currentUser.id, 'AI_LIMIT_UPDATED', userId, { limit })
+        revalidatePath('/admin')
+        return createSuccessResult('AI kota limiti güncellendi.', userId)
+    } catch (error) {
+        return getActionErrorResult(error, 'Kota güncellenemedi.')
+    }
+}
+
 async function logAction(actorId: string, action: string, targetId?: string, metadata?: object) {
     try {
         const { prisma } = await import('@/lib/prisma')

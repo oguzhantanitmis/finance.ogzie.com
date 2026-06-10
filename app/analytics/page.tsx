@@ -2,12 +2,17 @@ import { redirect } from 'next/navigation'
 import { PieChart, TrendingUp } from 'lucide-react'
 
 import PageShell from '@/components/PageShell'
+import AnalyticsMobile, { type CategorySlice } from '@/components/analytics/AnalyticsMobile'
+import { monthKeyShortTr } from '@/lib/mobile-format'
 import { getMonthlyBudgetSummary } from '@/lib/monthly-planner'
+import { getCategoryBreakdown, getMonthlyReports } from '@/lib/report-service'
 import { getCurrentUser } from '@/lib/server-auth'
 import { formatBillingCycleLabel } from '@/lib/ui-text'
 import { formatCurrency } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
+
+const CATEGORY_ACCENTS = ['info', 'success', 'warning', 'purple', 'danger'] as const
 
 export default async function AnalyticsPage() {
     const user = await getCurrentUser()
@@ -16,7 +21,11 @@ export default async function AnalyticsPage() {
         redirect('/login')
     }
 
-    const summary = await getMonthlyBudgetSummary(user.id)
+    const [summary, categoryBreakdown, monthly] = await Promise.all([
+        getMonthlyBudgetSummary(user.id),
+        getCategoryBreakdown(user.id, 30).catch(() => []),
+        getMonthlyReports(user.id, 6).catch(() => []),
+    ])
     const topSubscriptions = [...summary.subscriptions]
         .sort((left, right) => right.monthlyNormalizedAmount - left.monthlyNormalizedAmount)
         .slice(0, 5)
@@ -24,8 +33,25 @@ export default async function AnalyticsPage() {
         .sort((left, right) => right.amount - left.amount)
         .slice(0, 5)
 
+    // Mobil: ilk 4 kategori + kalanı "Diğer"
+    const top4 = categoryBreakdown.slice(0, 4)
+    const restTotal = categoryBreakdown.slice(4).reduce((sum, c) => sum + c.amount, 0)
+    const mobileCategories: CategorySlice[] = [
+        ...top4.map((c, i) => ({ label: c.category, amount: c.amount, color: CATEGORY_ACCENTS[i] as CategorySlice['color'] })),
+        ...(restTotal > 0 ? [{ label: 'Diğer', amount: +restTotal.toFixed(2), color: CATEGORY_ACCENTS[4] as CategorySlice['color'] }] : []),
+    ]
+    const last6 = monthly.slice(-6)
+
     return (
         <PageShell width="genis">
+            <div className="lg:hidden">
+                <AnalyticsMobile
+                    categories={mobileCategories}
+                    netTrend={last6.map((m) => m.net)}
+                    months={last6.map((m) => monthKeyShortTr(m.month))}
+                />
+            </div>
+            <div className="hidden lg:block">
             <header className="mb-10">
                 <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 mb-3">Analiz</p>
                 <h1 className="text-3xl font-bold tracking-tight mb-2">Finansal Analiz</h1>
@@ -100,6 +126,7 @@ export default async function AnalyticsPage() {
                         </div>
                     )}
                 </div>
+            </div>
             </div>
         </PageShell>
     )

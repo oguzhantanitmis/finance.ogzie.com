@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation'
 import PageShell from '@/components/PageShell'
 import ReportsWorkspace from '@/components/reports/ReportsWorkspace'
+import ReportsMobile, { type ReportSeries } from '@/components/reports/ReportsMobile'
 import ExportButton from '@/components/ui/ExportButton'
+import { monthKeyShortTr } from '@/lib/mobile-format'
 import {
     getCategoryBreakdown,
     getDailyCashflow,
@@ -68,8 +70,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         console.error('ReportsPage error:', e)
     }
 
+    const last6 = bundle.monthly.slice(-6)
+    const mobileSeries: ReportSeries = {
+        months: last6.map((r) => monthKeyShortTr(r.month)),
+        income: last6.map((r) => r.income),
+        expense: last6.map((r) => r.expense),
+    }
+
     return (
         <PageShell width="genis">
+            <div className="lg:hidden">
+                <ReportsMobile data={mobileSeries} />
+            </div>
+            <div className="hidden lg:block">
             <header className="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                 <div>
                     <p className="text-xs uppercase tracking-[0.3em] mb-2" style={{ color: 'var(--text-muted)' }}>
@@ -86,6 +99,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </header>
 
             <ReportsWorkspace bundle={bundle} periodMonths={periodMonths} />
+            </div>
         </PageShell>
     )
 }
