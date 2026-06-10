@@ -1,3 +1,4 @@
+import { cache as reactCache } from 'react'
 import { addMonths, differenceInCalendarDays, startOfDay } from 'date-fns'
 import {
     DebtObligationStatus,
@@ -594,9 +595,9 @@ export async function deleteCanonicalDebtForSource(userId: string, sourceType: D
     })
 }
 
-export async function syncCanonicalDebtsForUser(userId: string, options: { force?: boolean } = {}) {
+async function syncCanonicalDebtsForUserImpl(userId: string, options: { force?: boolean } = {}) {
     const [legacyDebts, creditCards, kmhAccounts, payables] = await Promise.all([
-        prisma.debt.findMany({ where: { userId }, select: { id: true } }),
+        prisma.debt.findMany({ where: { userId }, select: { id: true, type: true } }),
         prisma.creditCard.findMany({ where: { userId }, select: { id: true } }),
         prisma.account.findMany({ where: { userId, hasKmh: true }, select: { id: true } }),
         prisma.receivablePayable.findMany({ where: { userId, type: 'PAYABLE' }, select: { id: true } }),
@@ -611,9 +612,7 @@ export async function syncCanonicalDebtsForUser(userId: string, options: { force
         const work: Array<Promise<unknown>> = []
 
         for (const debt of legacyDebts) {
-            const source = await prisma.debt.findUnique({ where: { id: debt.id }, select: { type: true } })
-            if (!source) continue
-            const type = legacyDebtSourceType(source.type)
+            const type = legacyDebtSourceType(debt.type)
             if (!existingKeys.has(sourceKey(type, debt.id))) {
                 work.push(rebuildCanonicalDebtForLegacyDebt(userId, debt.id))
             }
@@ -650,6 +649,15 @@ export async function syncCanonicalDebtsForUser(userId: string, options: { force
     for (const payable of payables) {
         await rebuildCanonicalDebtForPayable(userId, payable.id)
     }
+}
+
+// İstek başına tek sync: aynı render içinde tekrar çağrılar (cards/accounts/debts
+// sayfaları + ödeme planı motoru 5-6 strateji) sorgu tekrarı yaratmasın
+const syncOncePerRequest = reactCache((userId: string) => syncCanonicalDebtsForUserImpl(userId))
+
+export async function syncCanonicalDebtsForUser(userId: string, options: { force?: boolean } = {}) {
+    if (options.force) return syncCanonicalDebtsForUserImpl(userId, options)
+    return syncOncePerRequest(userId)
 }
 
 function ledgerTypeForDebtSource(sourceType: DebtSourceType) {

@@ -472,14 +472,11 @@ export async function installmentizeTransaction(data: {
 }): Promise<ActionResult> {
     try {
         const user = await requireCurrentUser()
+        // Sorgu doğrudan kullanıcıya kapsamlı — başka kullanıcının işlemi "yok" davranışı verir
         const transaction = await prisma.cardTransaction.findFirstOrThrow({
-            where: { id: data.transactionId },
+            where: { id: data.transactionId, creditCard: { userId: user.id } },
             include: { creditCard: true }
         })
-
-        if (transaction.creditCard.userId !== user.id) {
-            return getActionErrorResult(new Error('Yetkisiz'), 'Erişim reddedildi.')
-        }
 
         if (transaction.totalInstallments > 1 || transaction.type !== 'PURCHASE') {
              return getActionErrorResult(new Error('Uygun değil'), 'Bu işlem taksitlendirilemez.')

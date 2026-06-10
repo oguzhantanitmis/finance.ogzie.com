@@ -27,6 +27,17 @@ export async function generateAvalancheInsights() {
 
         const userId = session.user.id
 
+        // Tazelik koruması: son 1 saat içinde üretilmiş okunmamış insight varsa
+        // yeniden hesaplama (her sayfa ziyaretinde sil+yarat churn'ünü önler)
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
+        const fresh = await prisma.aIInsight.findFirst({
+            where: { userId, isRead: false, createdAt: { gte: oneHourAgo } },
+            select: { id: true },
+        })
+        if (fresh) {
+            return { success: true, skipped: true }
+        }
+
         // Clear old algorithmic insights (we use AIInsight model for this)
         await prisma.aIInsight.deleteMany({
             where: { userId, isRead: false }

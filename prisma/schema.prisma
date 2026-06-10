@@ -384,6 +384,7 @@ model DebtAccount {
 
   @@unique([userId, sourceKey])
   @@index([userId])
+  @@index([userId, status]) // aktif borç sorguları
   @@index([sourceType])
   @@index([status])
   @@index([nextDueDate])
@@ -458,6 +459,8 @@ model Transaction {
   debtId  String?
 
   user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId, date]) // dashboard: kullanıcı + tarih aralığı
 }
 
 model Subscription {
@@ -917,6 +920,7 @@ model ReceivablePayable {
   reminders    Reminder[]
 
   @@index([userId])
+  @@index([userId, status]) // açık alacak/verecek filtreleri
   @@index([personId])
   @@index([status])
 }
@@ -1069,6 +1073,7 @@ model LedgerEntry {
   rpTransaction RPTransaction? @relation(fields: [rpTransactionId], references: [id])
 
   @@index([userId])
+  @@index([userId, date]) // rapor sorguları: userId + tarih aralığı
   @@index([type])
   @@index([date])
   @@index([accountId])

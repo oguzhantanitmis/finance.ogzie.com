@@ -1,3 +1,5 @@
+import { cache as reactCache } from 'react'
+
 import { prisma } from '@/lib/prisma'
 import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
 
@@ -32,10 +34,12 @@ export interface PaymentPlan {
     cons: string[]
 }
 
-async function collectAllDebts(userId: string): Promise<DebtItem[]> {
+// İstek başına tek sorgu: aynı render içinde 5-6 strateji çağrısı aynı veriyi kullanır.
+// Sonuç satırları salt-okunur paylaşılır; DebtItem nesneleri her çağrıda taze üretilir.
+const fetchOpenDebtAccounts = reactCache(async (userId: string) => {
     await syncCanonicalDebtsForUser(userId)
 
-    const debtAccounts = await prisma.debtAccount.findMany({
+    return prisma.debtAccount.findMany({
         where: {
             userId,
             status: { not: 'CLOSED' },
@@ -51,6 +55,10 @@ async function collectAllDebts(userId: string): Promise<DebtItem[]> {
             },
         },
     })
+})
+
+async function collectAllDebts(userId: string): Promise<DebtItem[]> {
+    const debtAccounts = await fetchOpenDebtAccounts(userId)
 
     return debtAccounts.map((debtAccount) => {
         const minPayment = debtAccount.obligations.reduce((sum, obligation) => sum + obligation.remainingAmount, 0)
@@ -215,7 +223,17 @@ async function applyGoalStrategy(userId: string, items: DebtItem[], available: n
     return applyRiskStrategy(items, debtBudget)
 }
 
-async function estimateDebtBudget(userId: string) {
+// İstek başına tek bakiye sorgusu — strateji başına tekrarları önler
+const fetchLiquidBalance = reactCache(async (userId: string) => {
+    const accounts = await prisma.account.findMany({
+        where: { userId, isActive: true, type: { in: ['BANK_ACCOUNT', 'CASH', 'WALLET'] } },
+        select: { balance: true },
+    })
+    return accounts.reduce((sum, a) => sum + a.balance, 0)
+})
+
+// İstek başına tek hesap — strateji başına tekrar eden 3 sorguyu tekilleştirir
+const estimateDebtBudget = reactCache(async (userId: string) => {
     const threeMonthsAgo = new Date()
     threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
     const oneMonthAgo = new Date()
@@ -234,7 +252,7 @@ async function estimateDebtBudget(userId: string) {
     const fixedExpenses = recurring.reduce((sum, item) => sum + (item.billingCycle === 'YEARLY' ? item.amount / 12 : item.amount), 0)
         + subscriptions.reduce((sum, item) => sum + (item.monthlyNormalizedAmount ?? (item.billingCycle === 'YEARLY' ? item.amount / 12 : item.amount)), 0)
     return Math.max(0, avgIncome - fixedExpenses)
-}
+})
 
 function estimatePlanMetrics(items: DebtItem[], monthlyBudget: number, strategy: Strategy) {
     const totalDebt = items.reduce((sum, item) => sum + item.balance, 0)
@@ -297,11 +315,7 @@ export async function generatePaymentPlan(
     if (availableCash !== undefined) {
         totalAvailable = availableCash
     } else {
-        const accounts = await prisma.account.findMany({
-            where: { userId, isActive: true, type: { in: ['BANK_ACCOUNT', 'CASH', 'WALLET'] } },
-            select: { balance: true },
-        })
-        totalAvailable = accounts.reduce((sum, a) => sum + a.balance, 0)
+        totalAvailable = await fetchLiquidBalance(userId)
     }
     const monthlyDebtBudget = await estimateDebtBudget(userId)
     if (availableCash === undefined && monthlyDebtBudget > 0) {

@@ -20,8 +20,9 @@ async function getCards() {
         const cards = await prisma.creditCard.findMany({
             where: { userId: user.id },
             include: {
-                transactions: true,
-                payments: true,
+                // CardGrid yalnızca tutar toplamları için kullanıyor — dar select payload'ı küçültür
+                transactions: { select: { type: true, amount: true } },
+                payments: { select: { amount: true } },
                 statements: {
                     orderBy: { statementDate: 'desc' },
                     take: 1,

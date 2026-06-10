@@ -270,6 +270,17 @@ export async function saveHealthSnapshot(userId: string, result: HealthScoreResu
         return
     }
 
+    // Günde en fazla 1 snapshot — her sayfa ziyaretinde satır biriktirme
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const existingToday = await prisma.healthSnapshot.findFirst({
+        where: { userId, calculatedAt: { gte: todayStart } },
+        select: { id: true, score: true },
+    })
+    if (existingToday && existingToday.score === result.score) {
+        return
+    }
+
     const [accounts, debtSnapshotAccounts] = await Promise.all([
         prisma.account.findMany({
             where: { userId, isActive: true },

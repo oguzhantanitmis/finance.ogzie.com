@@ -289,7 +289,8 @@ export async function POST(req: Request) {
         })
     } catch (error) {
         console.error('AI API Error:', error)
-        return NextResponse.json({ error: `AI Service Unavailable: ${String(error)}` }, { status: 500 })
+        // İç hata detayını istemciye sızdırma
+        return NextResponse.json({ error: 'AI servisi şu an kullanılamıyor. Lütfen tekrar deneyin.' }, { status: 500 })
     }
 }
 

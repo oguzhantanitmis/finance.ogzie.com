@@ -216,8 +216,7 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
         if (!rawContent) {
             throw new Error('AI yanıt içeriği boş.')
         }
-        console.log('AI Raw Response:', rawContent?.substring(0, 500))
-
+        // Ham yanıt loglanmaz — kullanıcının finansal verisini içerir
         const cleanedContent = cleanJsonResponse(rawContent)
         const parsed = JSON.parse(cleanedContent) as { recommendations: ParsedRecommendation[] }
 
@@ -243,8 +242,8 @@ SADECE JSON döndür, başka hiçbir şey yazma. Markdown kullanma.
 
         return { success: true, count: parsed.recommendations?.length || 0 }
     } catch (e) {
-        console.error('Yapay Zeka JSON ayrıştırma hatası:', e)
-        console.error('Raw content:', aiData?.choices?.[0]?.message?.content)
+        // Ham içerik loglanmaz (finansal veri); yalnızca hata türü
+        console.error('Yapay Zeka JSON ayrıştırma hatası:', e instanceof Error ? e.message : 'bilinmeyen')
         throw new Error('Yapay zeka analiz sonucu anlaşılamadı. Daha sonra tekrar deneyin.')
     }
 }
