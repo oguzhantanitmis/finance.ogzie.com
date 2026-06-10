@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 import { getCurrentUser } from '@/lib/server-auth'
 import { createSuccessResult, createErrorResult, type ActionResult } from '@/lib/action-result'
 
+const ALLOWED_CURRENCIES = ['TRY', 'USD', 'EUR', 'GBP', 'XAU']
+
 export async function updateProfileAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
     const user = await getCurrentUser()
     if (!user) return createErrorResult('Oturum bulunamadı.')
@@ -15,9 +17,14 @@ export async function updateProfileAction(_prev: ActionResult, formData: FormDat
         return createErrorResult('Ad en az 2 karakter olmalıdır.')
     }
 
+    const preferredCurrency = (formData.get('preferredCurrency') as string | null) ?? user.preferredCurrency
+    if (!ALLOWED_CURRENCIES.includes(preferredCurrency)) {
+        return createErrorResult('Geçersiz para birimi.')
+    }
+
     await prisma.user.update({
         where: { id: user.id },
-        data: { name: name.trim() },
+        data: { name: name.trim(), preferredCurrency },
     })
 
     revalidatePath('/settings')
@@ -65,18 +72,13 @@ export async function updatePreferencesAction(_prev: ActionResult, formData: For
     const user = await getCurrentUser()
     if (!user) return createErrorResult('Oturum bulunamadı.')
 
-    const preferredCurrency = (formData.get('preferredCurrency') as string | null) ?? 'TRY'
-    const locale            = (formData.get('locale')            as string | null) ?? 'tr-TR'
-    const timezone          = (formData.get('timezone')          as string | null) ?? 'Europe/Istanbul'
-
-    const allowedCurrencies = ['TRY', 'USD', 'EUR', 'GBP', 'XAU']
-    if (!allowedCurrencies.includes(preferredCurrency)) {
-        return createErrorResult('Geçersiz para birimi.')
-    }
+    // Ana para birimi Profil formundan yönetilir (updateProfileAction)
+    const locale   = (formData.get('locale')   as string | null) ?? 'tr-TR'
+    const timezone = (formData.get('timezone') as string | null) ?? 'Europe/Istanbul'
 
     await prisma.user.update({
         where: { id: user.id },
-        data: { preferredCurrency, locale, timezone },
+        data: { locale, timezone },
     })
 
     revalidatePath('/settings')

@@ -147,6 +147,16 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                                     <label className="form-label">E-posta</label>
                                     <input value={userProfile.email} className="form-input opacity-60" readOnly />
                                 </div>
+                                <div>
+                                    <label className="form-label">Ana Para Birimi</label>
+                                    <select name="preferredCurrency" defaultValue={userProfile.preferredCurrency} className="form-input form-select">
+                                        <option value="TRY">₺ Türk Lirası (TRY)</option>
+                                        <option value="USD">$ ABD Doları (USD)</option>
+                                        <option value="EUR">€ Euro (EUR)</option>
+                                        <option value="GBP">£ İngiliz Sterlini (GBP)</option>
+                                        <option value="XAU">Au Gram Altın (XAU)</option>
+                                    </select>
+                                </div>
                                 <p className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                                     <Calendar className="w-3.5 h-3.5" />
                                     Kayıt: {new Date(userProfile.createdAt).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -317,24 +327,14 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                         </div>
                     </div>
 
-                    {/* Bölgesel & Para Birimi */}
+                    {/* Bölgesel Ayarlar — ana para birimi Profil kartından yönetilir */}
                     <div className="fintech-card p-6 md:p-8">
                         <div className="flex items-center gap-3 mb-5">
                             <CreditCard className="w-5 h-5" style={{ color: 'var(--accent-info)' }} />
-                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bölgesel & Para Birimi</h2>
+                            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Bölgesel Ayarlar</h2>
                         </div>
                         <form action={prefsAction} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label className="form-label">Tercih Edilen Para Birimi</label>
-                                    <select name="preferredCurrency" defaultValue={userProfile.preferredCurrency} className="form-input form-select">
-                                        <option value="TRY">₺ Türk Lirası (TRY)</option>
-                                        <option value="USD">$ ABD Doları (USD)</option>
-                                        <option value="EUR">€ Euro (EUR)</option>
-                                        <option value="GBP">£ İngiliz Sterlini (GBP)</option>
-                                        <option value="XAU">Au Gram Altın (XAU)</option>
-                                    </select>
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="form-label">Locale</label>
                                     <select name="locale" defaultValue={userProfile.locale} className="form-input form-select">
