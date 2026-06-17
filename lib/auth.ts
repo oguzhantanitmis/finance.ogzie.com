@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { normalizeEmail, resolveUserRole } from "@/lib/authz";
+import { verifyAndConsumeOgzieTicket } from "@/lib/ogzie-sso";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS    = 15 * 60 * 1000;
@@ -91,6 +92,58 @@ export const authOptions: NextAuthOptions = {
                     role,
                     sessionVersion: user.sessionVersion,
                     rememberMe,
+                };
+            },
+        }),
+        // ogzie SSO — EdDSA imzalı tek-kullanımlık bilet ile şifresiz giriş.
+        // Mevcut e-posta/şifre girişine dokunmaz; ayrı provider (id: "ogzie").
+        CredentialsProvider({
+            id: "ogzie",
+            name: "ogzie SSO",
+            credentials: {
+                token: { label: "Bilet", type: "text" },
+            },
+            async authorize(credentials, req) {
+                const token = credentials?.token;
+                if (!token) return null;
+
+                const verified = await verifyAndConsumeOgzieTicket(token);
+                if (!verified) return null;
+
+                const managerEmail = process.env.OGZIE_SSO_MANAGER_EMAIL;
+                if (!managerEmail) return null;
+                const email = normalizeEmail(managerEmail);
+
+                const ip = (req?.headers?.["x-forwarded-for"] as string | undefined)
+                    ?.split(",")[0]?.trim() ?? null;
+                const userAgent = (req?.headers?.["user-agent"] as string | undefined) ?? null;
+
+                const user = await prisma.user.findUnique({ where: { email } });
+                if (!user || !user.isActive || user.deletedAt) {
+                    if (user) await logLogin(user.id, false, "ogzie_inactive", ip, userAgent);
+                    return null;
+                }
+
+                const role = resolveUserRole(user.email, user.role);
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        role,
+                        lastLoginAt: new Date(),
+                        lastLoginIp: ip,
+                        failedLoginAttempts: 0,
+                        lockedUntil: null,
+                    },
+                });
+                await logLogin(user.id, true, "ogzie_sso", ip, userAgent);
+
+                return {
+                    id:             user.id,
+                    email:          user.email,
+                    name:           user.name ?? undefined,
+                    role,
+                    sessionVersion: user.sessionVersion,
+                    rememberMe:     false,
                 };
             },
         }),
