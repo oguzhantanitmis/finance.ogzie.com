@@ -14,6 +14,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Slim, self-contained server bundle for the Docker/Dokploy runtime.
+  output: "standalone",
   images: {
     remotePatterns: [
       {

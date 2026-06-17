@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.vercel
+.env
+.env.*
+*.local
+npm-debug.log*
+plesk-deploy.zip
+README_PLESK.txt
+repo-drop
+__tests__
+*.tsbuildinfo
+.DS_Store
