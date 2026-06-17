@@ -6,6 +6,9 @@ FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
+# Prisma schema must be present before `npm ci` because package.json has a
+# `postinstall: prisma generate` that fails without ./prisma/schema.prisma.
+COPY prisma ./prisma
 RUN npm ci
 
 # ---- builder: generate Prisma client + build Next ----
