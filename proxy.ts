@@ -28,7 +28,8 @@ export const config = {
         // Tüm yolları yakala, ama public yollar + static asset'ler hariç
         // - /login: giriş sayfası
         // - /api/auth: NextAuth + forgot-password + reset-password
+        // - /api/ogzie-sync: ogzie güvenli kanal push (kendi bearer-secret auth'u var)
         // - _next, favicon, manifest, static asset uzantıları
-        "/((?!login|api/auth|_next/static|_next/image|favicon\\.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+        "/((?!login|api/auth|api/ogzie-sync|_next/static|_next/image|favicon\\.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
     ],
 }
