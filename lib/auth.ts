@@ -110,9 +110,13 @@ export const authOptions: NextAuthOptions = {
                 const verified = await verifyAndConsumeOgzieTicket(token);
                 if (!verified) return null;
 
-                const managerEmail = process.env.OGZIE_SSO_MANAGER_EMAIL;
-                if (!managerEmail) return null;
-                const email = normalizeEmail(managerEmail);
+                // Hangi hesapla giriş yapılacağını ogzie belirler (bilet `email`
+                // claim'i; app.ogzie.com'dan per-app ayarlanır, varsayılan
+                // oguzhan@tanitmis.com). Geriye-uyumluluk için env fallback'i kalır.
+                const sourceEmail =
+                    verified.email ?? process.env.OGZIE_SSO_MANAGER_EMAIL;
+                if (!sourceEmail) return null;
+                const email = normalizeEmail(sourceEmail);
 
                 const ip = (req?.headers?.["x-forwarded-for"] as string | undefined)
                     ?.split(",")[0]?.trim() ?? null;
@@ -121,6 +125,9 @@ export const authOptions: NextAuthOptions = {
                 const user = await prisma.user.findUnique({ where: { email } });
                 if (!user || !user.isActive || user.deletedAt) {
                     if (user) await logLogin(user.id, false, "ogzie_inactive", ip, userAgent);
+                    // Teşhis: jti zaten tüketildi; eşleşen aktif hesap yoksa kök
+                    // nedeni logla (ogzie subject_email yanlış/finance'ta hesap yok).
+                    else console.warn(`[ogzie-sso] eşleşen aktif hesap yok: ${email}`);
                     return null;
                 }
 
