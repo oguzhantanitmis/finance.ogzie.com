@@ -11,9 +11,11 @@ interface NotificationBellProps {
     align?: 'left' | 'right' | 'sidebar'
     className?: string
     showLabel?: boolean
+    /** Sağlandığında varsayılan buton stilini değiştirir (ör. TopBar'daki yuvarlak pill). */
+    buttonClassName?: string
 }
 
-export default function NotificationBell({ align = 'right', className, showLabel = false }: NotificationBellProps) {
+export default function NotificationBell({ align = 'right', className, showLabel = false, buttonClassName }: NotificationBellProps) {
     const [notifications, setNotifications] = useState<BudgetAlert[]>([])
     const [isOpen, setIsOpen] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -72,12 +74,17 @@ export default function NotificationBell({ align = 'right', className, showLabel
             <button 
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center rounded-xl transition-all duration-200 cursor-pointer text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]",
-                    showLabel 
-                        ? "gap-3 px-3 py-2 w-full" 
-                        : (align === 'sidebar' 
-                            ? "justify-center p-2.5 w-full" 
-                            : "justify-center w-9 h-9"
+                    "flex items-center cursor-pointer transition-all duration-200",
+                    buttonClassName
+                        ? buttonClassName
+                        : cn(
+                            "rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]",
+                            showLabel
+                                ? "gap-3 px-3 py-2 w-full"
+                                : (align === 'sidebar'
+                                    ? "justify-center p-2.5 w-full"
+                                    : "justify-center w-9 h-9"
+                                  )
                           )
                 )}
                 title="Bildirimler"
