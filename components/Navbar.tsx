@@ -177,54 +177,18 @@ export default function Navbar() {
                     ))}
                 </div>
 
-                {/* Bottom Actions */}
+                {/* Bottom Actions — tema/gizli mod/bildirim/çıkış üst bardaki TopBar'a taşındı;
+                    sidebar'a özel daralt/genişlet kontrolü burada kalır. */}
                 <div
-                    className={cn("shrink-0 space-y-1", collapsed ? "px-2 py-3" : "px-3 py-3")}
+                    className={cn("shrink-0", collapsed ? "px-2 py-3" : "px-3 py-3")}
                     style={{ borderTop: '1px solid var(--border-default)' }}
                 >
-                    {/* Theme Toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        title={theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}
-                        className={cn(
-                            "flex items-center rounded-xl w-full transition-all duration-200 cursor-pointer",
-                            collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
-                        )}
-                        style={{ color: 'var(--text-secondary)' }}
-                    >
-                        {theme === 'dark' ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
-                        {!collapsed && <span className="text-[13px]">{theme === 'dark' ? 'Açık Tema' : 'Koyu Tema'}</span>}
-                    </button>
-
-                    {/* Privacy Toggle */}
-                    <button
-                        onClick={toggleHideAmounts}
-                        title={hideAmounts ? 'Tutarları Göster' : 'Gizli Mod'}
-                        className={cn(
-                            "flex items-center rounded-xl w-full transition-all duration-200 cursor-pointer",
-                            collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
-                        )}
-                        style={{ color: hideAmounts ? 'var(--accent-warning)' : 'var(--text-secondary)' }}
-                    >
-                        {hideAmounts
-                            ? <ShieldOff className="w-[18px] h-[18px]" />
-                            : <Shield className="w-[18px] h-[18px]" />
-                        }
-                        {!collapsed && <span className="text-[13px]">{hideAmounts ? 'Tutarları Göster' : 'Gizli Mod'}</span>}
-                    </button>
-
-                    {/* Notification Bell (Desktop) */}
-                    <NotificationBell 
-                        align="sidebar" 
-                        showLabel={!collapsed}
-                    />
-
                     {/* Collapse Toggle */}
                     <button
                         onClick={() => setCollapsed(!collapsed)}
                         title={collapsed ? 'Genişlet' : 'Daralt'}
                         className={cn(
-                            "flex items-center rounded-xl w-full transition-all duration-200 cursor-pointer",
+                            "flex items-center rounded-xl w-full transition-all duration-200 cursor-pointer hover:bg-[var(--bg-hover)]",
                             collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
                         )}
                         style={{ color: 'var(--text-secondary)' }}
@@ -234,20 +198,6 @@ export default function Navbar() {
                             : <ChevronLeft className="w-[18px] h-[18px]" />
                         }
                         {!collapsed && <span className="text-[13px]">Daralt</span>}
-                    </button>
-
-                    {/* Logout */}
-                    <button
-                        onClick={() => signOut({ callbackUrl: '/login' })}
-                        title="Çıkış Yap"
-                        className={cn(
-                            "flex items-center rounded-xl w-full transition-all duration-200 cursor-pointer",
-                            collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
-                        )}
-                        style={{ color: 'var(--accent-danger)' }}
-                    >
-                        <LogOut className="w-[18px] h-[18px]" />
-                        {!collapsed && <span className="text-[13px]">Çıkış Yap</span>}
                     </button>
                 </div>
             </nav>
