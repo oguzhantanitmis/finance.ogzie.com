@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-06-23
+
+### Değiştirilen dosyalar
+- `components/TopBar.tsx` (yeni)
+- `components/SidebarContext.tsx` (yeni)
+- `components/AppShell.tsx`
+- `components/Navbar.tsx`
+- `components/notifications/NotificationBell.tsx`
+
+### Değişiklik
+- Masaüstü kenar çubuğunun footer kontrolleri (tema, gizli mod, bildirim, çıkış) içerik alanının üstündeki yeni bir üst bara (`TopBar`, sticky, `lg+`) taşındı: **solda** daralt/genişlet toggle'ı, **sağda** kontrol kümesi. Kenar çubuğunun alt bölümü tamamen kaldırıldı. `collapsed` durumu `SidebarContext` ile Navbar↔TopBar arasında paylaşılıyor. Hesap pill'i açılır menüsü: profil (ad + e-posta), Ayarlar, Çıkış Yap.
+- `NotificationBell`'e geriye uyumlu `buttonClassName` prop'u eklendi; açılır panel tema token'larına geçirilerek açık tema uyumu sağlandı ve a11y iyileştirildi (`aria-haspopup`/`aria-expanded`/`aria-label`, `Escape` ile kapanma).
+- Mobil üst bar ve menü değişmedi. Doğrulama: `tsc` 0 hata, 133 test PASS, prod deploy (`218e1c5`) başarılı.
+
 ## 2026-05-21
 
 - Canonical borç refaktörü başlatıldı; `DebtAccount`, `DebtObligation`, `DebtPayment` modelleri ve ilgili enumlar Prisma şemasına eklendi.

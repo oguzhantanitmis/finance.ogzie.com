@@ -1,5 +1,41 @@
 # CHANGELOG
 
+## 2026-06-23 - Üst Header Kümesi (TopBar): Sidebar Footer Kontrollerinin Taşınması
+
+Masaüstü kenar çubuğunun dikey footer kontrolleri (tema, gizli mod, bildirim, çıkış) ogzie uygulaması referans alınarak içerik alanının üstüne, **sağa yaslı yatay bir header kümesine** taşındı. Yalnızca sunum katmanı — auth helper'ları, server action'lar ve Prisma sorguları **dokunulmadı**.
+
+### Eklendi
+
+- `components/TopBar.tsx`: Yeni client component — masaüstü (`lg+`) sticky üst bar. **Solda** kenar çubuğunu daralt/genişlet butonu (`PanelLeft`); **sağda** kontrol kümesi: tema toggle (Sun/Moon), Gizli Mod toggle (Shield/ShieldOff), `NotificationBell`, dikey ayraç ve **hesap pill'i** (avatar baş harfi + ad + "Hesap" + chevron). Hesap açılır menüsü: profil (ad + e-posta), **Ayarlar** linki, **Çıkış Yap**. Dışarı tıklayınca ve `Escape` ile kapanır; kapanışta odak tetikleyici butona döner. Tüm renkler tema token'ları üzerinden (açık/koyu uyumlu).
+- `components/SidebarContext.tsx`: Yeni `SidebarProvider` + `useSidebar()` — kenar çubuğunun `collapsed` durumunu Navbar (genişlik) ile TopBar (toggle butonu) arasında paylaşır ve `--sidebar-width` CSS değişkenini senkronlar.
+
+### Değişti
+
+- `components/AppShell.tsx`: `<TopBar />` `<main>` içeriğinin başına eklendi (masaüstünde sticky, mobilde gizli). Ağaç `<SidebarProvider>` ile sarıldı.
+- `components/Navbar.tsx`: Masaüstü kenar çubuğunun alt "Bottom Actions" bölümü **tamamen kaldırıldı** — tema, gizli mod, bildirim, çıkış ve daralt/genişlet kontrollerinin tümü TopBar'a taşındı. `collapsed` local state'i ve `--sidebar-width` efekti `SidebarContext`'e taşınarak `useSidebar()` ile tüketiliyor. Mobil üst bar ve mobil menü **değişmedi**.
+- `components/notifications/NotificationBell.tsx`:
+  - Geriye uyumlu `buttonClassName` prop'u — bileşen TopBar'da yuvarlak pill buton olarak render edilebiliyor.
+  - Açılır panel tamamen tema token'larına geçirildi (`bg-zinc-*` / `text-white` hardcoded sınıfları kaldırıldı). `globals.css` light-mode savunma katmanının yakalamadığı opacity/hover varyantları (`bg-zinc-900/50`, `hover:bg-zinc-900` vb.) düzeltildiği için açık temada da doğru görünüyor.
+  - Erişilebilirlik: zil butonuna `aria-haspopup`, `aria-expanded` ve okunmamış durumu yansıtan `aria-label`; `Escape` ile kapanma; okunmamış bildirim noktasının ring rengi yeni pill yüzeyine uyduruldu.
+
+### Erişilebilirlik (a11y)
+
+- Hesap menüsündeki gerçeklenmeyen `role="menu"` / `role="menuitem"` kaldırıldı; native link/buton semantiği korundu (`aria-haspopup="true"`).
+- `Escape` ile kapanma + odak yönetimi (TopBar hesap menüsü ve NotificationBell).
+- Hesap açılır menüsündeki e-posta satırı WCAG AA kontrastı için `--text-muted` → `--text-secondary`.
+
+### Doğrulandı
+
+- `npx tsc --noEmit` — 0 hata
+- `npm test` (vitest) — 9 dosya, 133 test PASS
+- Next.js 16 dev derleme (Turbopack) — hatasız
+- Production deploy (Dokploy `finance-web`, commit `218e1c5`) başarılı; canlı `https://finance.ogzie.com` 200 yanıtı doğrulandı.
+
+### Bilinen Notlar
+
+- Header kümesi içerik genişliği `genis` (`max-w-[1820px]`) ile hizalıdır; `width="normal"` kullanan sayfalarda (örn. `/settings`) çok geniş ekranlarda küme içeriğin sağ kenarından bir miktar dışarıda kalabilir (kozmetik, düşük öncelik).
+- Dokploy `autoDeploy: true` olmasına rağmen repoda GitHub webhook'u bağlı olmadığından `main`'e merge otomatik deploy tetiklemiyor; deploy elle (Dokploy) tetiklendi.
+
 ## 2026-05-22 - UI Redesign Aşama 1: Tasarım Sistemi Altyapısı
 
 Premium finans kokpiti redesign'ının 1. aşaması. Mevcut `globals.css` tasarım sistemi (token + 12 utility class) bozulmadan üstüne **eklemeler** yapıldı; React component katmanı zenginleştirildi. Domain motorları, auth helper'ları, server action'lar ve Prisma sorguları **dokunulmadı** — sadece sunum katmanı.
