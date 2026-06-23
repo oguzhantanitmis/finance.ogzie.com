@@ -51,3 +51,18 @@ export function getBrandLogo(name: string): string | null {
 
     return null
 }
+
+/**
+ * Bilinen bir marka için doğrudan favicon URL'i (Google s2). Eşleşme yoksa null.
+ * BrandLogo bununla eski/yanlış kaydedilmiş `logoUrl` değerlerini geçersiz kılar
+ * (ör. eski bir kayıt globe döndürüyorsa, isimden tazelenmiş URL kullanılır).
+ */
+export function brandFaviconFromName(name: string): string | null {
+    const lowerName = name.toLowerCase()
+    for (const [brand, domain] of Object.entries(BRAND_DOMAINS)) {
+        if (lowerName.includes(brand)) {
+            return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+        }
+    }
+    return null
+}
