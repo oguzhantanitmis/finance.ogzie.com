@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Sun, Moon, Shield, ShieldOff, Settings, LogOut, ChevronDown } from 'lucide-react'
+import { Sun, Moon, Shield, ShieldOff, Settings, LogOut, ChevronDown, PanelLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { signOut, useSession } from 'next-auth/react'
 import { useFinance } from './FinanceContext'
 import { useTheme } from './ThemeProvider'
+import { useSidebar } from './SidebarContext'
 import NotificationBell from '@/components/notifications/NotificationBell'
 import { cn } from '@/lib/utils'
 
@@ -17,13 +18,15 @@ const ICON_BTN = cn(
 )
 
 /**
- * Masaüstü içerik alanının üstünde sağa yaslı kontrol kümesi:
- * tema · gizli mod · bildirim · | · hesap menüsü.
+ * Masaüstü içerik alanının üst barı:
+ *   sol → kenar çubuğunu daralt/genişlet
+ *   sağ → tema · gizli mod · bildirim · | · hesap menüsü
  * Mobilde gizli — orada Navbar'ın kendi üst barı devrede.
  */
 export default function TopBar() {
     const { hideAmounts, toggleHideAmounts } = useFinance()
     const { theme, toggleTheme } = useTheme()
+    const { collapsed, toggleCollapsed } = useSidebar()
     const { data: session } = useSession()
 
     const [accountOpen, setAccountOpen] = useState(false)
@@ -66,7 +69,20 @@ export default function TopBar() {
             }}
         >
             <div className="mx-auto w-full max-w-[1820px] px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12">
-                <div className="flex items-center justify-end gap-2 h-16">
+                <div className="flex items-center justify-between gap-2 h-16">
+                    {/* Sol: kenar çubuğunu daralt / genişlet */}
+                    <button
+                        onClick={toggleCollapsed}
+                        title={collapsed ? 'Genişlet' : 'Daralt'}
+                        aria-label={collapsed ? 'Kenar çubuğunu genişlet' : 'Kenar çubuğunu daralt'}
+                        aria-expanded={!collapsed}
+                        className={ICON_BTN}
+                    >
+                        <PanelLeft className="w-[18px] h-[18px]" />
+                    </button>
+
+                    {/* Sağ: kontrol kümesi */}
+                    <div className="flex items-center gap-2">
                     {/* Tema */}
                     <button
                         onClick={toggleTheme}
@@ -200,6 +216,7 @@ export default function TopBar() {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                    </div>
                     </div>
                 </div>
             </div>

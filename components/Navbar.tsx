@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
     Home, Wallet, CreditCard, PieChart, Shield, ShieldOff,
     Repeat, ReceiptText, LogOut, Landmark, Users, BookOpen,
     Target, BarChart3, Activity, Wand2, Settings, Sun, Moon, Menu, X,
-    ChevronLeft, ChevronRight, ShieldCheck,
+    ShieldCheck,
 } from 'lucide-react'
 import { useFinance } from './FinanceContext'
 import { useTheme } from './ThemeProvider'
+import { useSidebar } from './SidebarContext'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -21,16 +22,8 @@ export default function Navbar() {
     const { data: session } = useSession()
     const pathname = usePathname()
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-    const [collapsed, setCollapsed] = useState(false)
+    const { collapsed } = useSidebar()
     const isSuperuser = session?.user?.role === 'SUPERUSER'
-
-    // Sync sidebar width CSS variable with collapsed state
-    useEffect(() => {
-        document.documentElement.style.setProperty(
-            '--sidebar-width',
-            collapsed ? '72px' : '280px'
-        )
-    }, [collapsed])
 
     const navGroups = [
         {
@@ -177,29 +170,7 @@ export default function Navbar() {
                     ))}
                 </div>
 
-                {/* Bottom Actions — tema/gizli mod/bildirim/çıkış üst bardaki TopBar'a taşındı;
-                    sidebar'a özel daralt/genişlet kontrolü burada kalır. */}
-                <div
-                    className={cn("shrink-0", collapsed ? "px-2 py-3" : "px-3 py-3")}
-                    style={{ borderTop: '1px solid var(--border-default)' }}
-                >
-                    {/* Collapse Toggle */}
-                    <button
-                        onClick={() => setCollapsed(!collapsed)}
-                        title={collapsed ? 'Genişlet' : 'Daralt'}
-                        className={cn(
-                            "flex items-center rounded-xl w-full transition-all duration-200 cursor-pointer hover:bg-[var(--bg-hover)]",
-                            collapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2"
-                        )}
-                        style={{ color: 'var(--text-secondary)' }}
-                    >
-                        {collapsed
-                            ? <ChevronRight className="w-[18px] h-[18px]" />
-                            : <ChevronLeft className="w-[18px] h-[18px]" />
-                        }
-                        {!collapsed && <span className="text-[13px]">Daralt</span>}
-                    </button>
-                </div>
+                {/* Daralt/Genişlet kontrolü üst bardaki TopBar'ın soluna taşındı. */}
             </nav>
 
             {/* ============================================================ */}
