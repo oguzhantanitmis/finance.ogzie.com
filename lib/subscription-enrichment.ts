@@ -25,6 +25,14 @@ const BRAND_CATALOG: BrandCatalogEntry[] = [
     { brandKey: 'amazon-prime', displayName: 'Amazon Prime', keywords: ['amazon prime', 'prime video', 'prime'], domain: 'amazon.com', category: 'Eglence', color: '#00A8E1' },
     { brandKey: 'disney-plus', displayName: 'Disney+', keywords: ['disney', 'disney plus'], domain: 'disneyplus.com', category: 'Eglence', color: '#113CCF' },
     { brandKey: 'microsoft-365', displayName: 'Microsoft 365', keywords: ['office', 'microsoft', 'microsoft 365'], domain: 'microsoft.com', category: 'Yazilim', color: '#5E5E5E' },
+    { brandKey: 'tabii', displayName: 'Tabii', keywords: ['tabii'], domain: 'tabii.com', category: 'Eglence', color: '#E3001B' },
+    { brandKey: 'bein', displayName: 'beIN Connect', keywords: ['bein connect', 'bein'], domain: 'beinconnect.com.tr', category: 'Eglence', color: '#6E2B62' },
+    { brandKey: 'twitch', displayName: 'Twitch', keywords: ['twitch'], domain: 'twitch.tv', category: 'Eglence', color: '#9146FF' },
+    { brandKey: 'github-copilot', displayName: 'GitHub Copilot', keywords: ['copilot', 'github'], domain: 'github.com', category: 'Yazilim', color: '#24292E' },
+    { brandKey: 'claude', displayName: 'Claude', keywords: ['claude', 'anthropic'], domain: 'claude.ai', category: 'Yapay Zeka', color: '#D97757' },
+    { brandKey: 'gemini', displayName: 'Gemini', keywords: ['gemini'], domain: 'gemini.google.com', category: 'Yapay Zeka', color: '#1A73E8' },
+    { brandKey: 'perplexity', displayName: 'Perplexity', keywords: ['perplexity'], domain: 'perplexity.ai', category: 'Yapay Zeka', color: '#20808D' },
+    { brandKey: 'linkedin-premium', displayName: 'LinkedIn Premium', keywords: ['linkedin'], domain: 'linkedin.com', category: 'Yazilim', color: '#0A66C2' },
 ]
 
 const GENERIC_CATEGORY_RULES = [

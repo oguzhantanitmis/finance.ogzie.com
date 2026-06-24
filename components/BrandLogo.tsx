@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { brandFaviconFromName } from '@/lib/logo-utils'
+import { brandLogoCandidates } from '@/lib/logo-utils'
 
 type BrandLogoProps = {
     name: string
@@ -12,7 +12,12 @@ type BrandLogoProps = {
 }
 
 export default function BrandLogo({ name, src, color = '#27272A', size = 56 }: BrandLogoProps) {
-    const [errored, setErrored] = useState(false)
+    // Denenecek logo kaynakları (favicon → DuckDuckGo → Clearbit → kayıtlı src).
+    // Bilinen markalar isimden tazelendiği için eski/yanlış (globe dönen) logoUrl'ler
+    // geçersiz kalır.
+    const candidates = brandLogoCandidates(name, src)
+    const [idx, setIdx] = useState(0)
+    const current = candidates[idx]
 
     const initials = name
         .split(' ')
@@ -20,11 +25,8 @@ export default function BrandLogo({ name, src, color = '#27272A', size = 56 }: B
         .join('')
         .slice(0, 2)
 
-    // Bilinen markalar için favicon'u isimden tazele; böylece eski/yanlış kayıtlı
-    // (ör. globe dönen) logoUrl'ler geçersiz kalır. Yoksa kayıtlı src'yi kullan.
-    const effectiveSrc = brandFaviconFromName(name) ?? src ?? null
-
-    if (!effectiveSrc || errored) {
+    // Hiç kaynak yok ya da tüm kaynaklar denenip tükendi → baş harf rozeti.
+    if (!current) {
         return (
             <div
                 className="rounded-2xl border border-[var(--border-default)] flex items-center justify-center text-sm font-bold text-white shrink-0"
@@ -43,12 +45,13 @@ export default function BrandLogo({ name, src, color = '#27272A', size = 56 }: B
             style={{ width: size, height: size, padding: Math.max(4, Math.round(size * 0.14)) }}
         >
             <Image
-                src={effectiveSrc}
+                key={current}
+                src={current}
                 alt={name}
                 width={size}
                 height={size}
                 className="w-full h-full object-contain"
-                onError={() => setErrored(true)}
+                onError={() => setIdx((i) => i + 1)}
                 unoptimized
             />
         </div>
