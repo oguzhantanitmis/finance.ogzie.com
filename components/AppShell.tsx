@@ -8,7 +8,7 @@ import MobileTabBar from '@/components/MobileTabBar'
 import ErrorBoundary from '@/components/ui/ErrorBoundary'
 import { SidebarProvider } from '@/components/SidebarContext'
 
-const PUBLIC_PATHS = new Set(['/login'])
+const PUBLIC_PATHS = new Set(['/login', '/ogzie-sso'])
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()

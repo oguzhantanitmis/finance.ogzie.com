@@ -31,7 +31,22 @@ export const BRAND_DOMAINS: Record<string, string> = {
     'slack': 'slack.com',
     'dropbox': 'dropbox.com',
     'google': 'google.com',
-    'drive': 'google.com'
+    'drive': 'google.com',
+    'tabii': 'tabii.com',
+    'bein': 'beinconnect.com.tr',
+    'twitch': 'twitch.tv',
+    'copilot': 'github.com',
+    'github': 'github.com',
+    'claude': 'claude.ai',
+    'anthropic': 'anthropic.com',
+    'gemini': 'gemini.google.com',
+    'perplexity': 'perplexity.ai',
+    'cursor': 'cursor.com',
+    'linkedin': 'linkedin.com',
+    'twitter': 'x.com',
+    'vercel': 'vercel.com',
+    'telegram': 'telegram.org',
+    'discord': 'discord.com'
 }
 
 export function getBrandLogo(name: string): string | null {
@@ -65,4 +80,35 @@ export function brandFaviconFromName(name: string): string | null {
         }
     }
     return null
+}
+
+/** İsimden bilinen marka domain'ini bulur (BRAND_DOMAINS kısmi eşleşme). */
+export function brandDomainFromName(name: string): string | null {
+    const lowerName = name.toLowerCase()
+    for (const [brand, domain] of Object.entries(BRAND_DOMAINS)) {
+        if (lowerName.includes(brand)) {
+            return domain
+        }
+    }
+    return null
+}
+
+/**
+ * Bir abonelik/marka için sırayla denenecek logo URL'leri (fallback zinciri):
+ * Google favicon → DuckDuckGo → Clearbit → kayıtlı (stale olabilen) logoUrl.
+ * BrandLogo bir kaynak yüklenmezse (onError) bir sonrakine geçer; hepsi
+ * tükenirse baş harf rozetine düşer.
+ */
+export function brandLogoCandidates(name: string, fallbackSrc?: string | null): string[] {
+    const out: string[] = []
+    const domain = brandDomainFromName(name)
+    if (domain) {
+        out.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`)
+        out.push(`https://icons.duckduckgo.com/ip3/${domain}.ico`)
+        out.push(`https://logo.clearbit.com/${domain}`)
+    }
+    if (fallbackSrc) {
+        out.push(fallbackSrc)
+    }
+    return [...new Set(out)]
 }

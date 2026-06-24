@@ -1,5 +1,30 @@
 # Test Raporu
 
+## 2026-06-24 — Güncel Durum
+
+### Otomatik Kontroller
+
+| Kontrol | Durum |
+| --- | --- |
+| `npx tsc --noEmit` | Başarılı |
+| `npm test` (vitest) | Başarılı — 9 dosya, 133 test |
+| `npx next dev` (Turbopack) derleme | Başarılı — hatasız |
+| `npm run lint` (değişen dosyalar) | Temiz (repo genelinde eski legacy lint borcu sürüyor) |
+
+### Bu sürümde eklenen/etkilenen senaryolar
+
+| Senaryo | Durum |
+| --- | --- |
+| Üst bar (TopBar): tema · gizli mod · bildirim · hesap menüsü | tsc/derleme + 20-ajanlı adversarial review ile doğrulandı |
+| Kenar çubuğu daralt/genişlet (TopBar solu, `SidebarContext`) | tsc/derleme ile doğrulandı |
+| Marka logoları: beyaz tile + isimden tazeleme + fallback zinciri | tsc/derleme; production favicon optimizasyonu teyit edildi |
+| Giriş (login) sayfası split-screen yeniden tasarım | tsc/derleme; tüm NextAuth akışı (5 mod) korunur |
+| ogzie SSO tam ekran yükleme animasyonu (AppShell gizli) | tsc/derleme; `signIn('ogzie')` akışı korunur |
+
+> Aşağıdaki **2026-05-03** bölümü ilk sürümün temel (baseline) raporudur.
+
+---
+
 Tarih: 2026-05-03
 
 ## Otomatik Kontroller
