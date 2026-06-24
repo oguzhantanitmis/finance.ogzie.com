@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { CheckCircle2, Eye, EyeOff, Lock, Mail, ShieldCheck, Wallet, TrendingUp, Repeat, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import AlienDialLoader from '@/components/AlienDialLoader'
 
 type Mode = 'login' | 'forgot' | 'reset' | 'forgot-sent' | 'reset-done'
 
@@ -36,10 +37,21 @@ function LoginInner() {
     const [showPass, setShowPass]     = useState(false)
     const [loading, setLoading]       = useState(false)
     const [error, setError]           = useState('')
+    const [showIntro, setShowIntro]   = useState(true)
 
     useEffect(() => {
         if (resetToken) setMode('reset')
     }, [resetToken])
+
+    // Intro animasyonunu Esc/Enter ile geç.
+    useEffect(() => {
+        if (!showIntro) return
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' || e.key === 'Enter') setShowIntro(false)
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [showIntro])
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault()
@@ -120,6 +132,30 @@ function LoginInner() {
     )
 
     return (
+        <>
+            {/* ════════════ INTRO — AlienDialLoader (bir kez oynar) ════════════ */}
+            <AnimatePresence>
+                {showIntro && (
+                    <motion.div
+                        key="intro"
+                        className="fixed inset-0 z-50 cursor-pointer"
+                        onClick={() => setShowIntro(false)}
+                        initial={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        <AlienDialLoader loop={false} durationMs={2800} onComplete={() => setShowIntro(false)} />
+                        <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setShowIntro(false) }}
+                            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[60] text-[11px] tracking-[0.3em] uppercase text-white/45 hover:text-white/90 transition-colors"
+                        >
+                            Geç →
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
         <div className="min-h-screen lg:grid lg:grid-cols-[1.05fr_1fr] relative overflow-hidden"
             style={{ background: 'var(--bg-primary)' }}>
 
@@ -391,6 +427,7 @@ function LoginInner() {
                 </motion.div>
             </main>
         </div>
+        </>
     )
 }
 
