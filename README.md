@@ -280,4 +280,6 @@ Veri onarım scriptleri:
 - `lib/market-data.ts`, `lib/evds-service.ts`: CollectAPI piyasa verisi ve rate cache akışı.
 - `lib/monthly-planner.ts`: bütçe özeti ve yaklaşan ödeme yükümlülükleri.
 - `prisma/schema.prisma`: veri modeli.
+- `components/OgzieSsoLoader.tsx`: ogzie SSO yükleme animasyonu — taşınabilir, prop'larla yapılandırılan tek dosyalık şablon.
+- `docs/ogzie-sso-loader/`: yukarıdaki şablonun diğer ogzie sistemlerine taşınması için teslim paketi (README + örnek entegrasyon dosyaları).
 - `docs/CHANGELOG.md`: tamamlanan teknik değişikliklerin kısa kayıtları.

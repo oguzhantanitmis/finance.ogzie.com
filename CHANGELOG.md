@@ -1,5 +1,47 @@
 # CHANGELOG
 
+## 2026-06-24 - Giriş Deneyimi Yenileme, Marka Logoları, SSO Yükleme Şablonu ve Erişilebilirlik
+
+Giriş (login + ogzie SSO) deneyimi yenilendi, marka logoları dayanıklı hale getirildi, ogzie SSO yükleme animasyonu taşınabilir bir şablona çıkarıldı ve birkaç erişilebilirlik/lint iyileştirmesi yapıldı. Tüm auth akışları (NextAuth `signIn`, 5 login modu, `signIn('ogzie')`) **korundu**. Operasyon: auto-deploy webhook'u devreye alındı.
+
+### Eklendi
+
+- `app/login/page.tsx` (yeniden tasarım): premium **split-screen** — solda markalı hero panel (`lg+`), sağda auth kartı, framer-motion giriş animasyonu. 5 mod (login/forgot/forgot-sent/reset/reset-done) korunur.
+- `components/AlienDialLoader.tsx`: tam ekran "alien bileklik kadranı" intro animasyonu — self-contained; props `size`/`primaryColor`/`durationMs`/`loop` (+`onComplete`); `prefers-reduced-motion` desteği; yalnız transform/opacity (GPU dostu), dış varlık yok. Login açılışında `loop=false` bir kez oynar; tık/Esc/Enter/"Geç" ile atlanır.
+- `components/OgzieSsoLoader.tsx`: ogzie SSO yükleme/hata animasyonu — **taşınabilir tek dosyalık şablon**. Projeye özel token/class zorunlu değil; renkler `var(--token, fallback)` ile gelir, prop'larla override edilir (`primaryColor`, `brandInitial`, `message`, `fullScreen`, `state`, …).
+- `components/ContentWidthSetter.tsx`: aktif `PageShell` genişliğini `--content-max` CSS değişkenine yazar (TopBar kümesinin içerik hizası için).
+- `lib/logo-utils.ts`: `brandFaviconFromName`, `brandDomainFromName`, `brandLogoCandidates` (Google favicon → DuckDuckGo → Clearbit → kayıtlı `src` fallback zinciri). `BRAND_DOMAINS`'e yeni markalar: Tabii, beIN, Twitch, Copilot/GitHub, Claude, Gemini, Perplexity, Cursor, LinkedIn, Vercel, Telegram, Discord.
+- `lib/subscription-enrichment.ts`: `BRAND_CATALOG` aynı markalarla genişletildi (kategori + renk + keyword).
+- `docs/ogzie-sso-loader/`: `OgzieSsoLoader` için kendi kendine yeten **teslim paketi** — `README.md` (kurulum, props, temalama, App Router + NextAuth ve genel entegrasyon örnekleri, AppShell muafiyeti notu, SSS), bileşenin taşınabilir kopyası ve `examples/` (auto-login, page, standalone-demo).
+
+### Değişti
+
+- `components/BrandLogo.tsx`: logo artık **beyaz tile + `object-contain` + padding** üzerine basılıyor → koyu/tek renk logolar (OpenAI/ChatGPT/Notion) koyu temada da net görünür. Bilinen markalar **isimden tazelenir** (eski/`globe` dönen `logoUrl` geçersiz kalır; migration gerekmez). `onError`'da aday kaynaklar arasında ilerler, hepsi tükenirse baş harf rozeti.
+- `app/ogzie-sso/page.tsx` + `app/ogzie-sso/auto-login.tsx`: `/ogzie-sso` `AppShell`'den muaf → çıplak shell yerine tam ekran markalı yükleme animasyonu; sonra ortak `OgzieSsoLoader` şablonuna refactor edildi (`fullScreen=false`). `signIn('ogzie')` akışı birebir korunur.
+- `components/AppShell.tsx`: `PUBLIC_PATHS`'e `/ogzie-sso` eklendi.
+- `components/TopBar.tsx`: küme artık aktif sayfa genişliğini (`--content-max`) takip eder (`width="normal"` sayfalarda hizalı). Hesap menüsü **tam ARIA klavye navigasyonu**: `role=menu/menuitem`, açılışta ilk öğeye odak, `ArrowUp/Down/Home/End`.
+- `components/PageShell.tsx`: `ContentWidthSetter` render edilir.
+- `components/notifications/NotificationBell.tsx`: açılır panel tamamen tema token'larına geçirildi (açık tema uyumu); zil butonuna `aria-haspopup`/`aria-expanded`/`aria-label` + `Escape`; `buttonClassName` propu (TopBar pill); okunmamış nokta ring rengi yüzeye uyduruldu.
+- `tsconfig.json`: `docs` `exclude`'a eklendi (şablon örnek `.tsx`'leri build/typecheck dışı).
+
+### Sabitlendi
+
+- `components/notifications/NotificationBell.tsx`: mount efektindeki senkron `setState` kaldırıldı (fetch inline async, `setState` yalnız `await` sonrası) → `react-hooks/set-state-in-effect` lint hatası giderildi + unmount guard.
+- Marka logosu kontrastı: `chatgpt` gibi koyu logolar koyu temada görünmüyordu → beyaz tile ile çözüldü; eski kaydın `globe` dönen `logoUrl`'ü isimden tazelenerek düzeldi.
+
+### Doğrulandı
+
+- `npx tsc --noEmit` — 0 hata
+- `npm test` (vitest) — 9 dosya, 133 test PASS
+- eslint — değişen dosyalar temiz (NotificationBell lint hatası **dahil** giderildi)
+- Next.js 16 dev derleme — `/login`, `/ogzie-sso` 200, hatasız
+- Production (Dokploy `finance-web`) — PR #11–#16 deploy edildi; canlı 200.
+
+### Bilinen Notlar / Operasyon
+
+- **Auto-deploy webhook'u devreye alındı**: `main`'e merge artık Dokploy deploy'unu otomatik tetikler (önceki sürümlerde elle tetikleniyordu).
+- `docs/ogzie-sso-loader/` paketi diğer ogzie sistemlerine (mesai360 …) taşınmak üzere hazırlandı; global shell'i olan sistemlerde `/ogzie-sso` rotasını muaf tutmak gerekir.
+
 ## 2026-06-23 - Üst Header Kümesi (TopBar): Sidebar Footer Kontrollerinin Taşınması
 
 Masaüstü kenar çubuğunun dikey footer kontrolleri (tema, gizli mod, bildirim, çıkış) ogzie uygulaması referans alınarak içerik alanının üstüne, **sağa yaslı yatay bir header kümesine** taşındı. Yalnızca sunum katmanı — auth helper'ları, server action'lar ve Prisma sorguları **dokunulmadı**.

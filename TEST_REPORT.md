@@ -20,6 +20,11 @@
 | Marka logoları: beyaz tile + isimden tazeleme + fallback zinciri | tsc/derleme; production favicon optimizasyonu teyit edildi |
 | Giriş (login) sayfası split-screen yeniden tasarım | tsc/derleme; tüm NextAuth akışı (5 mod) korunur |
 | ogzie SSO tam ekran yükleme animasyonu (AppShell gizli) | tsc/derleme; `signIn('ogzie')` akışı korunur |
+| Giriş açılış intro animasyonu (`AlienDialLoader`) | tsc/derleme; atlanabilir (tık/Esc/Enter/"Geç"), `prefers-reduced-motion` desteği |
+| `OgzieSsoLoader` taşınabilir şablon + `docs/ogzie-sso-loader/` paketi | tsc/derleme; finance refactor sonrası görünüm birebir aynı |
+| TopBar içerik-genişliği hizası (`--content-max`, `width="normal"` sayfalar) | tsc/derleme ile doğrulandı |
+| Hesap menüsü tam ARIA klavye navigasyonu (ok/Home/End/Escape) | tsc/derleme ile doğrulandı |
+| `NotificationBell` `set-state-in-effect` lint hatası giderildi | eslint temiz (hata yok) |
 
 > Aşağıdaki **2026-05-03** bölümü ilk sürümün temel (baseline) raporudur.
 
