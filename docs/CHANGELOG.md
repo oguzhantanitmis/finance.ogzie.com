@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-06-24
+
+### Değiştirilen dosyalar
+- `app/login/page.tsx`
+- `app/ogzie-sso/page.tsx`, `app/ogzie-sso/auto-login.tsx`
+- `components/AlienDialLoader.tsx` (yeni)
+- `components/OgzieSsoLoader.tsx` (yeni)
+- `components/ContentWidthSetter.tsx` (yeni)
+- `components/BrandLogo.tsx`, `components/AppShell.tsx`, `components/TopBar.tsx`, `components/PageShell.tsx`
+- `components/notifications/NotificationBell.tsx`
+- `lib/logo-utils.ts`, `lib/subscription-enrichment.ts`
+- `docs/ogzie-sso-loader/**` (yeni teslim paketi), `tsconfig.json`
+
+### Değişiklik
+- Giriş sayfası premium split-screen olarak yeniden tasarlandı; açılışta tam ekran `AlienDialLoader` intro animasyonu (atlanabilir) → form. NextAuth 5 modu korunur.
+- ogzie SSO yükleme animasyonu taşınabilir `OgzieSsoLoader` şablonuna çıkarıldı (token-bağımsız, prop'larla yapılandırılır); `/ogzie-sso` AppShell'den muaf tutuldu (çıplak shell gizlendi). `docs/ogzie-sso-loader/` teslim paketi + dokümantasyonu eklendi.
+- Marka logoları beyaz tile + isimden tazeleme + fallback zinciri (favicon→DuckDuckGo→Clearbit→baş harf); katalog genişletildi (Tabii, Twitch, Copilot, Claude, Gemini, Perplexity, LinkedIn …). `chatgpt` logo kontrast/globe sorunu giderildi.
+- TopBar kümesi içerik genişliğini (`--content-max`) takip ediyor; hesap menüsüne tam ARIA klavye navigasyonu eklendi. NotificationBell `set-state-in-effect` lint hatası giderildi.
+- Operasyon: auto-deploy webhook'u devreye alındı (main'e merge → otomatik Dokploy deploy). Doğrulama: tsc 0 hata, 133 test PASS, canlı 200.
+
 ## 2026-06-23
 
 ### Değiştirilen dosyalar
