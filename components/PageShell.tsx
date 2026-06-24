@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import ContentWidthSetter from '@/components/ContentWidthSetter'
 
 interface PageShellProps {
     children: React.ReactNode
@@ -17,6 +18,7 @@ const WIDTH_CLASSNAMES: Record<NonNullable<PageShellProps['width']>, string> = {
 export default function PageShell({ children, width = 'genis', className, title, description }: PageShellProps) {
     return (
         <div className="min-w-0">
+            <ContentWidthSetter width={width} />
             <div
                 className={cn(
                     'mx-auto w-full px-4 py-6 sm:px-6 md:px-8 lg:px-10 xl:px-12',
