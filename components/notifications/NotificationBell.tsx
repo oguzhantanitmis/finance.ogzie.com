@@ -21,21 +21,19 @@ export default function NotificationBell({ align = 'right', className, showLabel
     const [loading, setLoading] = useState(true)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
-    const fetchNotifications = async () => {
-        setLoading(true)
-        // First trigger a background check for any new system alerts (like upcoming payments)
-        await generateSystemAlerts()
-        
-        // Then fetch unread notifications
-        const res = await getUnreadNotifications()
-        if (res.success && res.alerts) {
-            setNotifications(res.alerts)
-        }
-        setLoading(false)
-    }
-
+    // Açılışta sistem uyarılarını üretip okunmamış bildirimleri çek.
+    // setState yalnızca `await` sonrası çağrılır → react-hooks/set-state-in-effect
+    // tetiklenmez. `active` bayrağı unmount sonrası state güncellemesini engeller.
     useEffect(() => {
-        fetchNotifications()
+        let active = true
+        ;(async () => {
+            await generateSystemAlerts()
+            const res = await getUnreadNotifications()
+            if (!active) return
+            if (res.success && res.alerts) setNotifications(res.alerts)
+            setLoading(false)
+        })()
+        return () => { active = false }
     }, [])
 
     useEffect(() => {

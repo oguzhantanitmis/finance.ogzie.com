@@ -99,6 +99,7 @@
   --sidebar-bg: #0a0a0a;
   --sidebar-border: #1a1a1a;
   --sidebar-width: 280px;
+  --content-max: 1820px;
 
   /* Radius */
   --radius-sm: 0.5rem;
