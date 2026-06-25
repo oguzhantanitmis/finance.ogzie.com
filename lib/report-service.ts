@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { endOfMonth, startOfMonth } from 'date-fns'
+import { EXCLUDE_OGZIE_FORECAST as EXCLUDE_FORECAST } from '@/lib/ogzie-forecast-filter'
 
 export interface MonthlyReport {
     month: string
@@ -17,7 +18,7 @@ export async function getMonthlyReports(userId: string, months: number = 6): Pro
     startDate.setHours(0, 0, 0, 0)
 
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId, date: { gte: startDate } },
+        where: { userId, date: { gte: startDate }, ...EXCLUDE_FORECAST },
         select: { amount: true, type: true, category: true, date: true },
         orderBy: { date: 'asc' },
     })
@@ -66,7 +67,7 @@ export async function getExpenseBreakdown(userId: string) {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId, amount: { lt: 0 }, date: { gte: thirtyDaysAgo } },
+        where: { userId, amount: { lt: 0 }, date: { gte: thirtyDaysAgo }, ...EXCLUDE_FORECAST },
         select: { type: true, amount: true },
     })
 
@@ -89,7 +90,7 @@ export async function getCategoryBreakdown(userId: string, days = 30) {
     since.setDate(since.getDate() - days)
 
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId, amount: { lt: 0 }, date: { gte: since } },
+        where: { userId, amount: { lt: 0 }, date: { gte: since }, ...EXCLUDE_FORECAST },
         select: { category: true, amount: true },
     })
 
@@ -114,7 +115,7 @@ export async function getDailyCashflow(userId: string, days = 90) {
     since.setHours(0, 0, 0, 0)
 
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId, date: { gte: since } },
+        where: { userId, date: { gte: since }, ...EXCLUDE_FORECAST },
         select: { date: true, amount: true },
         orderBy: { date: 'asc' },
     })
@@ -149,7 +150,7 @@ export async function getPeriodComparison(userId: string) {
 
     async function sumPeriod(start: Date, end: Date) {
         const entries = await prisma.ledgerEntry.findMany({
-            where: { userId, date: { gte: start, lte: end } },
+            where: { userId, date: { gte: start, lte: end }, ...EXCLUDE_FORECAST },
             select: { amount: true, type: true },
         })
         const income = entries.filter(e => e.amount > 0).reduce((s, e) => s + e.amount, 0)
@@ -193,7 +194,7 @@ export async function getTopDays(userId: string, days = 60) {
     since.setDate(since.getDate() - days)
 
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId, date: { gte: since } },
+        where: { userId, date: { gte: since }, ...EXCLUDE_FORECAST },
         select: { date: true, amount: true, description: true, type: true },
     })
 
@@ -221,7 +222,7 @@ export async function getTransactionTypeMix(userId: string, days = 30) {
     since.setDate(since.getDate() - days)
 
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId, date: { gte: since } },
+        where: { userId, date: { gte: since }, ...EXCLUDE_FORECAST },
         select: { type: true, amount: true },
     })
 
@@ -257,7 +258,7 @@ export async function getProfessionalReportDashboard(userId: string, date = new 
         marketRates,
     ] = await Promise.all([
         prisma.ledgerEntry.findMany({
-            where: { userId, date: { gte: monthStart, lte: monthEnd } },
+            where: { userId, date: { gte: monthStart, lte: monthEnd }, ...EXCLUDE_FORECAST },
             select: { type: true, amount: true, category: true, date: true, accountId: true, creditCardId: true },
         }),
         prisma.receivablePayable.findMany({

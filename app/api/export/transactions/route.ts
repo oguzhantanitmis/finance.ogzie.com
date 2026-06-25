@@ -33,7 +33,8 @@ export async function GET(req: NextRequest) {
             startDate: from ? new Date(from) : undefined,
             endDate:   to   ? new Date(to)   : undefined,
         }
-        const { entries } = await getLedgerEntries(user.id, filters, 10_000, 0)
+        // Export = gerçekleşen defter → forecast satırlarını dışla (satır + özet tutarlı olsun).
+        const { entries } = await getLedgerEntries(user.id, { ...filters, excludeForecast: true }, 10_000, 0)
 
         const headers = ['Tarih', 'Tür', 'Açıklama', 'Hesap', 'Para Birimi', 'Tutar']
         const rows = entries.map(e => [

@@ -1064,6 +1064,11 @@ model LedgerEntry {
   subscriptionId  String?
   rpTransactionId String?
 
+  // Harici kaynak izleme (örn. ogzie push ingest) — idempotent yazım için.
+  // source: hareketi üreten dış sistem ("ogzie"); externalId: kaynak-stabil kimlik.
+  source     String?
+  externalId String?
+
   metadata Json?
 
   createdAt DateTime @default(now())
@@ -1072,11 +1077,23 @@ model LedgerEntry {
   account       Account?       @relation(fields: [accountId], references: [id])
   rpTransaction RPTransaction? @relation(fields: [rpTransactionId], references: [id])
 
+  @@unique([source, externalId]) // dış-kaynak idempotency (ogzie effectively-once)
   @@index([userId])
   @@index([userId, date]) // rapor sorguları: userId + tarih aralığı
   @@index([type])
   @@index([date])
   @@index([accountId])
+  @@index([source])
+}
+
+// ogzie push ingest batch kaydı — batch düzeyinde effectively-once tekrar koruması.
+// Aynı batchId iki kez gelirse (retry) ikinci ingest no-op döner.
+model OgzieIngestBatch {
+  id        String   @id @default(cuid())
+  batchId   String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // ============================================================
