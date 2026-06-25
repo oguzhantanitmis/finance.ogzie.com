@@ -42,6 +42,7 @@ interface EntryData {
     account: { name: string } | null
     sourceLabel: string | null
     sourceHref: string | null
+    isForecast: boolean
 }
 
 interface Props {
@@ -50,15 +51,18 @@ interface Props {
     totalExpense: number
     total: number
     accounts?: Array<{ id: string; name: string }>
+    /** ogzie öngörü satırları listede gösterilsin mi (URL ?forecast=1). */
+    showForecast?: boolean
 }
 
 type ModalType = 'income' | 'expense' | null
 
-export default function TransactionsWorkspace({ entries, totalIncome, totalExpense, total, accounts = [] }: Props) {
+export default function TransactionsWorkspace({ entries, totalIncome, totalExpense, total, accounts = [], showForecast = false }: Props) {
     const [search, setSearch] = useState('')
     const [typeFilter, setTypeFilter] = useState<string>('all')
     const [modal, setModal] = useState<ModalType>(null)
     const [isPending, startTransition] = useTransition()
+    const [isForecastPending, startForecastTransition] = useTransition()
     const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
 
     // Form state
@@ -99,6 +103,17 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
         setModal(n)
         router.replace(pathname, { scroll: false })
     }, [searchParams, resetForm, router, pathname])
+
+    // Öngörüleri göster toggle'ı: durum URL ?forecast=1 ile (server-render uyumlu).
+    const toggleForecast = useCallback((checked: boolean) => {
+        const next = new URLSearchParams(searchParams.toString())
+        if (checked) next.set('forecast', '1')
+        else next.delete('forecast')
+        const qs = next.toString()
+        startForecastTransition(() => {
+            router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+        })
+    }, [searchParams, router, pathname])
 
     const requestCloseModal = useCallback(() => {
         if (hasDirtyForm && !confirm('Formda girilmiş bilgi var. Kapatmak istiyor musunuz?')) return
@@ -217,6 +232,21 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                         <option key={key} value={key}>{meta.label}</option>
                     ))}
                 </select>
+                <label
+                    className="inline-flex items-center gap-2 border rounded-2xl py-3 px-4 text-sm cursor-pointer select-none"
+                    style={{ background: 'var(--bg-input)', borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
+                    title="ogzie öngörü (tahmin) satırlarını listede göster. Toplamlar her zaman gerçekleşen kayıtları gösterir."
+                >
+                    <input
+                        type="checkbox"
+                        checked={showForecast}
+                        disabled={isForecastPending}
+                        onChange={(e) => toggleForecast(e.target.checked)}
+                        className="h-4 w-4 rounded border-[var(--border-default)] bg-[var(--bg-input)]"
+                    />
+                    <span>Öngörüleri göster</span>
+                    {isForecastPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                </label>
             </div>
 
             {/* İşlem Listesi */}
@@ -237,7 +267,17 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
                                         <Icon className="w-4 h-4" />
                                     </div>
                                     <div className="min-w-0">
-                                        <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{entry.description || meta.label}</p>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{entry.description || meta.label}</p>
+                                            {entry.isForecast && (
+                                                <span
+                                                    className="shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide"
+                                                    style={{ background: 'var(--bg-hover)', color: 'var(--text-muted)' }}
+                                                >
+                                                    Öngörü
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             <span>{meta.label}</span>
                                             {entry.category && <span>• {entry.category}</span>}

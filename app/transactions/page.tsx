@@ -43,9 +43,18 @@ function getSourceLink(entry: {
     return null
 }
 
-export default async function TransactionsPage() {
+export default async function TransactionsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ forecast?: string }>
+}) {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
+
+    // Öngörü (ogzie forecast) satırları varsayılan GİZLİ; ?forecast=1 ile gösterilir.
+    // Toplam/KPI'lar bundan bağımsız her zaman forecast'i dışlar (getLedgerSummary).
+    const { forecast } = await searchParams
+    const showForecast = forecast === '1'
 
     let serializedEntries: Array<{
         id: string
@@ -58,6 +67,7 @@ export default async function TransactionsPage() {
         account: { name: string } | null
         sourceLabel: string | null
         sourceHref: string | null
+        isForecast: boolean
     }> = []
     let totalIncome = 0
     let totalExpense = 0
@@ -67,7 +77,7 @@ export default async function TransactionsPage() {
     try {
         const [{ entries, total: t }, summary] = await withDbRetry(
             () => Promise.all([
-                getLedgerEntries(user.id, undefined, 100),
+                getLedgerEntries(user.id, { excludeForecast: !showForecast }, 100),
                 getLedgerSummary(user.id),
             ]),
             { retries: 2, delayMs: 400 }
@@ -86,6 +96,7 @@ export default async function TransactionsPage() {
             account: e.account ? { name: e.account.name } : null,
             sourceLabel: getSourceLink(e)?.label ?? null,
             sourceHref: getSourceLink(e)?.href ?? null,
+            isForecast: e.source === 'ogzie' && (e.externalId?.includes(':forecast:') ?? false),
         }))
     } catch (e) {
         console.error('TransactionsPage data fetch error:', e)
@@ -119,6 +130,7 @@ export default async function TransactionsPage() {
                     totalExpense={totalExpense}
                     total={total}
                     accounts={accounts}
+                    showForecast={showForecast}
                 />
             </Suspense>
         </PageShell>
