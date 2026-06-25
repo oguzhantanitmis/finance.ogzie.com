@@ -2,6 +2,7 @@ import { cache as reactCache } from 'react'
 
 import { prisma } from '@/lib/prisma'
 import { syncCanonicalDebtsForUser } from '@/lib/canonical-debt-service'
+import { EXCLUDE_OGZIE_FORECAST } from '@/lib/ogzie-forecast-filter'
 
 export type Strategy = 'SAFE' | 'AVALANCHE' | 'SNOWBALL' | 'CASHFLOW' | 'RISK' | 'GOAL'
 
@@ -241,7 +242,13 @@ const estimateDebtBudget = reactCache(async (userId: string) => {
 
     const [incomeEntries, recurring, subscriptions] = await Promise.all([
         prisma.ledgerEntry.findMany({
-            where: { userId, type: 'INCOME', date: { gte: threeMonthsAgo } },
+            // forecast (ogzie tahmin) satırlarını ortalama-gelir bütçesinden dışla.
+            where: {
+                userId,
+                type: 'INCOME',
+                date: { gte: threeMonthsAgo },
+                ...EXCLUDE_OGZIE_FORECAST,
+            },
             select: { amount: true },
         }),
         prisma.recurringExpense.findMany({ where: { userId, status: 'ACTIVE' }, select: { amount: true, billingCycle: true } }),

@@ -29,8 +29,9 @@ export const config = {
         // - /login: giriş sayfası
         // - /api/auth: NextAuth + forgot-password + reset-password
         // - /api/ogzie-sync: ogzie güvenli kanal push (kendi bearer-secret auth'u var)
+        // - /api/ogzie-ingest: ogzie → finance push ingest (kendi Ed25519 imza auth'u var)
         // - /ogzie-sso: ogzie SSO bilet landing'i (session HENÜZ yok — giriş noktası)
         // - _next, favicon, manifest, static asset uzantıları
-        "/((?!login|api/auth|api/ogzie-sync|ogzie-sso|_next/static|_next/image|favicon\\.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+        "/((?!login|api/auth|api/ogzie-sync|api/ogzie-ingest|ogzie-sso|_next/static|_next/image|favicon\\.ico|manifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
     ],
 }

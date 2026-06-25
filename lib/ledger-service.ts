@@ -1,5 +1,6 @@
 import type { LedgerEntry, LedgerEntryType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { EXCLUDE_OGZIE_FORECAST } from '@/lib/ogzie-forecast-filter'
 
 export interface LedgerFilter {
     type?: LedgerEntryType
@@ -7,6 +8,8 @@ export interface LedgerFilter {
     startDate?: Date
     endDate?: Date
     search?: string
+    /** true → ogzie forecast satırlarını dışla (gerçekleşen toplam / export için). */
+    excludeForecast?: boolean
 }
 
 export interface LedgerEntryWithRelations extends LedgerEntry {
@@ -42,6 +45,9 @@ export async function getLedgerEntries(
     }
     if (filters?.search) {
         where.description = { contains: filters.search }
+    }
+    if (filters?.excludeForecast) {
+        Object.assign(where, EXCLUDE_OGZIE_FORECAST)
     }
 
     const [entries, total] = await Promise.all([
@@ -285,8 +291,9 @@ export async function recordRecurringPayment(
 }
 
 export async function getLedgerSummary(userId: string) {
+    // Gerçekleşen toplam → ogzie forecast satırlarını dışla (çift-sayım önlemi).
     const entries = await prisma.ledgerEntry.findMany({
-        where: { userId },
+        where: { userId, ...EXCLUDE_OGZIE_FORECAST },
         select: { type: true, amount: true },
     })
 
