@@ -165,6 +165,14 @@ GitHub / Vercel:
 - Deployment sonrası `finance.ogzie.com` alias'ının yeni deployment'a döndüğü kontrol edilmelidir.
 - Runtime loglarda hata olup olmadığı deployment URL üzerinden kontrol edilmelidir.
 
+ogzie veri kanalı (ingest):
+
+- `app/api/ogzie-ingest`: ogzie (app.ogzie.com) → finance **tek-yönlü, imzalı** veri kanalı. ogzie kendi domain maliyetlerini + müşteri gelir/giderlerini buraya gönderir; idempotent `LedgerEntry` (`source='ogzie'`) olarak yazılır.
+- Doğrulama **fail-closed**: ogzie ÖZEL Ed25519 anahtarıyla imzalar, finance yalnız `OGZIE_FINANCE_PUSH_PUBLIC_JWK` (PUBLIC) ile doğrular. Özel anahtar finance'a HİÇ verilmez. NextAuth middleware'inden muaftır (kendi imza-auth'u vardır).
+- Effectively-once: `OgzieIngestBatch.batchId` UNIQUE + `LedgerEntry (source, externalId)` UNIQUE + ±300s zaman tazeliği. `source='ogzie'` route tarafında enjekte edilir (gövdeden alınmaz).
+- Para birimi TRY değilse CollectAPI kuruyla TRY'ye çevrilir (`SUPPORTED_FX` allowlist). `OGZIE_INGEST_USER_ID` olayların hangi kullanıcıya yazılacağını belirler (yoksa reddedilir).
+- Öngörü (forecast) satırları gerçekleşen toplam/özet/export'tan **her zaman** dışlanır; İşlem Defteri listesinde varsayılan gizlidir (`?forecast=1` ile gösterilir, "Öngörü" rozeti).
+
 ## Ortam Değişkenleri
 
 Zorunlu temel değişkenler:
@@ -191,7 +199,12 @@ SMTP_USER
 SMTP_PASSWORD
 SMTP_FROM
 SMTP_REPLY_TO
+OGZIE_FINANCE_PUSH_PUBLIC_JWK
+OGZIE_FINANCE_PUSH_AUDIENCE
+OGZIE_INGEST_USER_ID
 ```
+
+> `OGZIE_FINANCE_PUSH_*` + `OGZIE_INGEST_USER_ID`: ogzie → finance imzalı ingest kanalı (yukarıdaki "ogzie veri kanalı"). `OGZIE_FINANCE_PUSH_PUBLIC_JWK` yalnız **public** Ed25519 anahtarıdır; özel anahtar finance'a girmez. Yoksa `/api/ogzie-ingest` fail-closed reddeder.
 
 Seed için kullanılan değişkenler:
 
