@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 2026-06-26 - ogzie → finance İmzalı Veri Kanalı (Ingest), Ölü Sync Gönderici Kaldırma ve Öngörü Filtresi
+
+ogzie (app.ogzie.com) → finance tek-yönlü **imzalı** veri kanalı (ingest) canlıya alındı; eski (ters-yön, kullanılmayan) `finance → ogzie` sync gönderici tamamen kaldırıldı; İşlem Defteri'ne ogzie öngörü (forecast) satırları için aç/kapa filtre eklendi. Tüm mevcut auth/SSO akışları **korundu**.
+
+### Eklendi
+
+- `app/api/ogzie-ingest` (PR #18): ogzie'den gelen domain maliyeti + müşteri gelir/gider olaylarını idempotent `LedgerEntry` (`source='ogzie'`) olarak yazar. **Ed25519 imza doğrulaması** (ogzie ÖZEL imzalar, finance `OGZIE_FINANCE_PUSH_PUBLIC_JWK` ile yalnız PUBLIC anahtarla doğrular — fail-closed: env yoksa reddeder). Effectively-once: `OgzieIngestBatch.batchId` UNIQUE + `LedgerEntry (source, externalId)` UNIQUE + ±300s zaman tazeliği + `createMany skipDuplicates`. NextAuth middleware'inden muaf (kendi imza-auth'u var). `SUPPORTED_FX` allowlist (USD/EUR/GBP/XAU/GA) + `MAX_EVENTS` chunk sertleştirmesi; TRY değilse CollectAPI kuruyla TRY'ye çevrilir.
+- `app/transactions` öngörü filtresi (PR #20): ogzie forecast satırları İşlem Defteri listesinde **varsayılan gizli**; `?forecast=1` searchParam + "Öngörüleri göster" toggle ile açılır, açıkken satırlarda soluk "Öngörü" rozeti. KPI/özet/export forecast'i **her zaman** dışlamaya devam eder (değişmedi).
+
+### Değişti
+
+- `proxy.ts` (PR #19): middleware matcher'ından `api/ogzie-sync` çıkarıldı; `api/ogzie-ingest` muafiyeti korundu.
+
+### Kaldırıldı
+
+- `app/api/ogzie-sync/route.ts` + `lib/ogzie-finance-push.ts` (PR #19): kullanılmayan eski `finance → ogzie` sync **gönderici** silindi (ogzie tarafındaki alıcı zaten kaldırılmıştı → istekler 404'e gidiyordu). Tetikleyici Dokploy cron'u (`ogzie-finance-sync`) + 4 ölü env (`FINANCE_SYNC_PRIVATE_JWK`, `OGZIE_FINANCE_ENDPOINT`, `OGZIE_FINANCE_AUDIENCE`, `OGZIE_SYNC_SECRET`) temizlendi. SSO env'leri (`OGZIE_ISSUER`, `OGZIE_SSO_*`) + yeni ingest env'leri korundu.
+
+### Doğrulandı
+
+- `app/api/ogzie-ingest`: GET → 405; POST imzasız → 401 (config yüklü kanıtı); **imzalı no-op (events: []) → HTTP 200 `{"ok":true,"accepted":0}`** = imza/zaman/audience/userId zinciri uçtan uca çalışıyor.
+- Production (Dokploy `finance-web`) — PR #18–#20 deploy edildi; `OGZIE_FINANCE_PUSH_PUBLIC_JWK` + `OGZIE_FINANCE_PUSH_AUDIENCE` + `OGZIE_INGEST_USER_ID` env'leri set + redeploy edildi.
+
 ## 2026-06-24 - Giriş Deneyimi Yenileme, Marka Logoları, SSO Yükleme Şablonu ve Erişilebilirlik
 
 Giriş (login + ogzie SSO) deneyimi yenilendi, marka logoları dayanıklı hale getirildi, ogzie SSO yükleme animasyonu taşınabilir bir şablona çıkarıldı ve birkaç erişilebilirlik/lint iyileştirmesi yapıldı. Tüm auth akışları (NextAuth `signIn`, 5 login modu, `signIn('ogzie')`) **korundu**. Operasyon: auto-deploy webhook'u devreye alındı.
