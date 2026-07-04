@@ -11,6 +11,44 @@
 }
 
 /* ============================================================
+   SHADCN/UI TOKEN BRIDGE
+   Maps shadcn semantic color utilities (bg-primary, text-muted-
+   foreground, border-border, ring-ring, ...) onto this project's
+   existing design-system runtime vars. `inline` keeps the utilities
+   referencing the underlying vars, so light/dark switching via
+   `html.light` continues to work automatically.
+   ============================================================ */
+@theme inline {
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+
+  --color-card: var(--bg-card);
+  --color-card-foreground: var(--text-primary);
+
+  --color-popover: var(--bg-elevated);
+  --color-popover-foreground: var(--text-primary);
+
+  --color-primary: var(--accent-primary);
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: var(--bg-elevated);
+  --color-secondary-foreground: var(--text-primary);
+
+  --color-muted: var(--bg-elevated);
+  --color-muted-foreground: var(--text-secondary);
+
+  --color-accent: var(--bg-elevated);
+  --color-accent-foreground: var(--text-primary);
+
+  --color-destructive: var(--accent-danger);
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: var(--border-default);
+  --color-input: var(--border-default);
+  --color-ring: var(--accent-primary);
+}
+
+/* ============================================================
    COLOR TOKENS — Dark / Light Mode
    ============================================================ */
 
