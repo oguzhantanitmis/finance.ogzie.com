@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react'
@@ -11,15 +11,62 @@ import { Checkbox } from '@/components/ui/checkbox'
 
 /* ============================================================
    Animated eye-tracking characters (adapted from
-   components/ui/animated-characters-login-page.tsx) — pure
-   presentation, driven by props from the login form.
+   components/ui/animated-characters-login-page.tsx).
 
-   The pupil/body positions are read from getBoundingClientRect()
-   during render on purpose: every mousemove updates state and
-   re-renders, so the ref is always current. That trips the
-   react-hooks/refs rule, which we disable for this file only.
+   Perf: a SINGLE requestAnimationFrame-throttled mouse store feeds
+   every eye/character (one window listener, capped at ~display
+   refresh) instead of one listener + setState-per-event per eye.
+   Mouse-follow is applied via `transform: translate` (compositor-
+   friendly) rather than animating `left/top` (which forces layout
+   every frame). Positions are read from getBoundingClientRect during
+   render on purpose — each render is now driven by the throttled
+   store — which trips react-hooks/refs, disabled for this file.
    ============================================================ */
 /* eslint-disable react-hooks/refs */
+
+// --- Shared rAF-throttled mouse position (one listener for the whole scene) ---
+const mouseStore = (() => {
+    let snapshot = { x: 0, y: 0 }
+    let pendingX = 0
+    let pendingY = 0
+    let rafId = 0
+    let attached = false
+    const subs = new Set<() => void>()
+
+    const flush = () => {
+        rafId = 0
+        snapshot = { x: pendingX, y: pendingY }
+        subs.forEach((s) => s())
+    }
+    const onMove = (e: MouseEvent) => {
+        pendingX = e.clientX
+        pendingY = e.clientY
+        if (!rafId) rafId = requestAnimationFrame(flush)
+    }
+    return {
+        subscribe(cb: () => void) {
+            subs.add(cb)
+            if (!attached && typeof window !== 'undefined') {
+                window.addEventListener('mousemove', onMove)
+                attached = true
+            }
+            return () => {
+                subs.delete(cb)
+                if (subs.size === 0 && attached) {
+                    window.removeEventListener('mousemove', onMove)
+                    attached = false
+                    if (rafId) { cancelAnimationFrame(rafId); rafId = 0 }
+                }
+            }
+        },
+        getSnapshot: () => snapshot,
+        getServerSnapshot: () => snapshot,
+    }
+})()
+
+function useMouse() {
+    return useSyncExternalStore(mouseStore.subscribe, mouseStore.getSnapshot, mouseStore.getServerSnapshot)
+}
 
 interface PupilProps {
     size?: number
@@ -30,19 +77,12 @@ interface PupilProps {
 }
 
 const Pupil = ({ size = 12, maxDistance = 5, pupilColor = 'black', forceLookX, forceLookY }: PupilProps) => {
-    const [mouseX, setMouseX] = useState<number>(0)
-    const [mouseY, setMouseY] = useState<number>(0)
+    const { x: mouseX, y: mouseY } = useMouse()
     const pupilRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => { setMouseX(e.clientX); setMouseY(e.clientY) }
-        window.addEventListener('mousemove', handleMouseMove)
-        return () => window.removeEventListener('mousemove', handleMouseMove)
-    }, [])
-
     const calc = () => {
-        if (!pupilRef.current) return { x: 0, y: 0 }
         if (forceLookX !== undefined && forceLookY !== undefined) return { x: forceLookX, y: forceLookY }
+        if (!pupilRef.current) return { x: 0, y: 0 }
         const p = pupilRef.current.getBoundingClientRect()
         const cx = p.left + p.width / 2
         const cy = p.top + p.height / 2
@@ -65,6 +105,7 @@ const Pupil = ({ size = 12, maxDistance = 5, pupilColor = 'black', forceLookX, f
                 backgroundColor: pupilColor,
                 transform: `translate(${pos.x}px, ${pos.y}px)`,
                 transition: 'transform 0.1s ease-out',
+                willChange: 'transform',
             }}
         />
     )
@@ -85,19 +126,12 @@ const EyeBall = ({
     size = 48, pupilSize = 16, maxDistance = 10, eyeColor = 'white',
     pupilColor = 'black', isBlinking = false, forceLookX, forceLookY,
 }: EyeBallProps) => {
-    const [mouseX, setMouseX] = useState<number>(0)
-    const [mouseY, setMouseY] = useState<number>(0)
+    const { x: mouseX, y: mouseY } = useMouse()
     const eyeRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => { setMouseX(e.clientX); setMouseY(e.clientY) }
-        window.addEventListener('mousemove', handleMouseMove)
-        return () => window.removeEventListener('mousemove', handleMouseMove)
-    }, [])
-
     const calc = () => {
-        if (!eyeRef.current) return { x: 0, y: 0 }
         if (forceLookX !== undefined && forceLookY !== undefined) return { x: forceLookX, y: forceLookY }
+        if (!eyeRef.current) return { x: 0, y: 0 }
         const eye = eyeRef.current.getBoundingClientRect()
         const cx = eye.left + eye.width / 2
         const cy = eye.top + eye.height / 2
@@ -125,6 +159,7 @@ const EyeBall = ({
                         backgroundColor: pupilColor,
                         transform: `translate(${pos.x}px, ${pos.y}px)`,
                         transition: 'transform 0.1s ease-out',
+                        willChange: 'transform',
                     }}
                 />
             )}
@@ -140,8 +175,7 @@ interface CharacterSceneProps {
 
 /** The four eye-tracking characters. Reacts to typing / password visibility. */
 function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSceneProps) {
-    const [mouseX, setMouseX] = useState<number>(0)
-    const [mouseY, setMouseY] = useState<number>(0)
+    const { x: mouseX, y: mouseY } = useMouse()
     const [isPurpleBlinking, setIsPurpleBlinking] = useState(false)
     const [isBlackBlinking, setIsBlackBlinking] = useState(false)
     const [isLookingAtEachOther, setIsLookingAtEachOther] = useState(false)
@@ -150,12 +184,6 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
     const blackRef = useRef<HTMLDivElement>(null)
     const yellowRef = useRef<HTMLDivElement>(null)
     const orangeRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        const handleMouseMove = (e: MouseEvent) => { setMouseX(e.clientX); setMouseY(e.clientY) }
-        window.addEventListener('mousemove', handleMouseMove)
-        return () => window.removeEventListener('mousemove', handleMouseMove)
-    }, [])
 
     // Random blink — purple
     useEffect(() => {
@@ -224,6 +252,9 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
 
     const hidden = passwordLength > 0 && !showPassword
     const revealed = passwordLength > 0 && showPassword
+    // mouse-follow via transform (composited) only while freely tracking
+    const tracking = !revealed && !isLookingAtEachOther
+    const follow = (x: number, y: number) => `translate(${x}px, ${y}px)`
 
     return (
         <div className="relative" style={{ width: '550px', height: '400px' }}>
@@ -244,13 +275,16 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
                             ? `skewX(${(purplePos.bodySkew || 0) - 12}deg) translateX(40px)`
                             : `skewX(${purplePos.bodySkew || 0}deg)`,
                     transformOrigin: 'bottom center',
+                    willChange: 'transform',
                 }}
             >
                 <div
                     className="absolute flex gap-8 transition-all duration-700 ease-in-out"
                     style={{
-                        left: revealed ? '20px' : isLookingAtEachOther ? '55px' : `${45 + purplePos.faceX}px`,
-                        top: revealed ? '35px' : isLookingAtEachOther ? '65px' : `${40 + purplePos.faceY}px`,
+                        left: revealed ? '20px' : isLookingAtEachOther ? '55px' : '45px',
+                        top: revealed ? '35px' : isLookingAtEachOther ? '65px' : '40px',
+                        transform: tracking ? follow(purplePos.faceX, purplePos.faceY) : 'translate(0px, 0px)',
+                        willChange: 'transform',
                     }}
                 >
                     <EyeBall size={18} pupilSize={7} maxDistance={5} eyeColor="white" pupilColor="#2D2D2D"
@@ -283,13 +317,16 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
                                 ? `skewX(${(blackPos.bodySkew || 0) * 1.5}deg)`
                                 : `skewX(${blackPos.bodySkew || 0}deg)`,
                     transformOrigin: 'bottom center',
+                    willChange: 'transform',
                 }}
             >
                 <div
                     className="absolute flex gap-6 transition-all duration-700 ease-in-out"
                     style={{
-                        left: revealed ? '10px' : isLookingAtEachOther ? '32px' : `${26 + blackPos.faceX}px`,
-                        top: revealed ? '28px' : isLookingAtEachOther ? '12px' : `${32 + blackPos.faceY}px`,
+                        left: revealed ? '10px' : isLookingAtEachOther ? '32px' : '26px',
+                        top: revealed ? '28px' : isLookingAtEachOther ? '12px' : '32px',
+                        transform: tracking ? follow(blackPos.faceX, blackPos.faceY) : 'translate(0px, 0px)',
+                        willChange: 'transform',
                     }}
                 >
                     <EyeBall size={16} pupilSize={6} maxDistance={4} eyeColor="white" pupilColor="#2D2D2D"
@@ -316,13 +353,16 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
                     borderRadius: '120px 120px 0 0',
                     transform: revealed ? 'skewX(0deg)' : `skewX(${orangePos.bodySkew || 0}deg)`,
                     transformOrigin: 'bottom center',
+                    willChange: 'transform',
                 }}
             >
                 <div
                     className="absolute flex gap-8 transition-all duration-200 ease-out"
                     style={{
-                        left: revealed ? '50px' : `${82 + (orangePos.faceX || 0)}px`,
-                        top: revealed ? '85px' : `${90 + (orangePos.faceY || 0)}px`,
+                        left: revealed ? '50px' : '82px',
+                        top: revealed ? '85px' : '90px',
+                        transform: revealed ? 'translate(0px, 0px)' : follow(orangePos.faceX || 0, orangePos.faceY || 0),
+                        willChange: 'transform',
                     }}
                 >
                     <Pupil size={12} maxDistance={5} pupilColor="#2D2D2D" forceLookX={revealed ? -5 : undefined} forceLookY={revealed ? -4 : undefined} />
@@ -343,13 +383,16 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
                     zIndex: 4,
                     transform: revealed ? 'skewX(0deg)' : `skewX(${yellowPos.bodySkew || 0}deg)`,
                     transformOrigin: 'bottom center',
+                    willChange: 'transform',
                 }}
             >
                 <div
                     className="absolute flex gap-6 transition-all duration-200 ease-out"
                     style={{
-                        left: revealed ? '20px' : `${52 + (yellowPos.faceX || 0)}px`,
-                        top: revealed ? '35px' : `${40 + (yellowPos.faceY || 0)}px`,
+                        left: revealed ? '20px' : '52px',
+                        top: revealed ? '35px' : '40px',
+                        transform: revealed ? 'translate(0px, 0px)' : follow(yellowPos.faceX || 0, yellowPos.faceY || 0),
+                        willChange: 'transform',
                     }}
                 >
                     <Pupil size={12} maxDistance={5} pupilColor="#2D2D2D" forceLookX={revealed ? -5 : undefined} forceLookY={revealed ? -4 : undefined} />
@@ -359,8 +402,10 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
                     className="absolute w-20 h-[4px] rounded-full transition-all duration-200 ease-out"
                     style={{
                         backgroundColor: '#2D2D2D',
-                        left: revealed ? '10px' : `${40 + (yellowPos.faceX || 0)}px`,
-                        top: revealed ? '88px' : `${88 + (yellowPos.faceY || 0)}px`,
+                        left: revealed ? '10px' : '40px',
+                        top: '88px',
+                        transform: revealed ? 'translate(0px, 0px)' : follow(yellowPos.faceX || 0, yellowPos.faceY || 0),
+                        willChange: 'transform',
                     }}
                 />
             </div>
