@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-04
+
+### Değiştirilen dosyalar
+- `app/login/page.tsx`
+- `app/globals.css`
+- `components/ui/button.tsx`, `components/ui/input.tsx`, `components/ui/label.tsx`, `components/ui/checkbox.tsx` (yeni — shadcn/ui)
+- `components/ui/animated-characters-login-page.tsx` (yeni — referans/demo)
+- `package.json` (yeni bağımlılıklar)
+
+### Değişiklik
+- Giriş ekranı fareyi/yazmayı takip eden **animasyonlu karakter** tasarımına geçirildi (solda göz-takipli karakterler + markalı gradyan, sağda shadcn form). Gerçek NextAuth `signIn` + 5 mod + beni-hatırla + `?reset=` korundu (mock auth yok). Önceki split-screen + `AlienDialLoader` intro kaldırıldı (`AlienDialLoader.tsx` repoda kalır).
+- Projeye ilk **shadcn/ui** primitive'leri eklendi (button/input/label/checkbox; Radix + CVA). `app/globals.css`'e `@theme inline` **token köprüsü**: shadcn utility'leri (`bg-primary`, `text-muted-foreground`, `border-border` …) projenin runtime tasarım değişkenlerine eşlendi → dark/light tema geçişi korunur (proje shadcn-CLI projesi değil).
+- **Perf (PR #23):** animasyon fare-takibi tek rAF-throttle'lı paylaşımlı kaynağa indirildi (9 dinleyici → 1) + `left/top` yerine `transform: translate` + `will-change`. Görsel birebir aynı; render commit'leri ~247 olay/sn altında ~60/sn'ye sabit.
+- Doğrulama: tsc 0 hata, eslint temiz, 154 test PASS, `/login` 200, token köprüsü dark/light computed-style ile teyit. main'e merge (PR #22, #23).
+
 ## 2026-06-24
 
 ### Değiştirilen dosyalar

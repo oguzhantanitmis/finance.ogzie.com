@@ -25,7 +25,7 @@ Uygulama Next.js App Router tabanlıdır. Sayfalar `app/**/page.tsx`, mutasyonla
 
 Ana katmanlar:
 
-- UI: `components/**` altında sayfa workspace bileşenleri, tablo/kart bileşenleri ve ortak shell yapısı.
+- UI: `components/**` altında sayfa workspace bileşenleri, tablo/kart bileşenleri ve ortak shell yapısı. `components/ui/**` altında shadcn/ui primitive'leri (button/input/label/checkbox; Radix + CVA) ve proje-içi ortak bileşenler bulunur; shadcn semantik utility'leri `app/globals.css`'teki `@theme inline` token köprüsü ile projenin runtime tasarım değişkenlerine bağlanır (dark/light korunur).
 - Route katmanı: `app/**` altında sayfalar, server action dosyaları ve API route dosyaları.
 - Domain servisleri: `lib/**` altında finans hesaplama, veri okuma/yazma, rapor, risk, piyasa ve auth servisleri.
 - Veri katmanı: Prisma Client üzerinden MySQL/MariaDB uyumlu `DATABASE_URL`.
@@ -286,7 +286,10 @@ Veri onarım scriptleri:
 ## Önemli Dosyalar
 
 - `app/**`: route, page, action ve API girişleri.
+- `app/login/page.tsx`: animasyonlu karakter tasarımlı giriş ekranı; gerçek NextAuth `signIn` + 5 mod (login/forgot/forgot-sent/reset/reset-done) korunur.
 - `components/**`: kullanıcı arayüzü ve workspace bileşenleri.
+- `components/ui/**`: shadcn/ui primitive'leri (button/input/label/checkbox) + proje-içi ortak bileşenler.
+- `app/globals.css`: master tasarım tokenları + shadcn `@theme inline` token köprüsü (dark/light).
 - `lib/auth.ts`, `lib/authz.ts`, `lib/server-auth.ts`: authentication ve authorization.
 - `lib/debt-views.ts`: borç kaynaklarını tek görünüm ve ödeme yükümlülüğü haline getirir.
 - `lib/banking-engine.ts`: KMH, faiz, kredi ve temel finans hesapları.

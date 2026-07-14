@@ -1,5 +1,29 @@
 # Test Raporu
 
+## 2026-07-05 — Güncel Durum
+
+### Otomatik Kontroller
+
+| Kontrol | Durum |
+| --- | --- |
+| `npx tsc --noEmit` | Başarılı — 0 hata |
+| `npm test` (vitest) | Başarılı — 11 dosya, 154 test |
+| `npx next dev` (Turbopack) derleme | Başarılı — `/login` 200, hatasız |
+| `npm run lint` (değişen dosyalar) | Temiz (repo genelinde eski legacy lint borcu sürüyor) |
+
+### Bu sürümde eklenen/etkilenen senaryolar
+
+| Senaryo | Durum |
+| --- | --- |
+| Giriş (login) animasyonlu karakter tasarımı | tsc/eslint/derleme; gerçek NextAuth `signIn` + 5 mod + beni-hatırla + `?reset=` korunur |
+| shadcn/ui primitive'leri (button/input/label/checkbox) | tsc/eslint temiz; `components/ui/` altında |
+| `app/globals.css` shadcn token köprüsü (`@theme inline`) | tarayıcı computed-style ile doğrulandı: `bg-background`/`bg-primary`/`text-muted-foreground` dark↔light doğru |
+| Login animasyon performansı (rAF throttle + transform + will-change) | ölçüldü: ~247 fare olayı/sn altında React commit ~59/sn (ekran tazeleme); görsel birebir aynı |
+
+> Aşağıdaki **2026-06-24** ve **2026-05-03** bölümleri önceki sürümlerin raporlarıdır.
+
+---
+
 ## 2026-06-24 — Güncel Durum
 
 ### Otomatik Kontroller

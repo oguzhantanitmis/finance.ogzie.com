@@ -1,5 +1,29 @@
 # CHANGELOG
 
+## 2026-07-04 - Giriş Ekranı: Animasyonlu Karakter Tasarımı + shadcn/ui Entegrasyonu
+
+Giriş ekranı (`app/login`) fareyi/yazmayı takip eden **animasyonlu karakter** tasarımına geçirildi; projeye ilk kez **shadcn/ui** primitive'leri ve bunları projenin özel tasarım-token sistemine bağlayan bir token köprüsü eklendi. Tüm gerçek auth akışları (NextAuth `signIn('credentials')`, 5 mod: login/forgot/forgot-sent/reset/reset-done, beni-hatırla, `?reset=` derin bağlantısı) **korundu** — mock auth kullanılmadı. Ardından animasyon performansı optimize edildi.
+
+### Eklendi
+
+- `components/ui/{button,input,label,checkbox}.tsx` (PR #22): standart **shadcn/ui** primitive'leri (Radix + `class-variance-authority`). Projeye eklenen ilk shadcn bileşenleri.
+- `components/ui/animated-characters-login-page.tsx` (PR #22): göz-takipli 4 karakterli animasyonlu giriş **referans/demo** bileşeni (`Component` export eder; self-contained, canlı uygulamaya bağlı değildir).
+- `app/globals.css` **shadcn token köprüsü** (PR #22): `@theme inline` bloğu shadcn semantik utility'lerini (`bg-primary`, `text-muted-foreground`, `border-border`, `ring-ring`, `bg-accent`, `bg-destructive` …) projenin runtime tasarım değişkenlerine (`--bg-primary`, `--accent-primary`, `--text-secondary`, `--border-default` …) eşler. `inline` sayesinde utility'ler alttaki değişkeni referanslar → dark ↔ `html.light` tema geçişi korunur. Bu proje shadcn-CLI projesi değildir (`components.json` yok); köprü olmadan shadcn bileşenleri Tailwind v4'te stilsiz render olurdu.
+- Bağımlılıklar: `@radix-ui/react-slot`, `@radix-ui/react-checkbox`, `@radix-ui/react-label`, `class-variance-authority` (`lucide-react` zaten mevcuttu).
+
+### Değişti
+
+- `app/login/page.tsx` (PR #22): önceki split-screen tasarım + `AlienDialLoader` intro yerine **animasyonlu karakter** tasarımı (solda markalı gradyan hero + göz-takipli karakterler, sağda shadcn form). Gerçek NextAuth `signIn` + forgot/reset akışları, `LOCKED:`/`ATTEMPTS:` hata işleme ve Türkçe metinler birebir korundu. `AlienDialLoader.tsx` bileşeni repoda kalır (login'de artık kullanılmıyor).
+- `app/login/page.tsx` (PR #23, **perf**): animasyon fare-takibi tek, `requestAnimationFrame` ile throttle edilen paylaşımlı fare kaynağına (`useSyncExternalStore`) indirildi (9 ayrı `mousemove` dinleyici → 1); fare-takibi `left/top` yerine `transform: translate` ile (compositor; her karede layout tetiklemez) + `will-change: transform`. Görsel çıktı birebir aynı (transform, ebeveyn `skewX` altında `left/top` ile matematiksel özdeş).
+
+### Doğrulandı
+
+- `npx tsc --noEmit` — 0 hata; eslint (değişen dosyalar) — 0 hata; `npm test` (vitest) — 11 dosya, 154 test PASS.
+- Next.js 16 dev derleme — `/login` HTTP 200, hata katmanı yok.
+- shadcn token köprüsü tarayıcıda (computed-style) doğrulandı: `bg-background` `#000`↔`#F4F5F7`, `bg-primary` `#3b82f6`↔`#1B1E25`, `text-muted-foreground` her iki temada doğru (dark/light geçişi çalışıyor).
+- Performans (aynı sentetik fare fırtınası): ~247 fare olayı/sn altında React commit hızı **~59/sn**'ye (ekran tazeleme) sabitlendi — render hızı olay hızından bağımsız.
+- `main`'e merge edildi (PR #22, #23); merge → otomatik Dokploy deploy webhook'u devrede.
+
 ## 2026-06-26 - ogzie → finance İmzalı Veri Kanalı (Ingest), Ölü Sync Gönderici Kaldırma ve Öngörü Filtresi
 
 ogzie (app.ogzie.com) → finance tek-yönlü **imzalı** veri kanalı (ingest) canlıya alındı; eski (ters-yön, kullanılmayan) `finance → ogzie` sync gönderici tamamen kaldırıldı; İşlem Defteri'ne ogzie öngörü (forecast) satırları için aç/kapa filtre eklendi. Tüm mevcut auth/SSO akışları **korundu**.
