@@ -299,3 +299,18 @@ Veri onarım scriptleri:
 - `components/OgzieSsoLoader.tsx`: ogzie SSO yükleme animasyonu — taşınabilir, prop'larla yapılandırılan tek dosyalık şablon.
 - `docs/ogzie-sso-loader/`: yukarıdaki şablonun diğer ogzie sistemlerine taşınması için teslim paketi (README + örnek entegrasyon dosyaları).
 - `docs/CHANGELOG.md`: tamamlanan teknik değişikliklerin kısa kayıtları.
+
+## Arşiv ve Temiz Geri Yükleme
+
+Kaynak arşivinin kimliği, doğrulanan çalışma zamanı, temiz kurulum sırası ve Git dışında tutulan kaynaklar [ARCHIVE_MANIFEST.md](ARCHIVE_MANIFEST.md) içinde kayıtlıdır.
+
+Özet geri yükleme sırası:
+
+1. Arşiv etiketini temiz bir dizine klonlayın.
+2. Node.js 20 ve `package-lock.json` ile `npm ci` çalıştırın.
+3. `.env.example` içindeki değişkenleri gerçek çalışma ortamında tanımlayın; `.env.local` veya üretim secret değerlerini Git'e eklemeyin.
+4. Boş ya da geri yüklenmiş MySQL/MariaDB üzerinde `npm run db:update` çalıştırın.
+5. `npm test`, `npm run lint`, `npx tsc --noEmit` ve `npm run build` kontrollerini uygulayın.
+6. Uygulamayı `npm start` ile veya repodaki çok aşamalı Docker imajıyla çalıştırın.
+
+Git arşivi kaynak kodunu ve Prisma migration'larını içerir; üretim veritabanı ile Dokploy/Vercel secret değerlerini içermez. Bu dış kaynakların şifreli yedeği ve geri yükleme testi ayrıca doğrulanmadan lokal proje silinmemelidir.
