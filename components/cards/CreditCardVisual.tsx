@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
-import { HelpCircle, Star } from 'lucide-react'
+import { Star } from 'lucide-react'
 
 interface CreditCardVisualProps {
     card: {

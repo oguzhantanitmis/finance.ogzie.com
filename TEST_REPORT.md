@@ -1,5 +1,16 @@
 # Test Raporu
 
+## 2026-07-14 — Arşiv Doğrulaması
+
+| Kontrol | Durum |
+| --- | --- |
+| `npm ci` (Node.js 20.20.2) | Başarılı — lockfile'dan 557 paket kuruldu |
+| `npm run lint` | Başarılı — 0 hata, 0 uyarı |
+| `npx tsc --noEmit` | Başarılı — 0 hata |
+| `npm test` | Başarılı — 11 dosya, 154 test |
+
+İlk repo-geneli lint çalıştırması 24 hata ve 6 uyarı tespit etti. `any` kullanımları, Server Component `try/catch` sınırı, React 19 effect/state kuralları ve kullanılmayan importlar davranış korunarak düzeltildi; yukarıdaki kontroller temiz Node.js 20 container'ında tekrarlandı.
+
 ## 2026-07-05 — Güncel Durum
 
 ### Otomatik Kontroller
@@ -107,4 +118,3 @@ Tarih: 2026-05-03
 - Kullanılmayan import/değişken uyarıları
 
 Bu lint borcu production build'i engellememektedir. Revizyon kapsamında eklenen yeni ana akışlar `tsc`, test ve production build'den geçmiştir.
-

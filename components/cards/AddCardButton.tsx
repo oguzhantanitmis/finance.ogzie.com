@@ -15,8 +15,9 @@ export default function AddCardButton() {
     const searchParams = useSearchParams()
     useEffect(() => {
         if (!searchParams.get('new')) return
-        setIsOpen(true)
+        const timeoutId = window.setTimeout(() => setIsOpen(true), 0)
         router.replace(pathname, { scroll: false })
+        return () => window.clearTimeout(timeoutId)
     }, [searchParams, router, pathname])
 
     return (

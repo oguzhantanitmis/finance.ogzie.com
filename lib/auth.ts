@@ -178,7 +178,7 @@ export const authOptions: NextAuthOptions = {
         },
     },
     jwt: {
-        encode: async ({ token, secret, maxAge: _d }) => {
+        encode: async ({ token, secret }) => {
             const { encode } = await import("next-auth/jwt");
             const maxAge = token?.rememberMe ? SESSION_LONG_SECONDS : SESSION_SHORT_SECONDS;
             return encode({ token, secret, maxAge });

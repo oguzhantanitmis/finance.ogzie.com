@@ -56,33 +56,42 @@ export default async function DebtsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
+    let workspaceData: Awaited<ReturnType<typeof getDebtWorkspaceData>> | null = null
+    let loadError: unknown = null
+
     try {
-        const { debts, people, paymentObligations } = await withDbRetry(
+        workspaceData = await withDbRetry(
             () => getDebtWorkspaceData(user.id),
             { retries: 2, delayMs: 400 }
         )
-
-        return (
-            <PageShell width="genis">
-                <div className="lg:hidden">
-                    <DebtsMobile debts={mapToDebtItems(debts)} />
-                </div>
-                <div className="hidden lg:block">
-                    <div className="flex justify-end mb-4">
-                        <ExportButton endpoint="/api/export/debts" label="Borçları İndir" />
-                    </div>
-                    <Suspense>
-                        <DebtsWorkspace debts={debts} people={people} paymentObligations={paymentObligations} />
-                    </Suspense>
-                </div>
-            </PageShell>
-        )
     } catch (err) {
         console.error('[/debts] Veri yüklenemedi:', err)
+        loadError = err
+    }
+
+    if (!workspaceData) {
         return (
             <PageShell width="normal">
-                <DebtsErrorState isConnectionError={isDbConnectionError(err)} />
+                <DebtsErrorState isConnectionError={isDbConnectionError(loadError)} />
             </PageShell>
         )
     }
+
+    const { debts, people, paymentObligations } = workspaceData
+
+    return (
+        <PageShell width="genis">
+            <div className="lg:hidden">
+                <DebtsMobile debts={mapToDebtItems(debts)} />
+            </div>
+            <div className="hidden lg:block">
+                <div className="flex justify-end mb-4">
+                    <ExportButton endpoint="/api/export/debts" label="Borçları İndir" />
+                </div>
+                <Suspense>
+                    <DebtsWorkspace debts={debts} people={people} paymentObligations={paymentObligations} />
+                </Suspense>
+            </div>
+        </PageShell>
+    )
 }

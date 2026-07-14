@@ -86,15 +86,23 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
     const [prefSaved, setPrefSaved] = useState(false)
 
     useEffect(() => {
+        let timeoutId: number | undefined
+
         try {
             const saved = localStorage.getItem(prefKey)
             if (saved) {
                 const p = JSON.parse(saved)
-                if (p.debtStrategy)   setDebtStrategy(p.debtStrategy)
-                if (p.notifications)  setNotifications(prev => ({ ...prev, ...p.notifications }))
-                if (typeof p.privacyMode === 'boolean') setPrivacyMode(p.privacyMode)
+                timeoutId = window.setTimeout(() => {
+                    if (p.debtStrategy) setDebtStrategy(p.debtStrategy)
+                    if (p.notifications) setNotifications(prev => ({ ...prev, ...p.notifications }))
+                    if (typeof p.privacyMode === 'boolean') setPrivacyMode(p.privacyMode)
+                }, 0)
             }
         } catch { /* ignore */ }
+
+        return () => {
+            if (timeoutId !== undefined) window.clearTimeout(timeoutId)
+        }
     }, [prefKey])
 
     function savePreferences() {

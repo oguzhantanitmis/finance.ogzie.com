@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-07-14 - Arşiv Hazırlığı ve Repo-Geneli Lint Onarımı
+
+- Server action hata yakalamalarında `any` yerine `unknown` ve güvenli hata mesajı daraltması kullanıldı.
+- Borçlar Server Component'inde veri yükleme `try/catch` bloğu JSX üretiminden ayrıldı; mevcut bağlantı hata görünümü korundu.
+- Hızlı işlem derin bağlantılarındaki modal açma işlemleri React 19 effect kurallarına uygun şekilde zamanlandı.
+- Yeni kart asgari ödeme oranı, state senkronizasyon effect'i yerine limit ve kart yaşı olaylarından hesaplanır hale getirildi.
+- Modal portal mount'u ve lokal tercih yükleme akışları senkron effect state güncellemesi üretmeyecek şekilde düzenlendi.
+- Kullanılmayan import/değişkenler temizlendi.
+
+### Doğrulandı
+
+- Node.js 20.20.2 üzerinde `npm run lint` — 0 hata, 0 uyarı.
+- `npx tsc --noEmit` — 0 hata.
+- `npm test` — 11 dosya, 154 test PASS.
+
 ## 2026-07-04 - Giriş Ekranı: Animasyonlu Karakter Tasarımı + shadcn/ui Entegrasyonu
 
 Giriş ekranı (`app/login`) fareyi/yazmayı takip eden **animasyonlu karakter** tasarımına geçirildi; projeye ilk kez **shadcn/ui** primitive'leri ve bunları projenin özel tasarım-token sistemine bağlayan bir token köprüsü eklendi. Tüm gerçek auth akışları (NextAuth `signIn('credentials')`, 5 mod: login/forgot/forgot-sent/reset/reset-done, beni-hatırla, `?reset=` derin bağlantısı) **korundu** — mock auth kullanılmadı. Ardından animasyon performansı optimize edildi.
@@ -251,4 +266,3 @@ Premium finans kokpiti redesign'ının 1. aşaması. Mevcut `globals.css` tasar�
 
 - EVDS altın/emtia seri kodları varsayılan olarak kapalıdır. Güncel ve desteklenen seri kodları Ayarlar ekranından girilmelidir.
 - Repo genelindeki ESLint kontrolü, revizyon öncesinden gelen legacy dosyalardaki kurallara takılmaktadır; üretim build'i ve testler başarılıdır.
-

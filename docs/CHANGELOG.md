@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-14
+
+### Arşiv doğrulaması ve lint onarımı
+
+- Repo-geneli ESLint'teki 24 hata ve 6 uyarı davranış korunarak giderildi.
+- Server action catch değerleri `unknown` olarak güvenli biçimde daraltıldı.
+- `/debts` sayfasında veri yükleme hatası yakalama ile JSX üretimi ayrıldı.
+- React 19 `set-state-in-effect` ihlalleri zamanlanmış callback veya olay tabanlı state güncellemelerine dönüştürüldü.
+- Kullanılmayan import ve değişkenler kaldırıldı.
+- Node.js 20.20.2 doğrulaması: lint temiz, TypeScript temiz, 154/154 test başarılı.
+
 ## 2026-07-04
 
 ### Değiştirilen dosyalar

@@ -112,8 +112,9 @@ export default function DebtsWorkspace({
     const searchParams = useSearchParams()
     useEffect(() => {
         if (!searchParams.get('new')) return
-        setShowAdd(true)
+        const timeoutId = window.setTimeout(() => setShowAdd(true), 0)
         router.replace(pathname, { scroll: false })
+        return () => window.clearTimeout(timeoutId)
     }, [searchParams, router, pathname])
     const [editingDebt, setEditingDebt] = useState<DebtView | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)

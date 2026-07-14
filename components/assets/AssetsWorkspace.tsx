@@ -83,7 +83,6 @@ export default function AssetsWorkspace({
     const [createState, createAction] = useActionState(addAsset, EMPTY_ACTION_RESULT)
     const [updateState, updateAction] = useActionState(updateAsset, EMPTY_ACTION_RESULT)
 
-    const hasUsdRate = rates.USD > 0
     const sourceLabel = ratesSource === 'COLLECTAPI_ECONOMY' ? 'CollectAPI' : (ratesSource ?? 'CollectAPI')
     const updatedLabel = ratesUpdatedAt
         ? new Date(ratesUpdatedAt).toLocaleString('tr-TR', {

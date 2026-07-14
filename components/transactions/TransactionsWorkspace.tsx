@@ -99,9 +99,12 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
     useEffect(() => {
         const n = searchParams.get('new')
         if (n !== 'income' && n !== 'expense') return
-        resetForm()
-        setModal(n)
+        const timeoutId = window.setTimeout(() => {
+            resetForm()
+            setModal(n)
+        }, 0)
         router.replace(pathname, { scroll: false })
+        return () => window.clearTimeout(timeoutId)
     }, [searchParams, resetForm, router, pathname])
 
     // Öngörüleri göster toggle'ı: durum URL ?forecast=1 ile (server-render uyumlu).

@@ -48,7 +48,10 @@ export default function Modal({
     // Portal hedefi yalnızca client'ta var — SSR'da render etme
     const [mounted, setMounted] = useState(false)
 
-    useEffect(() => setMounted(true), [])
+    useEffect(() => {
+        const timeoutId = window.setTimeout(() => setMounted(true), 0)
+        return () => window.clearTimeout(timeoutId)
+    }, [])
 
     useEffect(() => {
         const previouslyFocused = document.activeElement as HTMLElement | null
