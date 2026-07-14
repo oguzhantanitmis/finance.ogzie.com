@@ -8,8 +8,15 @@
 | `npm run lint` | Başarılı — 0 hata, 0 uyarı |
 | `npx tsc --noEmit` | Başarılı — 0 hata |
 | `npm test` | Başarılı — 11 dosya, 154 test |
+| `npm run build` | Başarılı — Next.js 16.1.6 production build ve 39 dinamik route |
+| Docker multi-stage build | Başarılı — Node.js 20 Alpine runner |
+| Prisma / MySQL 8.4 | Başarılı — 12/12 migration, 42 tablo |
+| HTTP | `/login` 200; oturumsuz `/health` beklenen 307 → `/login` |
+| `npm audit` | 1 düşük, 8 orta, 8 yüksek, 0 kritik |
 
 İlk repo-geneli lint çalıştırması 24 hata ve 6 uyarı tespit etti. `any` kullanımları, Server Component `try/catch` sınırı, React 19 effect/state kuralları ve kullanılmayan importlar davranış korunarak düzeltildi; yukarıdaki kontroller temiz Node.js 20 container'ında tekrarlandı.
+
+İlk Docker doğrulama denemesinde host depolama alanı dolduğu için Colima containerd snapshot'ı I/O hatası verdi. Bozuk test imajı ile yalnız dangling Docker build katmanları temizlendi, disk trim edildi ve doğrulama temiz clone üzerinde baştan çalıştırıldı. İkinci çalıştırmanın build, migration ve runtime kontrolleri yukarıdaki sonuçlarla tamamlandı; bu olay uygulama kaynaklı değildir.
 
 ## 2026-07-05 — Güncel Durum
 

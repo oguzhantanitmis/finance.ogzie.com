@@ -112,21 +112,34 @@ Lokal env dosyalarında Vercel tarafından üretilen geçici build/runtime deği
 
 Bu paket tarihsel Plesk dağıtımı için korunur; güncel kaynak geri yüklemesinde `package-lock.json`, Prisma migration'ları ve `Dockerfile` esas alınmalıdır.
 
-## Doğrulama ölçütleri
+## Doğrulama sonuçları
 
-Arşiv etiketi oluşturulmadan önce temiz clone üzerinde şu kontrollerin tamamı çalıştırılır:
+2026-07-14 tarihinde temiz uzak clone ve kanonik Node.js 20 container ortamında:
 
-- `npm ci`
-- `npm test`
-- `npm run lint`
-- `npx tsc --noEmit`
-- `npm run build`
-- MySQL 8.4 üzerinde 12 Prisma migration'ın uygulanması
-- Docker imajının Node.js 20 ile oluşturulması
-- Uygulamanın test veritabanıyla başlaması ve `/login` ile `/health` HTTP kontrolleri
-- `npm audit` raporu; dependency güncellemesi yapılmadan bulguların kaydı
+- Doğrulanan kaynak commit'i: `4caaa537ec0c7cf04c962942a20adf7a4bd3b354`.
+- Node.js 20.20.2 ve npm 10.8.2 kullanıldı.
+- `npm ci`: başarılı; lockfile'dan 557 paket kuruldu.
+- `npm run lint`: başarılı; 0 hata, 0 uyarı.
+- `npx tsc --noEmit`: başarılı; 0 hata.
+- `npm test`: başarılı; 11 dosyada 154/154 test geçti.
+- `npm run build`: başarılı; Next.js 16.1.6 production build, TypeScript ve 39 dinamik route tamamlandı.
+- Docker multi-stage imajı: başarılı; Node.js 20 Alpine runner oluşturuldu.
+- MySQL 8.4 temiz veritabanı: 12/12 Prisma migration uygulandı ve 42 tablo oluştu.
+- Runner içindeki generated Prisma client doğrulandı; `index.js` 250.412 bayt.
+- `/login`: HTTP 200 ve kontrollü e-posta/parola formu render edildi.
+- `/health`: oturumsuz istekte beklenen HTTP 307 ile `/login?callbackUrl=%2Fhealth` yönlendirmesi verdi; route middleware koruması doğrulandı.
 
-Sonuçlar tamamlandığında bu bölüm kesin sonuçlarla güncellenir.
+`npm audit` sonucu dependency değişikliği yapılmadan kaydedildi:
+
+| Seviye | Adet |
+| --- | ---: |
+| Düşük | 1 |
+| Orta | 8 |
+| Yüksek | 8 |
+| Kritik | 0 |
+| Toplam | 17 |
+
+Protokol gereği arşiv sırasında dependency yükseltmesi veya otomatik `npm audit fix` uygulanmadı. Bulgular sonraki bakım çalışmasında ayrı risk değerlendirmesiyle ele alınmalıdır.
 
 ## GitHub ve operasyonel meta veri
 
