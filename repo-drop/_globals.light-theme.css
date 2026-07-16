@@ -1,0 +1,80 @@
+/* ============================================================
+   OGZIE FINANS — YENİ "BEYAZ + KOYU" AÇIK TEMA
+   ------------------------------------------------------------
+   KULLANIM (handoff):
+   app/globals.css içindeki mevcut "html.light { ... }" bloğunu
+   AŞAĞIDAKİ değerlerle değiştir. Değişken ADLARI birebir aynı,
+   yani hiçbir bileşeni elle değiştirmene gerek yok — sadece
+   token değerleri güncellenir.
+
+   Tasarım hedefi: saf beyaz kart yüzeyleri + nötr açık gri zemin
+   + koyu mürekkep (charcoal) vurgu. Minimalist, kontrastlı,
+   premium beyaz+koyu kombinasyonu. (Koyu tema aynen korunur.)
+   ============================================================ */
+
+html.light {
+  /* Yüzeyler — beyaz kart, çok açık nötr zemin */
+  --bg-primary: #F4F5F7;     /* zemin (beyaz kartlar belirginleşsin diye hafif gri) */
+  --bg-card: #FFFFFF;        /* saf beyaz kart */
+  --bg-elevated: #EDEFF2;    /* açık gri yüzey (input, chip, bar arka planı) */
+  --bg-hover: rgba(18, 21, 27, 0.04);
+  --bg-active: rgba(18, 21, 27, 0.07);
+  --bg-input: #FFFFFF;
+
+  /* Kenarlıklar — nötr açık gri */
+  --border-default: #E6E8EC;
+  --border-hover: #CCD1DA;
+  --border-focus: rgba(28, 31, 38, 0.40);
+
+  /* Metin — nötr near-black */
+  --text-primary: #14161A;
+  --text-secondary: #585F6B;
+  --text-muted: #969CA8;
+  --text-inverse: #FFFFFF;
+
+  /* Vurgu — koyu mürekkep (FAB, aktif sekme, primary buton, link) */
+  --accent-primary: #1B1E25;
+  --accent-primary-hover: #2C313B;
+
+  /* Semantik renkler — temiz, kontrastlı */
+  --accent-success: #1F8A53;
+  --accent-success-bg: rgba(31, 138, 83, 0.10);
+  --accent-success-border: rgba(31, 138, 83, 0.20);
+  --accent-danger: #D2382B;
+  --accent-danger-bg: rgba(210, 56, 43, 0.09);
+  --accent-danger-border: rgba(210, 56, 43, 0.20);
+  --accent-warning: #C2840E;
+  --accent-warning-bg: rgba(194, 132, 14, 0.11);
+  --accent-warning-border: rgba(194, 132, 14, 0.22);
+  --accent-purple: #6D5DC0;
+  --accent-purple-bg: rgba(109, 93, 192, 0.10);
+  --accent-purple-border: rgba(109, 93, 192, 0.20);
+  --accent-info: #2563EB;
+  --accent-info-bg: rgba(37, 99, 235, 0.09);
+  --accent-info-border: rgba(37, 99, 235, 0.18);
+
+  --accent-critical: #B91C1C;
+  --accent-critical-bg: rgba(185, 28, 28, 0.09);
+  --accent-critical-border: rgba(185, 28, 28, 0.40);
+  --accent-critical-glow: 0 0 0 1px rgba(185, 28, 28, 0.32), 0 0 24px rgba(185, 28, 28, 0.12);
+
+  /* Grafik renkleri */
+  --chart-1: #1B1E25;
+  --chart-2: #1F8A53;
+  --chart-3: #D2382B;
+  --chart-4: #C2840E;
+  --chart-5: #6D5DC0;
+  --chart-6: #2563EB;
+  --chart-grid: rgba(16, 24, 40, 0.06);
+
+  /* Gölgeler — nötr, yumuşak */
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.04);
+  --shadow-elevated: 0 10px 30px rgba(16, 24, 40, 0.10);
+  --shadow-glow-success: 0 0 20px rgba(31, 138, 83, 0.10);
+  --shadow-glow-danger: 0 0 20px rgba(210, 56, 43, 0.10);
+  --shadow-glow-primary: 0 0 20px rgba(27, 30, 37, 0.10);
+
+  /* Sidebar */
+  --sidebar-bg: #FFFFFF;
+  --sidebar-border: #E6E8EC;
+}

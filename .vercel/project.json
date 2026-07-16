@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_1M5enjUOZTezg88pwHHg5nUcg7Ak",
+  "orgId": "team_nj4vpf5eYz6akoPfSFRHveyM",
+  "projectName": "finance-ogzie-com",
+  "settings": {
+    "createdAt": 1770981774107,
+    "framework": "nextjs",
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "24.x"
+  }
+}
