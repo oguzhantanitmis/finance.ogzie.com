@@ -3,18 +3,41 @@
 
 # ---- deps: install full deps (incl. prisma CLI) ----
 FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache curl libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
 # Prisma schema must be present before `npm ci` because package.json has a
 # `postinstall: prisma generate` that fails without ./prisma/schema.prisma.
 COPY prisma ./prisma
-# Prisma's engine files are downloaded from its binary CDN during postinstall.
-# Keep the engine cache across BuildKit builds and retry transient CDN/network
-# failures so a brief checksum or binary download interruption cannot abort a
-# production deployment.
+# Prisma 5.19.0's Node downloader fails on this build host even though curl in
+# the same container can reach the official CDN. Seed Prisma's normal cache via
+# curl and verify both compressed and uncompressed SHA-256 checksums first.
+# The commit below is Prisma 5.19.0's engine commit and must move with Prisma.
 RUN --mount=type=cache,target=/root/.cache/prisma \
     set -eu; \
+    engine_commit="5fe21811a6ba0b952a3bc71400666511fe3b902f"; \
+    engine_target="linux-musl-openssl-3.0.x"; \
+    engine_base="https://binaries.prisma.sh/all_commits/${engine_commit}/${engine_target}"; \
+    engine_cache="/root/.cache/prisma/master/${engine_commit}/${engine_target}"; \
+    mkdir -p "$engine_cache"; \
+    fetch_engine() { \
+      archive_name="$1"; \
+      cache_name="$2"; \
+      url="${engine_base}/${archive_name}"; \
+      archive="/tmp/${archive_name}"; \
+      compressed_hash="$(curl -fsSL --retry 4 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 120 "${url}.sha256" | awk '{print $1}')"; \
+      uncompressed_hash="$(curl -fsSL --retry 4 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 120 "${url%.gz}.sha256" | awk '{print $1}')"; \
+      curl -fsSL --retry 4 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 120 "$url" -o "$archive"; \
+      printf '%s  %s\n' "$compressed_hash" "$archive" | sha256sum -c -; \
+      gzip -dc "$archive" > "${engine_cache}/${cache_name}"; \
+      printf '%s  %s\n' "$uncompressed_hash" "${engine_cache}/${cache_name}" | sha256sum -c -; \
+      printf '%s' "$uncompressed_hash" > "${engine_cache}/${cache_name}.sha256"; \
+      printf '%s' "$compressed_hash" > "${engine_cache}/${cache_name}.gz.sha256"; \
+      chmod 0755 "${engine_cache}/${cache_name}"; \
+      rm -f "$archive"; \
+    }; \
+    fetch_engine "libquery_engine.so.node.gz" "libquery-engine"; \
+    fetch_engine "schema-engine.gz" "schema-engine"; \
     attempt=1; \
     until npm ci; do \
       if [ "$attempt" -ge 4 ]; then \
