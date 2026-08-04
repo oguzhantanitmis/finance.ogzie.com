@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { calculateAssetValue, getMarketRates } from '@/lib/market-data'
 import { verifyOgziePush } from '@/lib/ogzie-ingest-verify'
+import { resolveOgzieUserId, validateOgzieIdentity, type OgzieIdentity } from '@/lib/ogzie-identity'
+import { syncOgzieDomainSubscriptions } from '@/lib/ogzie-subscription-sync'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,6 +24,8 @@ type FinanceEvent = {
     externalId: string
     assetType: 'domain' | 'service'
     assetId: string
+    assetName?: string
+    providerDomain?: string | null
     mode: 'forecast' | 'actual'
     direction: 'in' | 'out'
     amountCents: number
@@ -30,11 +34,14 @@ type FinanceEvent = {
     periodKey: string // YYYY-MM-DD
     description: string
     counterparty: string | null
+    billingCycle?: 'monthly' | 'yearly' | null
 }
 
 type IngestBody = {
+    version?: 1 | 2
     aud: string
     batchId: string
+    identity?: OgzieIdentity
     events: FinanceEvent[]
 }
 
@@ -96,9 +103,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, error: 'too_many_events' }, { status: 413 })
     }
 
-    const ingestUserId = process.env.OGZIE_INGEST_USER_ID
+    const identity = body.version === 2 ? validateOgzieIdentity(body.identity) : null
+    if (body.version === 2 && !identity) {
+        return NextResponse.json({ ok: false, error: 'invalid_identity' }, { status: 400 })
+    }
+
+    const ingestUserId = await resolveOgzieUserId(identity)
     if (!ingestUserId) {
-        return NextResponse.json({ ok: false, error: 'not_configured' }, { status: 500 })
+        return NextResponse.json({ ok: false, error: 'identity_not_linked' }, { status: 409 })
     }
 
     // 5) Batch düzeyi effectively-once: aynı batchId tekrar gelirse no-op.
@@ -110,6 +122,10 @@ export async function POST(req: Request) {
         }
         throw err
     }
+
+    // Domain forecast'lerini abonelik projeksiyonuna da bağla. Kaynak kimliği
+    // sabittir; mevcut aynı-domain manuel kayıt varsa sahiplenilir, çift kayıt açılmaz.
+    const subscriptionsSynced = await syncOgzieDomainSubscriptions(ingestUserId, body.events)
 
     // 6) Kurları BİR KEZ çek (TRY dönüşümü için).
     const rates = await getMarketRates(ingestUserId)
@@ -206,5 +222,6 @@ export async function POST(req: Request) {
         accepted,
         duplicateOrRejected: data.length - accepted,
         rejected,
+        subscriptionsSynced,
     })
 }

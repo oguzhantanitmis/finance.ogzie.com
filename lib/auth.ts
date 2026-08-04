@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { normalizeEmail, resolveUserRole } from "@/lib/authz";
 import { verifyAndConsumeOgzieTicket } from "@/lib/ogzie-sso";
+import { linkOgzieIdentity } from "@/lib/ogzie-identity";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS    = 15 * 60 * 1000;
@@ -132,6 +133,12 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 const role = resolveUserRole(user.email, user.role);
+                await linkOgzieIdentity({
+                    issuer: verified.iss,
+                    subject: verified.sub,
+                    userId: user.id,
+                    email: user.email,
+                });
                 await prisma.user.update({
                     where: { id: user.id },
                     data: {

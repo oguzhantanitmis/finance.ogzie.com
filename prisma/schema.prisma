@@ -66,10 +66,49 @@ model User {
   loginHistory        LoginHistory[]
   actionLogsAsActor   UserActionLog[]  @relation("ActionActor")
   aiUsages            AiUsage[]
+  externalIdentities  ExternalIdentity[]
+  ogzieCommands       OgzieCommand[]
 
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
+}
+
+// app.ogzie.com gibi güvenilir kimlik sağlayıcılarındaki hesabı bu kullanıcıya
+// kalıcı olarak bağlar. E-posta yalnız ilk hesap bulma sırasında kullanılır;
+// sonraki senkronizasyonlar değişmez (issuer, subject) çiftiyle çözülür.
+model ExternalIdentity {
+  id            String   @id @default(cuid())
+  userId        String
+  provider      String   @default("ogzie")
+  issuer        String
+  subject       String
+  emailSnapshot String?
+  linkedAt      DateTime @default(now())
+  lastSeenAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([issuer, subject])
+  @@index([userId])
+  @@index([provider])
+}
+
+model OgzieCommand {
+  id        String   @id @default(cuid())
+  userId    String
+  commandId String   @unique
+  type      String
+  status    String   @default("pending")
+  payload   Json
+  result    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
 }
 
 // AI token tüketimi — kullanıcı + ay başına tek satır (upsert)
@@ -485,10 +524,15 @@ model Subscription {
   monthlyNormalizedAmount Float?
   isEssential             Boolean      @default(false)
   linkedAccountId         String?
+  source                  String?
+  externalId              String?
   createdAt               DateTime     @default(now())
   updatedAt               DateTime     @updatedAt
 
   user User? @relation(fields: [userId], references: [id])
+
+  @@unique([source, externalId])
+  @@index([userId, providerDomain])
 }
 
 model RecurringExpense {

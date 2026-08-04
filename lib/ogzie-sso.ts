@@ -40,7 +40,7 @@ export function isOgzieSsoConfigured(): boolean {
  */
 export async function verifyAndConsumeOgzieTicket(
   token: string,
-): Promise<{ sub: string; email: string | null } | null> {
+): Promise<{ iss: string; sub: string; email: string | null } | null> {
   if (!isOgzieSsoConfigured()) return null;
 
   let jti: string;
@@ -81,5 +81,5 @@ export async function verifyAndConsumeOgzieTicket(
     return null;
   }
 
-  return { sub, email };
+  return { iss: ISSUER.replace(/\/+$/, ''), sub, email };
 }
