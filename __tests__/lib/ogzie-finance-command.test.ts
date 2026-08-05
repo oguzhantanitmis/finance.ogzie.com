@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { financeDescription, validFinancePayload } from '@/lib/ogzie-finance-command'
+import {
+    financeDescription,
+    ogzieCommandLockQuery,
+    validFinancePayload,
+} from '@/lib/ogzie-finance-command'
 
 const payload = {
     draftId: 'mail-suggestion-123',
@@ -31,5 +35,14 @@ describe('ogzie finance command description', () => {
     it('boş veya aşırı uzun açıklamayı reddeder', () => {
         expect(validFinancePayload({ ...payload, description: '  ' })).toBe(false)
         expect(validFinancePayload({ ...payload, description: 'x'.repeat(301) })).toBe(false)
+    })
+})
+
+describe('ogzie command MariaDB lock', () => {
+    it('identifierları backtick ile, command id değerini parametreyle bağlar', () => {
+        const query = ogzieCommandLockQuery('command-123')
+
+        expect(query.sql).toBe('SELECT id FROM `OgzieCommand` WHERE `commandId` = ? FOR UPDATE')
+        expect(query.values).toEqual(['command-123'])
     })
 })

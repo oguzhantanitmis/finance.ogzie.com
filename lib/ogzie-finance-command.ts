@@ -1,3 +1,5 @@
+import { Prisma } from '@prisma/client'
+
 export type FinancePayload = {
     draftId: string
     name: string
@@ -37,4 +39,9 @@ export function validFinancePayload(value: unknown): value is FinancePayload {
 /** Eski istemciler için sağlayıcı adını güvenli geri dönüş olarak korur. */
 export function financeDescription(payload: Pick<FinancePayload, 'description' | 'name'>): string {
     return payload.description?.trim() || payload.name.trim()
+}
+
+/** MariaDB satır kilidi; Prisma değeri parametre olarak bağlar. */
+export function ogzieCommandLockQuery(commandId: string): Prisma.Sql {
+    return Prisma.sql`SELECT id FROM \`OgzieCommand\` WHERE \`commandId\` = ${commandId} FOR UPDATE`
 }
