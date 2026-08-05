@@ -31,8 +31,12 @@ export function convertValueForPostgres(value, dataType) {
         if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
             value = Buffer.from(value).toString('utf8')
         }
-        if (typeof value !== 'string') return value
-        try { return JSON.parse(value) } catch { throw new Error('invalid_json_value') }
+        try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value
+            return JSON.stringify(parsed)
+        } catch {
+            throw new Error('invalid_json_value')
+        }
     }
     return value
 }
