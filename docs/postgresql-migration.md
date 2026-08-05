@@ -5,8 +5,9 @@ Bu geçiş iki veritabanını aynı anda değiştirmez. MariaDB, üretim geçiş
 ## Hazırlık ve prova
 
 1. `npm run db:postgres:prepare` ile PostgreSQL şeması ve başlangıç migration dosyası üretilir.
-2. Boş hedef veritabanında `prisma migrate deploy --schema prisma/postgresql/schema.prisma` çalıştırılır.
-3. Yalnız hedef veritabanını sıfırlamaya izin veren açık onayla veri kopyalanır:
+2. `npm run db:mariadb:backup` ile salt-okunur, sıkıştırılmış MariaDB yedeği kalıcı `/backups` birimine alınır. Son üç yedek tutulur ve SHA-256 özeti yazılır.
+3. Boş hedef veritabanında `prisma migrate deploy --schema prisma/postgresql/schema.prisma` çalıştırılır.
+4. Yalnız hedef veritabanını sıfırlamaya izin veren açık onayla veri kopyalanır:
 
    ```sh
    MARIADB_DATABASE_URL=... \
@@ -15,7 +16,7 @@ Bu geçiş iki veritabanını aynı anda değiştirmez. MariaDB, üretim geçiş
    npm run db:postgres:migrate -- --apply
    ```
 
-4. `npm run db:postgres:verify` tüm uygulama tablolarındaki satır sayılarını karşılaştırır. Araç e-posta, finans kaydı veya gizli değerlerin içeriğini loglamaz.
+5. `npm run db:postgres:verify` tüm uygulama tablolarındaki satır sayılarını karşılaştırır. Araç e-posta, finans kaydı veya gizli değerlerin içeriğini loglamaz.
 
 `Dockerfile.migrator` yalnız elle tetiklenen prova komutları içindir. Konteyner başladığında şema veya veri taşımaz; böylece yeniden başlama durumunda hedef veritabanı yanlışlıkla sıfırlanmaz.
 
