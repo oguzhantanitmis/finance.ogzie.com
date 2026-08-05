@@ -1096,6 +1096,17 @@ model OgzieIngestBatch {
   @@index([createdAt])
 }
 
+// app.ogzie.com tarafından gönderilen yazma komutlarında tekrar koruması.
+model OgzieCommand {
+  id        String   @id @default(cuid())
+  commandId String   @unique
+  type      String
+  resultId  String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // ============================================================
 // ⚙️ AYARLAR SİSTEMİ (Faz 1)
 // ============================================================

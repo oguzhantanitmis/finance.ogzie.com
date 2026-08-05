@@ -168,6 +168,7 @@ GitHub / Vercel:
 ogzie veri kanalı (ingest):
 
 - `app/api/ogzie-ingest`: ogzie (app.ogzie.com) → finance **tek-yönlü, imzalı** veri kanalı. ogzie kendi domain maliyetlerini + müşteri gelir/giderlerini buraya gönderir; idempotent `LedgerEntry` (`source='ogzie'`) olarak yazılır.
+- `app/api/ogzie-sync/snapshot`: app.ogzie.com için abonelik, düzenli gider ve finans özeti sağlar. `app/api/ogzie-sync/commands` yalnız açıkça desteklenen komutları kabul eder; ilk komut `subscription.upsert` ve `commandId` ile idempotenttir.
 - Doğrulama **fail-closed**: ogzie ÖZEL Ed25519 anahtarıyla imzalar, finance yalnız `OGZIE_FINANCE_PUSH_PUBLIC_JWK` (PUBLIC) ile doğrular. Özel anahtar finance'a HİÇ verilmez. NextAuth middleware'inden muaftır (kendi imza-auth'u vardır).
 - Effectively-once: `OgzieIngestBatch.batchId` UNIQUE + `LedgerEntry (source, externalId)` UNIQUE + ±300s zaman tazeliği. `source='ogzie'` route tarafında enjekte edilir (gövdeden alınmaz).
 - Para birimi TRY değilse CollectAPI kuruyla TRY'ye çevrilir (`SUPPORTED_FX` allowlist). `OGZIE_INGEST_USER_ID` olayların hangi kullanıcıya yazılacağını belirler (yoksa reddedilir).
