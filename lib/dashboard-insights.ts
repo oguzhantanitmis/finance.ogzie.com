@@ -80,8 +80,8 @@ export async function getDashboardInsights(
             type: 'WARNING',
             title: 'Kart borcu nakit alanı zorluyor',
             content: 'Toplam kart borcun, kullanılabilir nakit alanını aşıyor. Minimum ödeme planını gözden geçir.',
-            href: '/cards',
-            actionLabel: 'Kartları aç',
+            href: '/debts',
+            actionLabel: 'Borç planını aç',
         })
     }
 

@@ -40,7 +40,6 @@ export default function Navbar() {
             items: [
                 { name: 'İşlemler', icon: BookOpen, path: '/transactions' },
                 { name: 'Borçlar', icon: CreditCard, path: '/debts' },
-                { name: 'Kartlarım', icon: CreditCard, path: '/cards' },
                 { name: 'Düzenli Ödemeler', icon: Repeat, path: '/expenses' },
             ]
         },

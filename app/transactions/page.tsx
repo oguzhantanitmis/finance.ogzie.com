@@ -21,7 +21,7 @@ function getSourceLink(entry: {
     subscriptionId: string | null
 }) {
     if (entry.creditCardId) {
-        return { label: 'Kart kaydına git', href: `/cards/${entry.creditCardId}` }
+        return { label: 'Kart borcunu gör', href: '/debts' }
     }
 
     if (entry.debtId) {

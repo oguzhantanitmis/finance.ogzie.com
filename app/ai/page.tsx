@@ -61,7 +61,7 @@ export default async function AIPage() {
                         <BrainCircuit className="w-12 h-12 text-zinc-600 mb-4" />
                         <h3 className="text-lg font-bold text-zinc-400">Analiz Edilecek Veri Bulunamadı</h3>
                         <p className="text-sm text-zinc-500 mt-2 max-w-md">
-                            Size finansal stratejiler sunabilmem için lütfen sisteme nakit varlıklarınızı, kredi kartlarınızı veya borçlarınızı ekleyin.
+                            Size finansal stratejiler sunabilmem için lütfen sisteme nakit varlıklarınızı veya borçlarınızı ekleyin.
                         </p>
                     </div>
                 ) : (

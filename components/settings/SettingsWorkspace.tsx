@@ -7,7 +7,6 @@ import {
 } from 'lucide-react'
 import { useTheme } from '@/components/ThemeProvider'
 import { cn } from '@/lib/utils'
-import { saveCardFinanceSettingsAction } from '@/app/cards/card-settings-actions'
 import { saveEvdsSettingsAction } from '@/app/settings/evds-actions'
 import { updateProfileAction, changePasswordAction, signOutAllDevicesAction, updatePreferencesAction } from '@/app/settings/profile-actions'
 import FormMessage from '@/components/ui/FormMessage'
@@ -15,14 +14,7 @@ import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT } from '@/lib/action-result'
 import type { EvdsSettings } from '@/lib/evds-service'
 
-interface CardSettingsData {
-    contractualRate: number; defaultRate: number; cashAdvanceRate: number
-    minPaymentRateBelow50k: number; minPaymentRateAbove50k: number
-    kkdfRate: number; bsmvRate: number; notes: string | null; lastUpdated: string
-}
-
 interface Props {
-    cardSettings: CardSettingsData | null
     evdsSettings: EvdsSettings
     aiSettings: {
         isConfigured: boolean
@@ -42,19 +34,14 @@ interface Props {
     }
 }
 
-type Tab = 'hesap' | 'tercihler' | 'faiz' | 'api'
+type Tab = 'hesap' | 'tercihler' | 'api'
 type DebtStrategy = 'AVALANCHE' | 'SNOWBALL' | 'HYBRID'
 
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { key: 'hesap',     label: 'Hesap & Güvenlik', icon: User2 },
     { key: 'tercihler', label: 'Tercihler',         icon: Bell },
-    { key: 'faiz',      label: 'Faiz Oranları',     icon: CreditCard },
     { key: 'api',       label: 'API & AI',           icon: Settings2 },
 ]
-
-function toPercentInput(value: number | null | undefined, fallback: number) {
-    return +(((value ?? fallback) * 100).toFixed(2))
-}
 
 // ─── Toggle bileşeni ─────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -72,7 +59,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 }
 
 // ─── Ana bileşen ─────────────────────────────────────────────────────────────
-export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
+export default function SettingsWorkspace({ evdsSettings, aiSettings, canUseAi, userProfile }: Props) {
     const prefKey = `finance_prefs:${userProfile.email.toLowerCase()}`
     const { choice: themeChoice, setChoice: setThemeChoice } = useTheme()
     const [activeTab, setActiveTab] = useState<Tab>('hesap')
@@ -86,15 +73,18 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
     const [prefSaved, setPrefSaved] = useState(false)
 
     useEffect(() => {
-        try {
-            const saved = localStorage.getItem(prefKey)
-            if (saved) {
-                const p = JSON.parse(saved)
-                if (p.debtStrategy)   setDebtStrategy(p.debtStrategy)
-                if (p.notifications)  setNotifications(prev => ({ ...prev, ...p.notifications }))
-                if (typeof p.privacyMode === 'boolean') setPrivacyMode(p.privacyMode)
-            }
-        } catch { /* ignore */ }
+        const timer = window.setTimeout(() => {
+            try {
+                const saved = localStorage.getItem(prefKey)
+                if (saved) {
+                    const p = JSON.parse(saved)
+                    if (p.debtStrategy) setDebtStrategy(p.debtStrategy)
+                    if (p.notifications) setNotifications(prev => ({ ...prev, ...p.notifications }))
+                    if (typeof p.privacyMode === 'boolean') setPrivacyMode(p.privacyMode)
+                }
+            } catch { /* ignore */ }
+        }, 0)
+        return () => window.clearTimeout(timer)
     }, [prefKey])
 
     function savePreferences() {
@@ -377,37 +367,6 @@ export default function SettingsWorkspace({ cardSettings, evdsSettings, aiSettin
                             Tercihleri Kaydet
                         </button>
                     </div>
-                </div>
-            )}
-
-            {/* ══════════ FAİZ ORANLARI ══════════ */}
-            {activeTab === 'faiz' && (
-                <div className="fintech-card p-6 md:p-8">
-                    <div className="flex items-center gap-3 mb-2">
-                        <CreditCard className="w-5 h-5" style={{ color: 'var(--accent-warning)' }} />
-                        <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Genel Kart Faiz Oranları</h2>
-                    </div>
-                    <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
-                        &ldquo;Genel oranları kullan&rdquo; seçili kartlara uygulanır.
-                    </p>
-                    <form action={saveCardFinanceSettingsAction} className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <div><label className="form-label">Akdi Faiz (%)</label><input name="contractualRate" type="number" step="0.01" defaultValue={cardSettings?.contractualRate ?? 4.25} className="form-input" required /></div>
-                            <div><label className="form-label">Temerrüt Faiz (%)</label><input name="defaultRate" type="number" step="0.01" defaultValue={cardSettings?.defaultRate ?? 4.75} className="form-input" required /></div>
-                            <div><label className="form-label">Nakit Avans (%)</label><input name="cashAdvanceRate" type="number" step="0.01" defaultValue={cardSettings?.cashAdvanceRate ?? 5.0} className="form-input" required /></div>
-                            <div><label className="form-label">Asgari Ödeme ≤50k (%)</label><input name="minPaymentRateBelow50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateBelow50k, 0.30)} className="form-input" required /></div>
-                            <div><label className="form-label">Asgari Ödeme &gt;50k (%)</label><input name="minPaymentRateAbove50k" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.minPaymentRateAbove50k, 0.40)} className="form-input" required /></div>
-                            <div><label className="form-label">KKDF (%)</label><input name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.kkdfRate, 0.15)} className="form-input" required /></div>
-                            <div><label className="form-label">BSMV (%)</label><input name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(cardSettings?.bsmvRate, 0.15)} className="form-input" required /></div>
-                        </div>
-                        <textarea name="notes" placeholder="Notlar (opsiyonel)" defaultValue={cardSettings?.notes ?? ''} className="form-input min-h-20" />
-                        {cardSettings?.lastUpdated && (
-                            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                Son güncelleme: {new Date(cardSettings.lastUpdated).toLocaleString('tr-TR')}
-                            </p>
-                        )}
-                        <SubmitButton label="Kaydet" pendingLabel="Kaydediliyor..." className="btn-primary w-full py-3.5" />
-                    </form>
                 </div>
             )}
 
