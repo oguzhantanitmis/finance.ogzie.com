@@ -44,7 +44,8 @@ export function financeDescription(payload: Pick<FinancePayload, 'description' |
 export type DatabaseProvider = 'mysql' | 'postgresql'
 
 export function databaseProvider(value = process.env.DATABASE_PROVIDER): DatabaseProvider {
-    if (!value || value === 'mysql' || value === 'mariadb') return 'mysql'
+    if (!value) return 'postgresql'
+    if (value === 'mysql' || value === 'mariadb') return 'mysql'
     if (value === 'postgresql' || value === 'postgres') return 'postgresql'
     throw new Error('unsupported_database_provider')
 }

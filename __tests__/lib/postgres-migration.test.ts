@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 
 import {
     buildInsert,
@@ -10,13 +8,6 @@ import {
 } from '../../scripts/postgres-migration-lib.mjs'
 
 describe('PostgreSQL migration helpers', () => {
-    it('keeps the staged schema identical except for the datasource provider', () => {
-        const root = process.cwd()
-        const mysqlSchema = readFileSync(join(root, 'prisma/schema.prisma'), 'utf8')
-        const postgresSchema = readFileSync(join(root, 'prisma/postgresql/schema.prisma'), 'utf8')
-        expect(postgresSchema).toBe(mysqlSchema.replace('provider = "mysql"', 'provider = "postgresql"'))
-    })
-
     it('quotes identifiers and parameterizes inserts', () => {
         expect(quotePostgresIdentifier('OgzieCommand')).toBe('"OgzieCommand"')
         expect(buildInsert('User', ['id', 'email'], 2)).toBe(

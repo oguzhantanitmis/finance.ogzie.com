@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Multi-stage build for Next.js (standalone) + Prisma (MySQL) on Dokploy.
+# Multi-stage build for Next.js (standalone) + Prisma (PostgreSQL) on Dokploy.
 
 # ---- deps: install full deps (incl. prisma CLI) ----
 FROM node:20-alpine AS deps
@@ -60,7 +60,7 @@ COPY . .
 # Build-time-only placeholders keep import-time validation operational. They
 # apply only to this command and are not persisted in an image layer as ENV.
 # Dokploy supplies the real runtime values.
-RUN DATABASE_URL="mysql://build:build@127.0.0.1:3306/build" \
+RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" \
     NEXTAUTH_SECRET="build_time_placeholder_not_used_at_runtime" \
     APP_SETTINGS_SECRET="build_time_placeholder_not_used_at_runtime" \
     NEXTAUTH_URL="https://finance.ogzie.com" \
