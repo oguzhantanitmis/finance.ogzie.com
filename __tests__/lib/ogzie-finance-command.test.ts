@@ -41,7 +41,7 @@ describe('ogzie finance command description', () => {
 
 describe('ogzie command MariaDB lock', () => {
     it('identifierları backtick ile, command id değerini parametreyle bağlar', () => {
-        const query = ogzieCommandLockQuery('command-123')
+        const query = ogzieCommandLockQuery('command-123', 'mysql')
 
         expect(query.sql).toBe('SELECT id FROM `OgzieCommand` WHERE `commandId` = ? FOR UPDATE')
         expect(query.values).toEqual(['command-123'])
@@ -54,8 +54,8 @@ describe('ogzie command MariaDB lock', () => {
         expect(query.values).toEqual(['command-123'])
     })
 
-    it('aşamalı geçiş sırasında MariaDB varsayılanını korur', () => {
-        expect(databaseProvider(undefined)).toBe('mysql')
+    it('üretim geçişinden sonra PostgreSQL varsayılanını korur', () => {
+        expect(databaseProvider(undefined)).toBe('postgresql')
         expect(databaseProvider('mariadb')).toBe('mysql')
         expect(databaseProvider('postgres')).toBe('postgresql')
         expect(() => databaseProvider('sqlite')).toThrow('unsupported_database_provider')

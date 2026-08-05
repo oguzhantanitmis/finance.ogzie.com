@@ -2,11 +2,11 @@
 
 Bu geçiş iki veritabanını aynı anda değiştirmez. MariaDB, üretim geçişi doğrulanana kadar geri dönüş kaynağı olarak korunur.
 
-## Hazırlık ve prova
+## Tamamlanan hazırlık ve prova
 
-1. `npm run db:postgres:prepare` ile PostgreSQL şeması ve başlangıç migration dosyası üretilir.
+1. PostgreSQL şeması ve başlangıç migration dosyası üretilmiştir. Eski MariaDB migration geçmişi `prisma/migrations-mariadb-archive` altında geri dönüş amacıyla korunur.
 2. `npm run db:mariadb:backup` ile salt-okunur, sıkıştırılmış MariaDB yedeği kalıcı `/backups` birimine alınır. Son üç yedek tutulur ve SHA-256 özeti yazılır.
-3. Boş hedef veritabanında `prisma migrate deploy --schema prisma/postgresql/schema.prisma` çalıştırılır.
+3. Boş hedef veritabanında `prisma migrate deploy` çalıştırılır.
 4. Yalnız hedef veritabanını sıfırlamaya izin veren açık onayla veri kopyalanır:
 
    ```sh
@@ -25,6 +25,6 @@ Bu geçiş iki veritabanını aynı anda değiştirmez. MariaDB, üretim geçiş
 - Finance yazma trafiği kısa bakım penceresinde durdurulur.
 - Son MariaDB yedeği alınır ve prova edilen kopyalama yeniden çalıştırılır.
 - Satır sayıları eşleşmeden `DATABASE_URL` değiştirilmez.
-- Uygulamanın Prisma sağlayıcısı PostgreSQL yapılır; `DATABASE_PROVIDER=postgresql` ayarlanır.
+- Uygulama Prisma sağlayıcısı PostgreSQL'dir; `DATABASE_PROVIDER=postgresql` ayarlanır.
 - Giriş, panel, gider oluşturma ve Ogzie komut akışı kontrol edilir.
 - Sorun halinde uygulama eski MariaDB bağlantısına döndürülür; MariaDB verisi silinmez.
