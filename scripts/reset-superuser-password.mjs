@@ -1,4 +1,4 @@
-// Tek seferlik superuser şifre sıfırlama — raw SQL (schema bağımsız)
+// Tek seferlik superuser şifre sıfırlama — Prisma ile sağlayıcı bağımsız.
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 
@@ -7,37 +7,28 @@ const { PrismaClient } = require('@prisma/client')
 
 const prisma = new PrismaClient()
 
-const SUPERUSER_EMAIL = 'oguzhan@tanitmis.com'
-const NEW_PASSWORD    = 'OgzieFinans2026!'
+const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL?.trim().toLowerCase()
+const NEW_PASSWORD = process.env.SUPERUSER_NEW_PASSWORD
 
 async function main() {
+    if (!SUPERUSER_EMAIL || !NEW_PASSWORD || NEW_PASSWORD.length < 12) {
+        throw new Error('SUPERUSER_EMAIL ve en az 12 karakterli SUPERUSER_NEW_PASSWORD gerekli')
+    }
     const hash = await bcrypt.hash(NEW_PASSWORD, 12)
 
-    // Raw SQL: sadece password + isActive güncelle, yeni kolonlara dokunma
-    const result = await prisma.$executeRaw`
-        UPDATE \`User\`
-        SET    \`password\` = ${hash},
-               \`isActive\` = 1,
-               \`updatedAt\` = NOW()
-        WHERE  \`email\` = ${SUPERUSER_EMAIL}
-    `
+    await prisma.user.upsert({
+        where: { email: SUPERUSER_EMAIL },
+        create: {
+            email: SUPERUSER_EMAIL,
+            password: hash,
+            name: process.env.SUPERUSER_NAME?.trim() || 'Superuser',
+            role: 'SUPERUSER',
+            isActive: true,
+        },
+        update: { password: hash, isActive: true, sessionVersion: { increment: 1 } },
+    })
 
-    if (result === 0) {
-        // Kullanıcı yoksa oluştur
-        const cuid = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-        await prisma.$executeRaw`
-            INSERT INTO \`User\` (\`id\`, \`email\`, \`password\`, \`name\`, \`role\`, \`isActive\`, \`createdAt\`, \`updatedAt\`)
-            VALUES (${cuid}, ${SUPERUSER_EMAIL}, ${hash}, 'Oguzhan', 'SUPERUSER', 1, NOW(), NOW())
-        `
-        console.log('✅ Superuser oluşturuldu.')
-    } else {
-        console.log('✅ Şifre sıfırlandı.')
-    }
-
-    console.log('')
-    console.log('  E-posta :', SUPERUSER_EMAIL)
-    console.log('  Şifre   :', NEW_PASSWORD)
-    console.log('  Giriş   : https://finance.ogzie.com/login')
+    console.log('Superuser kimlik bilgileri güvenli biçimde güncellendi.')
 }
 
 main()

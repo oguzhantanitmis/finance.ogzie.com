@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+    databaseProvider,
     financeDescription,
     ogzieCommandLockQuery,
     validFinancePayload,
@@ -44,5 +45,19 @@ describe('ogzie command MariaDB lock', () => {
 
         expect(query.sql).toBe('SELECT id FROM `OgzieCommand` WHERE `commandId` = ? FOR UPDATE')
         expect(query.values).toEqual(['command-123'])
+    })
+
+    it('PostgreSQL identifierlarını çift tırnakla bağlar', () => {
+        const query = ogzieCommandLockQuery('command-123', 'postgresql')
+
+        expect(query.sql).toBe('SELECT id FROM "OgzieCommand" WHERE "commandId" = ? FOR UPDATE')
+        expect(query.values).toEqual(['command-123'])
+    })
+
+    it('aşamalı geçiş sırasında MariaDB varsayılanını korur', () => {
+        expect(databaseProvider(undefined)).toBe('mysql')
+        expect(databaseProvider('mariadb')).toBe('mysql')
+        expect(databaseProvider('postgres')).toBe('postgresql')
+        expect(() => databaseProvider('sqlite')).toThrow('unsupported_database_provider')
     })
 })

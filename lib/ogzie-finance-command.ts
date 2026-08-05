@@ -41,7 +41,20 @@ export function financeDescription(payload: Pick<FinancePayload, 'description' |
     return payload.description?.trim() || payload.name.trim()
 }
 
-/** MariaDB satır kilidi; Prisma değeri parametre olarak bağlar. */
-export function ogzieCommandLockQuery(commandId: string): Prisma.Sql {
-    return Prisma.sql`SELECT id FROM \`OgzieCommand\` WHERE \`commandId\` = ${commandId} FOR UPDATE`
+export type DatabaseProvider = 'mysql' | 'postgresql'
+
+export function databaseProvider(value = process.env.DATABASE_PROVIDER): DatabaseProvider {
+    if (!value || value === 'mysql' || value === 'mariadb') return 'mysql'
+    if (value === 'postgresql' || value === 'postgres') return 'postgresql'
+    throw new Error('unsupported_database_provider')
+}
+
+/** Prisma değeri parametre olarak bağlar; yalnız tanımlayıcılar sağlayıcıya göre ayrılır. */
+export function ogzieCommandLockQuery(
+    commandId: string,
+    provider: DatabaseProvider = databaseProvider(),
+): Prisma.Sql {
+    return provider === 'postgresql'
+        ? Prisma.sql`SELECT id FROM "OgzieCommand" WHERE "commandId" = ${commandId} FOR UPDATE`
+        : Prisma.sql`SELECT id FROM \`OgzieCommand\` WHERE \`commandId\` = ${commandId} FOR UPDATE`
 }

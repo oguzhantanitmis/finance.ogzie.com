@@ -1,0 +1,14 @@
+FROM node:20-alpine
+
+WORKDIR /app
+RUN apk add --no-cache openssl
+
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+RUN npm ci --ignore-scripts
+
+COPY scripts ./scripts
+
+# Dokploy bu kapalı yardımcı konteynerde komutları yalnız elle çalıştırır.
+# Veri kopyalama CMD/ENTRYPOINT içinde otomatik başlamaz.
+CMD ["tail", "-f", "/dev/null"]
