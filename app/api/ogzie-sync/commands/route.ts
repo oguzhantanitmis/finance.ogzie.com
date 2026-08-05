@@ -7,26 +7,13 @@ import {
 import { NextResponse } from 'next/server'
 
 import { resolveOgzieUserId, validateOgzieIdentity, type OgzieIdentity } from '@/lib/ogzie-identity'
+import { financeDescription, validFinancePayload, type FinancePayload } from '@/lib/ogzie-finance-command'
 import { verifyOgziePush } from '@/lib/ogzie-ingest-verify'
 import { prisma } from '@/lib/prisma'
 import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
-type FinancePayload = {
-    draftId: string
-    name: string
-    amountCents: number
-    currency: string
-    billingCycle: 'monthly' | 'yearly'
-    nextPayment: string
-    occurredOn?: string
-    category?: string
-    providerDomain?: string | null
-    autopay?: boolean
-    isEssential?: boolean
-}
 
 const commandTypes = [
     'subscription.upsert',
@@ -41,22 +28,6 @@ type CommandBody = {
     commandId: string
     identity: OgzieIdentity
     command: { type: CommandType; payload: FinancePayload }
-}
-
-function validPayload(value: unknown): value is FinancePayload {
-    if (!value || typeof value !== 'object') return false
-    const p = value as Partial<FinancePayload>
-    return Boolean(
-        typeof p.draftId === 'string' && p.draftId.length >= 8 && p.draftId.length <= 191 &&
-        typeof p.name === 'string' && p.name.trim().length > 0 && p.name.length <= 200 &&
-        Number.isSafeInteger(p.amountCents) && (p.amountCents ?? 0) > 0 &&
-        typeof p.currency === 'string' && /^[A-Za-z]{3}$/.test(p.currency) &&
-        (p.billingCycle === 'monthly' || p.billingCycle === 'yearly') &&
-        typeof p.nextPayment === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.nextPayment) &&
-        (p.occurredOn === undefined || /^\d{4}-\d{2}-\d{2}$/.test(p.occurredOn)) &&
-        (p.category === undefined || (typeof p.category === 'string' && p.category.length <= 100)) &&
-        (p.providerDomain === undefined || p.providerDomain === null || (typeof p.providerDomain === 'string' && p.providerDomain.length <= 253)),
-    )
 }
 
 function isCommandType(value: unknown): value is CommandType {
@@ -84,7 +55,7 @@ export async function POST(req: Request) {
     if (
         body.version !== 2 || body.aud !== aud || !identity ||
         typeof body.commandId !== 'string' || body.commandId.length < 8 || body.commandId.length > 191 ||
-        !isCommandType(body.command?.type) || !validPayload(body.command.payload)
+        !isCommandType(body.command?.type) || !validFinancePayload(body.command.payload)
     ) return NextResponse.json({ ok: false, error: 'invalid_command' }, { status: 400 })
 
     const userId = await resolveOgzieUserId(identity)
@@ -112,6 +83,7 @@ export async function POST(req: Request) {
 
         const p = body.command.payload
         const amount = p.amountCents / 100
+        const description = financeDescription(p)
         let recordId: string
         let subscriptionId: string | undefined
 
@@ -129,34 +101,42 @@ export async function POST(req: Request) {
                 },
                 select: { id: true },
             })
-            const subscription = existingSubscription ?? await tx.subscription.upsert({
-                where: { source_externalId: { source: 'ogzie-app', externalId } },
-                create: {
-                    userId,
-                    source: 'ogzie-app', externalId,
-                    name: p.name.trim(), amount, currency: p.currency.toUpperCase(),
-                    billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-                    category: p.category?.trim() || enrichment.category,
-                    nextPayment: date(p.nextPayment),
-                    providerDomain,
-                    brandKey: enrichment.brandKey, logoUrl: enrichment.logoUrl, color: enrichment.color,
-                    billingAnchorDay: Number(p.nextPayment.slice(8, 10)), autopay: Boolean(p.autopay),
-                    isEssential: Boolean(p.isEssential), isActive: true, status: RecordStatus.ACTIVE,
-                    lastAmount: amount,
-                    monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
-                },
-                update: {
-                    name: p.name.trim(), amount, currency: p.currency.toUpperCase(),
-                    billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-                    category: p.category?.trim() || enrichment.category,
-                    nextPayment: date(p.nextPayment),
-                    providerDomain,
-                    autopay: Boolean(p.autopay), isEssential: Boolean(p.isEssential), isActive: true,
-                    status: RecordStatus.ACTIVE, lastAmount: amount,
-                    monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
-                },
-                select: { id: true },
-            })
+            const subscription = existingSubscription
+                ? await tx.subscription.update({
+                    where: { id: existingSubscription.id },
+                    data: { notes: description },
+                    select: { id: true },
+                })
+                : await tx.subscription.upsert({
+                    where: { source_externalId: { source: 'ogzie-app', externalId } },
+                    create: {
+                        userId,
+                        source: 'ogzie-app', externalId,
+                        name: p.name.trim(), amount, currency: p.currency.toUpperCase(),
+                        billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                        category: p.category?.trim() || enrichment.category,
+                        nextPayment: date(p.nextPayment),
+                        providerDomain,
+                        brandKey: enrichment.brandKey, logoUrl: enrichment.logoUrl, color: enrichment.color,
+                        billingAnchorDay: Number(p.nextPayment.slice(8, 10)), autopay: Boolean(p.autopay),
+                        isEssential: Boolean(p.isEssential), isActive: true, status: RecordStatus.ACTIVE,
+                        notes: description,
+                        lastAmount: amount,
+                        monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
+                    },
+                    update: {
+                        name: p.name.trim(), amount, currency: p.currency.toUpperCase(),
+                        billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                        category: p.category?.trim() || enrichment.category,
+                        nextPayment: date(p.nextPayment),
+                        providerDomain,
+                        autopay: Boolean(p.autopay), isEssential: Boolean(p.isEssential), isActive: true,
+                        status: RecordStatus.ACTIVE, lastAmount: amount,
+                        notes: description,
+                        monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
+                    },
+                    select: { id: true },
+                })
             recordId = subscription.id
             subscriptionId = subscription.id
         } else if (body.command.type === 'recurring_expense.upsert') {
@@ -169,23 +149,29 @@ export async function POST(req: Request) {
                 },
                 select: { id: true },
             })
-            const recurring = existingRecurring ?? await tx.recurringExpense.create({
-                data: {
-                    userId,
-                    name: p.name.trim(),
-                    category: p.category?.trim() || 'Fatura ve ödemeler',
-                    amount,
-                    currency: p.currency.toUpperCase(),
-                    billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-                    billingAnchorDay: Number(p.nextPayment.slice(8, 10)),
-                    nextPayment: date(p.nextPayment),
-                    autopay: Boolean(p.autopay),
-                    isEssential: p.isEssential !== false,
-                    status: RecordStatus.ACTIVE,
-                    notes: 'app.ogzie.com e-posta önerisinden kullanıcı onayıyla eklendi.',
-                },
-                select: { id: true },
-            })
+            const recurring = existingRecurring
+                ? await tx.recurringExpense.update({
+                    where: { id: existingRecurring.id },
+                    data: { notes: description },
+                    select: { id: true },
+                })
+                : await tx.recurringExpense.create({
+                    data: {
+                        userId,
+                        name: p.name.trim(),
+                        category: p.category?.trim() || 'Fatura ve ödemeler',
+                        amount,
+                        currency: p.currency.toUpperCase(),
+                        billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                        billingAnchorDay: Number(p.nextPayment.slice(8, 10)),
+                        nextPayment: date(p.nextPayment),
+                        autopay: Boolean(p.autopay),
+                        isEssential: p.isEssential !== false,
+                        status: RecordStatus.ACTIVE,
+                        notes: description,
+                    },
+                    select: { id: true },
+                })
             recordId = recurring.id
         } else {
             const entry = await tx.ledgerEntry.upsert({
@@ -195,7 +181,7 @@ export async function POST(req: Request) {
                     type: LedgerEntryType.EXPENSE,
                     amount,
                     currency: p.currency.toUpperCase(),
-                    description: p.name.trim(),
+                    description,
                     category: p.category?.trim() || 'Fatura ve ödemeler',
                     date: date(p.occurredOn ?? p.nextPayment),
                     source: 'ogzie-app-mail',
@@ -205,7 +191,7 @@ export async function POST(req: Request) {
                 update: {
                     amount,
                     currency: p.currency.toUpperCase(),
-                    description: p.name.trim(),
+                    description,
                     category: p.category?.trim() || 'Fatura ve ödemeler',
                     date: date(p.occurredOn ?? p.nextPayment),
                 },
