@@ -1,4 +1,9 @@
-import { BillingCycle, Prisma, RecordStatus } from '@prisma/client'
+import {
+    BillingCycle,
+    LedgerEntryType,
+    Prisma,
+    RecordStatus,
+} from '@prisma/client'
 import { NextResponse } from 'next/server'
 
 import { resolveOgzieUserId, validateOgzieIdentity, type OgzieIdentity } from '@/lib/ogzie-identity'
@@ -9,38 +14,57 @@ import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type SubscriptionPayload = {
+type FinancePayload = {
     draftId: string
     name: string
     amountCents: number
     currency: string
     billingCycle: 'monthly' | 'yearly'
     nextPayment: string
+    occurredOn?: string
     category?: string
     providerDomain?: string | null
     autopay?: boolean
     isEssential?: boolean
 }
 
+const commandTypes = [
+    'subscription.upsert',
+    'recurring_expense.upsert',
+    'expense.create',
+] as const
+type CommandType = (typeof commandTypes)[number]
+
 type CommandBody = {
     version: 2
     aud: string
     commandId: string
     identity: OgzieIdentity
-    command: { type: 'subscription.upsert'; payload: SubscriptionPayload }
+    command: { type: CommandType; payload: FinancePayload }
 }
 
-function validPayload(value: unknown): value is SubscriptionPayload {
+function validPayload(value: unknown): value is FinancePayload {
     if (!value || typeof value !== 'object') return false
-    const p = value as Partial<SubscriptionPayload>
+    const p = value as Partial<FinancePayload>
     return Boolean(
         typeof p.draftId === 'string' && p.draftId.length >= 8 && p.draftId.length <= 191 &&
         typeof p.name === 'string' && p.name.trim().length > 0 && p.name.length <= 200 &&
         Number.isSafeInteger(p.amountCents) && (p.amountCents ?? 0) > 0 &&
         typeof p.currency === 'string' && /^[A-Za-z]{3}$/.test(p.currency) &&
         (p.billingCycle === 'monthly' || p.billingCycle === 'yearly') &&
-        typeof p.nextPayment === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.nextPayment),
+        typeof p.nextPayment === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(p.nextPayment) &&
+        (p.occurredOn === undefined || /^\d{4}-\d{2}-\d{2}$/.test(p.occurredOn)) &&
+        (p.category === undefined || (typeof p.category === 'string' && p.category.length <= 100)) &&
+        (p.providerDomain === undefined || p.providerDomain === null || (typeof p.providerDomain === 'string' && p.providerDomain.length <= 253)),
     )
+}
+
+function isCommandType(value: unknown): value is CommandType {
+    return typeof value === 'string' && commandTypes.includes(value as CommandType)
+}
+
+function date(value: string): Date {
+    return new Date(`${value}T00:00:00.000Z`)
 }
 
 export async function POST(req: Request) {
@@ -60,13 +84,16 @@ export async function POST(req: Request) {
     if (
         body.version !== 2 || body.aud !== aud || !identity ||
         typeof body.commandId !== 'string' || body.commandId.length < 8 || body.commandId.length > 191 ||
-        body.command?.type !== 'subscription.upsert' || !validPayload(body.command.payload)
+        !isCommandType(body.command?.type) || !validPayload(body.command.payload)
     ) return NextResponse.json({ ok: false, error: 'invalid_command' }, { status: 400 })
 
     const userId = await resolveOgzieUserId(identity)
     if (!userId) return NextResponse.json({ ok: false, error: 'identity_not_linked' }, { status: 409 })
 
     const previous = await prisma.ogzieCommand.findUnique({ where: { commandId: body.commandId } })
+    if (previous && previous.userId !== userId) {
+        return NextResponse.json({ ok: false, error: 'command_conflict' }, { status: 409 })
+    }
     if (previous?.status === 'completed' && previous.result) {
         return NextResponse.json(previous.result)
     }
@@ -77,41 +104,128 @@ export async function POST(req: Request) {
         update: {},
     })
 
-    const p = body.command.payload
-    const enrichment = enrichSubscriptionName(p.name)
-    const externalId = `draft:${p.draftId}`
-    const subscription = await prisma.subscription.upsert({
-        where: { source_externalId: { source: 'ogzie-app', externalId } },
-        create: {
-            userId,
-            source: 'ogzie-app', externalId,
-            name: p.name.trim(), amount: p.amountCents / 100, currency: p.currency.toUpperCase(),
-            billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-            category: p.category?.trim() || enrichment.category,
-            nextPayment: new Date(`${p.nextPayment}T00:00:00.000Z`),
-            providerDomain: p.providerDomain?.trim().toLowerCase() || enrichment.providerDomain,
-            brandKey: enrichment.brandKey, logoUrl: enrichment.logoUrl, color: enrichment.color,
-            billingAnchorDay: Number(p.nextPayment.slice(8, 10)), autopay: Boolean(p.autopay),
-            isEssential: Boolean(p.isEssential), isActive: true, status: RecordStatus.ACTIVE,
-            lastAmount: p.amountCents / 100,
-            monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
-        },
-        update: {
-            name: p.name.trim(), amount: p.amountCents / 100, currency: p.currency.toUpperCase(),
-            billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-            category: p.category?.trim() || enrichment.category,
-            nextPayment: new Date(`${p.nextPayment}T00:00:00.000Z`),
-            providerDomain: p.providerDomain?.trim().toLowerCase() || enrichment.providerDomain,
-            autopay: Boolean(p.autopay), isEssential: Boolean(p.isEssential), isActive: true,
-            status: RecordStatus.ACTIVE, lastAmount: p.amountCents / 100,
-            monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
-        },
-        select: { id: true },
+    const result = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "OgzieCommand" WHERE "commandId" = ${body.commandId} FOR UPDATE`
+        const locked = await tx.ogzieCommand.findUniqueOrThrow({ where: { commandId: body.commandId } })
+        if (locked.userId !== userId) throw new Error('command_conflict')
+        if (locked.status === 'completed' && locked.result) return locked.result
+
+        const p = body.command.payload
+        const amount = p.amountCents / 100
+        let recordId: string
+        let subscriptionId: string | undefined
+
+        if (body.command.type === 'subscription.upsert') {
+            const enrichment = enrichSubscriptionName(p.name)
+            const externalId = `draft:${p.draftId}`
+            const providerDomain = p.providerDomain?.trim().toLowerCase() || enrichment.providerDomain
+            const existingSubscription = await tx.subscription.findFirst({
+                where: {
+                    userId,
+                    status: RecordStatus.ACTIVE,
+                    ...(providerDomain
+                        ? { providerDomain }
+                        : { name: p.name.trim(), currency: p.currency.toUpperCase() }),
+                },
+                select: { id: true },
+            })
+            const subscription = existingSubscription ?? await tx.subscription.upsert({
+                where: { source_externalId: { source: 'ogzie-app', externalId } },
+                create: {
+                    userId,
+                    source: 'ogzie-app', externalId,
+                    name: p.name.trim(), amount, currency: p.currency.toUpperCase(),
+                    billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                    category: p.category?.trim() || enrichment.category,
+                    nextPayment: date(p.nextPayment),
+                    providerDomain,
+                    brandKey: enrichment.brandKey, logoUrl: enrichment.logoUrl, color: enrichment.color,
+                    billingAnchorDay: Number(p.nextPayment.slice(8, 10)), autopay: Boolean(p.autopay),
+                    isEssential: Boolean(p.isEssential), isActive: true, status: RecordStatus.ACTIVE,
+                    lastAmount: amount,
+                    monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
+                },
+                update: {
+                    name: p.name.trim(), amount, currency: p.currency.toUpperCase(),
+                    billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                    category: p.category?.trim() || enrichment.category,
+                    nextPayment: date(p.nextPayment),
+                    providerDomain,
+                    autopay: Boolean(p.autopay), isEssential: Boolean(p.isEssential), isActive: true,
+                    status: RecordStatus.ACTIVE, lastAmount: amount,
+                    monthlyNormalizedAmount: +(p.amountCents / (p.billingCycle === 'yearly' ? 1200 : 100)).toFixed(2),
+                },
+                select: { id: true },
+            })
+            recordId = subscription.id
+            subscriptionId = subscription.id
+        } else if (body.command.type === 'recurring_expense.upsert') {
+            const existingRecurring = await tx.recurringExpense.findFirst({
+                where: {
+                    userId,
+                    name: p.name.trim(),
+                    currency: p.currency.toUpperCase(),
+                    status: RecordStatus.ACTIVE,
+                },
+                select: { id: true },
+            })
+            const recurring = existingRecurring ?? await tx.recurringExpense.create({
+                data: {
+                    userId,
+                    name: p.name.trim(),
+                    category: p.category?.trim() || 'Fatura ve ödemeler',
+                    amount,
+                    currency: p.currency.toUpperCase(),
+                    billingCycle: p.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+                    billingAnchorDay: Number(p.nextPayment.slice(8, 10)),
+                    nextPayment: date(p.nextPayment),
+                    autopay: Boolean(p.autopay),
+                    isEssential: p.isEssential !== false,
+                    status: RecordStatus.ACTIVE,
+                    notes: 'app.ogzie.com e-posta önerisinden kullanıcı onayıyla eklendi.',
+                },
+                select: { id: true },
+            })
+            recordId = recurring.id
+        } else {
+            const entry = await tx.ledgerEntry.upsert({
+                where: { source_externalId: { source: 'ogzie-app-mail', externalId: p.draftId } },
+                create: {
+                    userId,
+                    type: LedgerEntryType.EXPENSE,
+                    amount,
+                    currency: p.currency.toUpperCase(),
+                    description: p.name.trim(),
+                    category: p.category?.trim() || 'Fatura ve ödemeler',
+                    date: date(p.occurredOn ?? p.nextPayment),
+                    source: 'ogzie-app-mail',
+                    externalId: p.draftId,
+                    metadata: { origin: 'mail-suggestion', draftId: p.draftId },
+                },
+                update: {
+                    amount,
+                    currency: p.currency.toUpperCase(),
+                    description: p.name.trim(),
+                    category: p.category?.trim() || 'Fatura ve ödemeler',
+                    date: date(p.occurredOn ?? p.nextPayment),
+                },
+                select: { id: true },
+            })
+            recordId = entry.id
+        }
+
+        const completed = {
+            ok: true,
+            commandId: body.commandId,
+            recordId,
+            ...(subscriptionId ? { subscriptionId } : {}),
+        }
+        await tx.ogzieCommand.update({
+            where: { commandId: body.commandId },
+            data: { status: 'completed', result: completed },
+        })
+        return completed
     })
-    const result = { ok: true, commandId: body.commandId, subscriptionId: subscription.id }
-    await prisma.ogzieCommand.update({
-        where: { commandId: body.commandId },
-        data: { status: 'completed', result },
-    })
+
     return NextResponse.json(result)
 }
