@@ -7,7 +7,12 @@ import {
 import { NextResponse } from 'next/server'
 
 import { resolveOgzieUserId, validateOgzieIdentity, type OgzieIdentity } from '@/lib/ogzie-identity'
-import { financeDescription, validFinancePayload, type FinancePayload } from '@/lib/ogzie-finance-command'
+import {
+    financeDescription,
+    ogzieCommandLockQuery,
+    validFinancePayload,
+    type FinancePayload,
+} from '@/lib/ogzie-finance-command'
 import { verifyOgziePush } from '@/lib/ogzie-ingest-verify'
 import { prisma } from '@/lib/prisma'
 import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
@@ -76,7 +81,7 @@ export async function POST(req: Request) {
     })
 
     const result = await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM "OgzieCommand" WHERE "commandId" = ${body.commandId} FOR UPDATE`
+        await tx.$queryRaw(ogzieCommandLockQuery(body.commandId))
         const locked = await tx.ogzieCommand.findUniqueOrThrow({ where: { commandId: body.commandId } })
         if (locked.userId !== userId) throw new Error('command_conflict')
         if (locked.status === 'completed' && locked.result) return locked.result
