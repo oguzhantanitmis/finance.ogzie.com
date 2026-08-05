@@ -37,7 +37,8 @@ describe('PostgreSQL migration helpers', () => {
     it('converts MariaDB boolean and JSON values', () => {
         expect(convertValueForPostgres(1, 'boolean')).toBe(true)
         expect(convertValueForPostgres(0, 'boolean')).toBe(false)
-        expect(convertValueForPostgres('{"ok":true}', 'jsonb')).toEqual({ ok: true })
-        expect(convertValueForPostgres(Buffer.from('{"from":"mariadb"}'), 'json')).toEqual({ from: 'mariadb' })
+        expect(convertValueForPostgres('{"ok":true}', 'jsonb')).toBe('{"ok":true}')
+        expect(convertValueForPostgres(['one', 'two'], 'jsonb')).toBe('["one","two"]')
+        expect(convertValueForPostgres(Buffer.from('{"from":"mariadb"}'), 'json')).toBe('{"from":"mariadb"}')
     })
 })
