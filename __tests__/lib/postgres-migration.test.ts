@@ -38,5 +38,6 @@ describe('PostgreSQL migration helpers', () => {
         expect(convertValueForPostgres(1, 'boolean')).toBe(true)
         expect(convertValueForPostgres(0, 'boolean')).toBe(false)
         expect(convertValueForPostgres('{"ok":true}', 'jsonb')).toEqual({ ok: true })
+        expect(convertValueForPostgres(Buffer.from('{"from":"mariadb"}'), 'json')).toEqual({ from: 'mariadb' })
     })
 })

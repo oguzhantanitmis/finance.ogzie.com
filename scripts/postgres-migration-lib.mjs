@@ -28,6 +28,9 @@ export function convertValueForPostgres(value, dataType) {
     if (value === null || value === undefined) return null
     if (dataType === 'boolean') return value === true || value === 1 || value === '1'
     if (dataType === 'json' || dataType === 'jsonb') {
+        if (Buffer.isBuffer(value) || value instanceof Uint8Array) {
+            value = Buffer.from(value).toString('utf8')
+        }
         if (typeof value !== 'string') return value
         try { return JSON.parse(value) } catch { throw new Error('invalid_json_value') }
     }
