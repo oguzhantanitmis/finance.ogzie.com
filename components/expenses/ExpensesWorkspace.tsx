@@ -54,8 +54,9 @@ export default function ExpensesWorkspace({
     const searchParams = useSearchParams()
     useEffect(() => {
         if (!searchParams.get('new')) return
-        setAddMode('choose')
+        const timeoutId = window.setTimeout(() => setAddMode('choose'), 0)
         router.replace(pathname, { scroll: false })
+        return () => window.clearTimeout(timeoutId)
     }, [searchParams, router, pathname])
     const [editItem, setEditItem] = useState<UnifiedItem | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)

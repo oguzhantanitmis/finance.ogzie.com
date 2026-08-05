@@ -1,5 +1,47 @@
 # Test Raporu
 
+## 2026-07-14 — Arşiv Doğrulaması
+
+| Kontrol | Durum |
+| --- | --- |
+| `npm ci` (Node.js 20.20.2) | Başarılı — lockfile'dan 557 paket kuruldu |
+| `npm run lint` | Başarılı — 0 hata, 0 uyarı |
+| `npx tsc --noEmit` | Başarılı — 0 hata |
+| `npm test` | Başarılı — 11 dosya, 154 test |
+| `npm run build` | Başarılı — Next.js 16.1.6 production build ve 39 dinamik route |
+| Docker multi-stage build | Başarılı — Node.js 20 Alpine runner |
+| Prisma / MySQL 8.4 | Başarılı — 12/12 migration, 42 tablo |
+| HTTP | `/login` 200; oturumsuz `/health` beklenen 307 → `/login` |
+| `npm audit` | 1 düşük, 8 orta, 8 yüksek, 0 kritik |
+
+İlk repo-geneli lint çalıştırması 24 hata ve 6 uyarı tespit etti. `any` kullanımları, Server Component `try/catch` sınırı, React 19 effect/state kuralları ve kullanılmayan importlar davranış korunarak düzeltildi; yukarıdaki kontroller temiz Node.js 20 container'ında tekrarlandı.
+
+İlk Docker doğrulama denemesinde host depolama alanı dolduğu için Colima containerd snapshot'ı I/O hatası verdi. Bozuk test imajı ile yalnız dangling Docker build katmanları temizlendi, disk trim edildi ve doğrulama temiz clone üzerinde baştan çalıştırıldı. İkinci çalıştırmanın build, migration ve runtime kontrolleri yukarıdaki sonuçlarla tamamlandı; bu olay uygulama kaynaklı değildir.
+
+## 2026-07-05 — Güncel Durum
+
+### Otomatik Kontroller
+
+| Kontrol | Durum |
+| --- | --- |
+| `npx tsc --noEmit` | Başarılı — 0 hata |
+| `npm test` (vitest) | Başarılı — 11 dosya, 154 test |
+| `npx next dev` (Turbopack) derleme | Başarılı — `/login` 200, hatasız |
+| `npm run lint` (değişen dosyalar) | Temiz (repo genelinde eski legacy lint borcu sürüyor) |
+
+### Bu sürümde eklenen/etkilenen senaryolar
+
+| Senaryo | Durum |
+| --- | --- |
+| Giriş (login) animasyonlu karakter tasarımı | tsc/eslint/derleme; gerçek NextAuth `signIn` + 5 mod + beni-hatırla + `?reset=` korunur |
+| shadcn/ui primitive'leri (button/input/label/checkbox) | tsc/eslint temiz; `components/ui/` altında |
+| `app/globals.css` shadcn token köprüsü (`@theme inline`) | tarayıcı computed-style ile doğrulandı: `bg-background`/`bg-primary`/`text-muted-foreground` dark↔light doğru |
+| Login animasyon performansı (rAF throttle + transform + will-change) | ölçüldü: ~247 fare olayı/sn altında React commit ~59/sn (ekran tazeleme); görsel birebir aynı |
+
+> Aşağıdaki **2026-06-24** ve **2026-05-03** bölümleri önceki sürümlerin raporlarıdır.
+
+---
+
 ## 2026-06-24 — Güncel Durum
 
 ### Otomatik Kontroller
@@ -83,4 +125,3 @@ Tarih: 2026-05-03
 - Kullanılmayan import/değişken uyarıları
 
 Bu lint borcu production build'i engellememektedir. Revizyon kapsamında eklenen yeni ana akışlar `tsc`, test ve production build'den geçmiştir.
-

@@ -44,8 +44,9 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
     const searchParams = useSearchParams()
     useEffect(() => {
         if (!searchParams.get('new')) return
-        setModal('add')
+        const timeoutId = window.setTimeout(() => setModal('add'), 0)
         router.replace(pathname, { scroll: false })
+        return () => window.clearTimeout(timeoutId)
     }, [searchParams, router, pathname])
 
     function handleEdit(account: Account) {

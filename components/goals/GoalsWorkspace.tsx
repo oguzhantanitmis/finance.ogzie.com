@@ -62,8 +62,9 @@ export default function GoalsWorkspace({ goals }: Props) {
     const searchParams = useSearchParams()
     useEffect(() => {
         if (!searchParams.get('new')) return
-        setShowAdd(true)
+        const timeoutId = window.setTimeout(() => setShowAdd(true), 0)
         router.replace(pathname, { scroll: false })
+        return () => window.clearTimeout(timeoutId)
     }, [searchParams, router, pathname])
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [celebratingGoal, setCelebratingGoal] = useState<string | null>(null)

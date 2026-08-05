@@ -3,8 +3,11 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { BudgetAlertState, BudgetAlertType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
+
+function getErrorMessage(error: unknown) {
+    return error instanceof Error ? error.message : 'Bilinmeyen bir bildirim hatası oluştu.'
+}
 
 // Get all open notifications for the user
 export async function getUnreadNotifications() {
@@ -22,8 +25,8 @@ export async function getUnreadNotifications() {
         })
 
         return { success: true, alerts }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: getErrorMessage(error) }
     }
 }
 
@@ -46,8 +49,8 @@ export async function markNotificationAsRead(id: string) {
 
         revalidatePath('/')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: getErrorMessage(error) }
     }
 }
 
@@ -70,8 +73,8 @@ export async function markAllNotificationsAsRead() {
 
         revalidatePath('/')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: getErrorMessage(error) }
     }
 }
 
@@ -119,7 +122,7 @@ export async function generateSystemAlerts() {
         }
         
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: getErrorMessage(error) }
     }
 }

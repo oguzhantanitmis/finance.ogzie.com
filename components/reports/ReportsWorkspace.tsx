@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
     Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart,
