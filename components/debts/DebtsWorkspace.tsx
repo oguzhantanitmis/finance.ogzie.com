@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useActionState, useEffect, useMemo, useState, useTransition } from 'react'
-import { AlertTriangle, CheckCircle2, CreditCard, Landmark, Plus, Users, Clock, Check } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CreditCard, Plus, Clock, Check } from 'lucide-react'
 import type { DebtType } from '@prisma/client'
 
 import { addDebt, deleteDebt, payDebtObligation, setDebtInstallmentPaid, updateDebt } from '@/app/actions'
@@ -17,10 +17,11 @@ import { calculateLoanSchedule } from '@/lib/banking-engine'
 import type { DebtPaymentObligation, DebtPersonOption, DebtView } from '@/lib/debt-views'
 import { formatCurrency } from '@/lib/utils'
 
-type CreateDebtType = 'LOAN' | 'PERSONAL' | 'MANUAL'
+type CreateDebtType = 'LOAN' | 'CREDIT_CARD' | 'PERSONAL' | 'MANUAL'
 
 const CREATE_TYPE_OPTIONS: Array<{ value: CreateDebtType; label: string; description: string }> = [
     { value: 'LOAN', label: 'Banka Kredisi', description: 'Çekilen kredi, toplam geri ödeme, vade ve faiz ile takip et.' },
+    { value: 'CREDIT_CARD', label: 'Kart Borcu', description: 'Yalnızca kart borcunu, kalan tutarı ve son ödeme tarihini takip et.' },
     { value: 'PERSONAL', label: 'Şahsi Borç', description: 'Kişi seçerek borcu alacak/verecek sistemiyle takip et.' },
     { value: 'MANUAL', label: 'Diğer Borç', description: 'Vergi, kefalet veya tekil borçları manuel kaydet.' },
 ]
@@ -103,18 +104,17 @@ export default function DebtsWorkspace({
     people: DebtPersonOption[]
     paymentObligations: DebtPaymentObligation[]
 }) {
-    const [showAdd, setShowAdd] = useState(false)
-    const [createType, setCreateType] = useState<CreateDebtType>('LOAN')
-
     // Hızlı işlem derin bağlantısı: /debts?new=1 → borç ekleme modalını aç
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const requestedType = searchParams.get('new')
+    const [showAdd, setShowAdd] = useState(Boolean(requestedType))
+    const [createType, setCreateType] = useState<CreateDebtType>(requestedType === 'card' ? 'CREDIT_CARD' : 'LOAN')
     useEffect(() => {
-        if (!searchParams.get('new')) return
-        setShowAdd(true)
+        if (!requestedType) return
         router.replace(pathname, { scroll: false })
-    }, [searchParams, router, pathname])
+    }, [requestedType, router, pathname])
     const [editingDebt, setEditingDebt] = useState<DebtView | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [pendingInstallmentId, setPendingInstallmentId] = useState<string | null>(null)
@@ -192,56 +192,33 @@ export default function DebtsWorkspace({
                 onPay={handlePayObligation}
             />
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-8 stagger-children">
-                <div className="kpi-card kpi-card-info">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-info-bg)' }}>
-                            <CreditCard className="w-4 h-4" style={{ color: 'var(--accent-info)' }} />
-                        </div>
-                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Kart borçları otomatik</h2>
+            <div className="fintech-card p-5 mb-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-info-bg)' }}>
+                        <CreditCard className="w-4 h-4" style={{ color: 'var(--accent-info)' }} />
                     </div>
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        Kartlarım bölümüne eklediğin kredi kartları burada ayrıca borç olarak görünür. Elle kart borcu girmen gerekmez.
-                    </p>
-                    <Link href="/cards" className="inline-flex items-center gap-2 text-sm font-medium mt-4 cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
-                        Kartlarımı aç →
-                    </Link>
-                </div>
-
-                <div className="kpi-card kpi-card-warning">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-warning-bg)' }}>
-                            <Landmark className="w-4 h-4" style={{ color: 'var(--accent-warning)' }} />
-                        </div>
-                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>KMH hesaplardan gelir</h2>
+                    <div>
+                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Kartlar değil, ödenecek borçlar takip edilir</h2>
+                        <p className="text-sm mt-1 max-w-3xl" style={{ color: 'var(--text-secondary)' }}>
+                            Kart numarası, limit ve genel faiz ayarı tutulmaz. Kart borcunun ne olduğu, kalan tutarı, vadesi ve ödendi bilgisi bu ekranda yer alır.
+                        </p>
                     </div>
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        KMH limiti, faiz oranı, hesap kesimi ve son ödeme günü hesap kaydında tutulur. Eksi bakiye oluşunca borca yansır.
-                    </p>
-                    <Link href="/accounts" className="inline-flex items-center gap-2 text-sm font-medium mt-4 cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
-                        Hesapları aç →
-                    </Link>
                 </div>
-
-                <div className="kpi-card kpi-card-success">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--accent-success-bg)' }}>
-                            <Users className="w-4 h-4" style={{ color: 'var(--accent-success)' }} />
-                        </div>
-                        <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Şahsi borç kişiyle bağlanır</h2>
-                    </div>
-                    <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        Şahsi borç eklerken kişi seçersin. Sonra tahsilat ve ödeme hareketleri kişi kartında ve borç ekranında birlikte görünür.
-                    </p>
-                    <Link href="/people" className="inline-flex items-center gap-2 text-sm font-medium mt-4 cursor-pointer" style={{ color: 'var(--accent-primary)' }}>
-                        Kişilere git →
-                    </Link>
-                </div>
+                <button
+                    type="button"
+                    onClick={() => {
+                        setCreateType('CREDIT_CARD')
+                        setShowAdd(true)
+                    }}
+                    className="btn-secondary shrink-0"
+                >
+                    <Plus className="w-4 h-4" /> Kart Borcu Ekle
+                </button>
             </div>
 
             {syncedCount > 0 ? (
                 <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
-                    {syncedCount} kayıt hesaplar ve kartlardan otomatik yansıyor.
+                    {syncedCount} kart veya KMH borcu mevcut kaynaklardan otomatik yansıyor.
                 </p>
             ) : null}
 
@@ -469,7 +446,7 @@ function DebtCreateForm({
 }) {
     return (
         <div className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {CREATE_TYPE_OPTIONS.map((option) => (
                     <button
                         key={option.value}
@@ -686,7 +663,7 @@ function StoredDebtForm({
                     >
                         <option value="LOAN">Banka Kredisi</option>
                         <option value="MANUAL">Diğer Borç</option>
-                        <option value="CREDIT_CARD">Eski Kart Borcu</option>
+                        <option value="CREDIT_CARD">Kart Borcu</option>
                         <option value="KMH">Eski KMH Kaydı</option>
                         <option value="PERSONAL">Eski Şahsi Borç Kaydı</option>
                     </select>
@@ -708,7 +685,7 @@ function StoredDebtForm({
                             : isKmh
                                 ? 'Örn: Eski KMH Kaydı'
                                 : isCard
-                                    ? 'Örn: Eski Kart Borcu'
+                                    ? 'Örn: Yapı Kredi kart borcu'
                                     : 'Örn: Vergi Borcu'
                     }
                     className="form-input"
@@ -716,17 +693,17 @@ function StoredDebtForm({
                 />
             </div>
 
-            {!isLoan ? (
+            {!isLoan && !isCard ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field
-                        label={isKmh ? 'KMH faiz oranı (%)' : isCard ? 'Kart faiz oranı (%)' : 'Faiz oranı (%)'}
+                        label={isKmh ? 'KMH faiz oranı (%)' : 'Faiz oranı (%)'}
                         name="interestRate"
                         type="number"
                         step="0.01"
                         defaultValue={debt?.interestRate ?? 0}
                     />
-                    {isCard || isKmh ? (
-                        <Field label={isCard ? 'Asgari ödeme oranı (%)' : 'Asgari/kapama oranı (%)'} name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.minPaymentRate, 0.2)} />
+                    {isKmh ? (
+                        <Field label="Asgari/kapama oranı (%)" name="minPaymentRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.minPaymentRate, 0.2)} />
                     ) : (
                         <Field label="Kalan bakiye" name="remainingBalance" type="number" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
                     )}
@@ -735,11 +712,19 @@ function StoredDebtForm({
 
             {isLoan ? (
                 <LoanFields debt={debt} />
-            ) : isCard || isKmh ? (
+            ) : isCard ? (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Field label={isKmh ? 'KMH limiti' : 'Kart limiti'} name="limit" type="number" step="0.01" defaultValue={debt?.limit ?? ''} required />
-                        <Field label={isKmh ? 'Kullanılan KMH' : 'Dönem borcu'} name="totalBalance" type="number" step="0.01" defaultValue={debt?.totalBalance ?? ''} required />
+                        <Field label="Ekstre / toplam borç" name="totalBalance" type="number" min="0" step="0.01" defaultValue={debt?.totalBalance ?? ''} required />
+                        <Field label="Kalan borç" name="remainingBalance" type="number" min="0" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
+                    </div>
+                    <Field label="Son ödeme tarihi" name="dueDate" type="date" defaultValue={debt?.dueDate ? debt.dueDate.slice(0, 10) : ''} required />
+                </>
+            ) : isKmh ? (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Field label="KMH limiti" name="limit" type="number" step="0.01" defaultValue={debt?.limit ?? ''} required />
+                        <Field label="Kullanılan KMH" name="totalBalance" type="number" step="0.01" defaultValue={debt?.totalBalance ?? ''} required />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Field label="Güncel borç" name="remainingBalance" type="number" step="0.01" defaultValue={debt?.remainingBalance ?? ''} required />
@@ -757,7 +742,7 @@ function StoredDebtForm({
                 </>
             )}
 
-            {(isCard || isKmh) ? (
+            {isKmh ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Field label="KKDF oranı (%)" name="kkdfRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.kkdfRate, 0.15)} />
                     <Field label="BSMV oranı (%)" name="bsmvRate" type="number" min="0" max="100" step="0.01" defaultValue={toPercentInput(debt?.bsmvRate, 0.15)} />
@@ -766,7 +751,7 @@ function StoredDebtForm({
 
             {mode === 'create' ? (
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Kart borçları ve KMH kullanımı bu formdan eklenmez; ilgili kart veya hesap kaydından otomatik yansır.
+                    KMH kullanımı bu formdan eklenmez; ilgili hesap kaydından otomatik yansır.
                 </p>
             ) : null}
 

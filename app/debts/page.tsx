@@ -24,12 +24,12 @@ function mapToDebtItems(debts: DebtView[]): DebtItem[] {
 
         const nextInstallment = v.paymentPlan?.find((p) => !p.isPaid)
         const monthly = nextInstallment?.amount
-            ?? (type === 'card' ? Math.round(v.remainingBalance * (v.minPaymentRate || 0.20))
+            ?? (type === 'card' ? v.remainingBalance
                 : type === 'kmh' ? (v.kmhMinimumPayment ?? Math.round(v.remainingBalance * 0.05))
                 : v.remainingBalance)
 
         let paidPct = 0
-        if (type === 'card' || type === 'kmh') {
+        if (type === 'kmh') {
             paidPct = v.limit ? clampPct((1 - v.remainingBalance / v.limit) * 100) : 0
         } else if (v.totalPrincipal) {
             paidPct = clampPct((1 - v.remainingBalance / v.totalPrincipal) * 100)
@@ -45,7 +45,7 @@ function mapToDebtItems(debts: DebtView[]): DebtItem[] {
             remaining: v.remainingBalance,
             monthly,
             nextDue: daysUntilTr(v.dueDate ?? nextInstallment?.dueDate),
-            rate: v.interestRate > 0 ? +v.interestRate.toFixed(2) : undefined,
+            rate: type !== 'card' && v.interestRate > 0 ? +v.interestRate.toFixed(2) : undefined,
             paidPct,
             critical: v.dueDate != null && (daysUntil(v.dueDate) ?? 99) <= 1,
         }
@@ -56,26 +56,11 @@ export default async function DebtsPage() {
     const user = await getCurrentUser()
     if (!user) redirect('/login')
 
+    let workspaceData: Awaited<ReturnType<typeof getDebtWorkspaceData>>
     try {
-        const { debts, people, paymentObligations } = await withDbRetry(
+        workspaceData = await withDbRetry(
             () => getDebtWorkspaceData(user.id),
             { retries: 2, delayMs: 400 }
-        )
-
-        return (
-            <PageShell width="genis">
-                <div className="lg:hidden">
-                    <DebtsMobile debts={mapToDebtItems(debts)} />
-                </div>
-                <div className="hidden lg:block">
-                    <div className="flex justify-end mb-4">
-                        <ExportButton endpoint="/api/export/debts" label="Borçları İndir" />
-                    </div>
-                    <Suspense>
-                        <DebtsWorkspace debts={debts} people={people} paymentObligations={paymentObligations} />
-                    </Suspense>
-                </div>
-            </PageShell>
         )
     } catch (err) {
         console.error('[/debts] Veri yüklenemedi:', err)
@@ -85,4 +70,21 @@ export default async function DebtsPage() {
             </PageShell>
         )
     }
+
+    const { debts, people, paymentObligations } = workspaceData
+    return (
+        <PageShell width="genis">
+            <div className="lg:hidden">
+                <DebtsMobile debts={mapToDebtItems(debts)} />
+            </div>
+            <div className="hidden lg:block">
+                <div className="flex justify-end mb-4">
+                    <ExportButton endpoint="/api/export/debts" label="Borçları İndir" />
+                </div>
+                <Suspense>
+                    <DebtsWorkspace debts={debts} people={people} paymentObligations={paymentObligations} />
+                </Suspense>
+            </div>
+        </PageShell>
+    )
 }

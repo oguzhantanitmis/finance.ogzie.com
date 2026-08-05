@@ -345,9 +345,15 @@ export async function addDebt(
                 totalBalance,
                 remainingBalance,
                 interestRate: loanState?.interestRate ?? toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
-                minPaymentRate: debtType === DebtType.LOAN ? 0 : toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
-                kkdfRate: loanState?.kkdfRate ?? toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
-                bsmvRate: loanState?.bsmvRate ?? toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
+                minPaymentRate: debtType === DebtType.LOAN || debtType === DebtType.CREDIT_CARD
+                    ? 0
+                    : toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
+                kkdfRate: debtType === DebtType.CREDIT_CARD
+                    ? 0
+                    : loanState?.kkdfRate ?? toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: debtType === DebtType.CREDIT_CARD
+                    ? 0
+                    : loanState?.bsmvRate ?? toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 dueDate: dueDate ?? null,
             },
         })
@@ -410,9 +416,15 @@ export async function updateDebt(
                 totalBalance,
                 remainingBalance,
                 interestRate: loanState?.interestRate ?? toOptionalNumber(data.get('interestRate'), 'interestRate', 'Faiz orani', RATE_PERCENT_OPTIONS) ?? 0,
-                minPaymentRate: debtType === DebtType.LOAN ? 0 : toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
-                kkdfRate: loanState?.kkdfRate ?? toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
-                bsmvRate: loanState?.bsmvRate ?? toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
+                minPaymentRate: debtType === DebtType.LOAN || debtType === DebtType.CREDIT_CARD
+                    ? 0
+                    : toOptionalPercentFraction(data.get('minPaymentRate'), 'minPaymentRate', 'Asgari odeme orani') ?? 0.2,
+                kkdfRate: debtType === DebtType.CREDIT_CARD
+                    ? 0
+                    : loanState?.kkdfRate ?? toOptionalPercentFraction(data.get('kkdfRate'), 'kkdfRate', 'KKDF orani') ?? 0.15,
+                bsmvRate: debtType === DebtType.CREDIT_CARD
+                    ? 0
+                    : loanState?.bsmvRate ?? toOptionalPercentFraction(data.get('bsmvRate'), 'bsmvRate', 'BSMV orani') ?? 0.15,
                 dueDate,
                 isPaid: remainingBalance <= 0,
             },
@@ -602,7 +614,7 @@ export async function payDebtObligation(input: DebtObligationPaymentInput): Prom
         })
 
         await refreshFinanceState(user.id)
-        revalidateFinancePaths(['/debts', '/budget', '/payment-plan', '/cards', '/accounts', '/people'])
+        revalidateFinancePaths(['/debts', '/budget', '/payment-plan', '/accounts', '/people'])
         return createSuccessResult('Borc odemesi kaydedildi.', input.obligationId)
     } catch (error) {
         return getActionErrorResult(error, 'Borc odemesi kaydedilemedi.')

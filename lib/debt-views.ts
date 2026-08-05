@@ -117,8 +117,13 @@ function sourceKindForSource(sourceType: DebtSourceType): DebtSourceKind {
     return 'DEBT'
 }
 
-function sourceLabelForSource(sourceType: DebtSourceType) {
-    if (sourceType === 'CREDIT_CARD') return 'Kartlardan yansıyor'
+function isLegacyDebt(metadata: Prisma.JsonValue | null | undefined) {
+    return metadataString(metadata, 'source') === 'Debt'
+}
+
+function sourceLabelForSource(sourceType: DebtSourceType, metadata: Prisma.JsonValue | null | undefined) {
+    if (isLegacyDebt(metadata)) return 'Borç kaydı'
+    if (sourceType === 'CREDIT_CARD') return 'Kart borcu'
     if (sourceType === 'KMH') return 'Hesaplardan yansıyor'
     if (sourceType === 'PERSONAL_PAYABLE') return 'Kişiler sayfasından yansıyor'
     return 'Borç kaydı'
@@ -136,9 +141,6 @@ function navigateForDebt(input: {
     sourceEntityId: string | null
     metadata: Prisma.JsonValue | null
 }) {
-    if (input.sourceType === 'CREDIT_CARD' && input.sourceEntityId) {
-        return { href: `/cards/${input.sourceEntityId}`, label: 'Kartı aç' }
-    }
     if (input.sourceType === 'KMH') {
         return { href: '/accounts', label: 'Hesabı aç' }
     }
@@ -186,7 +188,8 @@ export async function getDebtWorkspaceData(
 
     const debts: DebtView[] = debtAccounts.map((debtAccount) => {
         const sourceType = debtAccount.sourceType
-        const sourceKind = sourceKindForSource(sourceType)
+        const legacyDebt = isLegacyDebt(debtAccount.metadata)
+        const sourceKind = legacyDebt ? 'DEBT' as const : sourceKindForSource(sourceType)
         const entityId = debtAccount.sourceEntityId ?? debtAccount.id
         const navigate = navigateForDebt({
             sourceType,
@@ -210,7 +213,7 @@ export async function getDebtWorkspaceData(
             id: debtAccount.id,
             entityId,
             sourceKind,
-            sourceLabel: sourceLabelForSource(sourceType),
+            sourceLabel: sourceLabelForSource(sourceType, debtAccount.metadata),
             canEdit: sourceKind === 'DEBT' || sourceKind === 'PERSONAL_RP',
             canDelete: sourceKind === 'DEBT' || sourceKind === 'PERSONAL_RP',
             navigateHref: navigate.href,

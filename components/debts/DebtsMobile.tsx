@@ -107,7 +107,7 @@ export default function DebtsMobile({ debts }: { debts: DebtItem[] }) {
                 <IconBadge Icon={Icon} accent={TYPE_ACCENT[o.type]} box={40} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[14.5px] font-bold" style={{ color: 'var(--text-primary)' }}>{o.name}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.bank} · {TYPE_LABEL[o.type]}{o.rate ? ` · %${o.rate}` : ''}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{o.bank} · {TYPE_LABEL[o.type]}{o.type !== 'card' && o.rate ? ` · %${o.rate}` : ''}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[15px] font-extrabold tabular-nums" style={{ color: 'var(--text-primary)' }}>{tl(o.remaining)}</p>

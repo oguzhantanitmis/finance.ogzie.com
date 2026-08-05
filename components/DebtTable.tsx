@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { AlertCircle, Banknote, Calendar, CheckCircle2, ChevronDown, ChevronUp, CreditCard, Landmark, Pencil, RotateCcw, Trash2 } from 'lucide-react'
 
-import { calculateAccumulatedInterest, calculateKmhLateCost, calculateMinPayment } from '@/lib/banking-engine'
+import { calculateAccumulatedInterest, calculateKmhLateCost } from '@/lib/banking-engine'
 import { formatCategoryLabel } from '@/lib/ui-text'
 import type { DebtView } from '@/lib/debt-views'
 import { cn, formatCurrency } from '@/lib/utils'
@@ -114,7 +114,11 @@ export default function DebtTable({
         if (filter === 'OVERDUE') return Boolean(debt.dueDate && new Date(debt.dueDate) < new Date())
         if (filter === 'RISKY') {
             const utilizationBalance = debt.type === 'KMH' ? (debt.totalPrincipal ?? debt.remainingBalance) : debt.remainingBalance
-            return debt.interestRate >= 4 || (debt.limit ? (utilizationBalance / debt.limit) >= 0.8 : false)
+            const hasHighInterest = debt.type !== 'CREDIT_CARD' && debt.interestRate >= 4
+            const hasHighKmhUtilization = debt.type === 'KMH' && debt.limit
+                ? (utilizationBalance / debt.limit) >= 0.8
+                : false
+            return hasHighInterest || hasHighKmhUtilization
         }
         if (filter === 'CLOSED') return debt.remainingBalance <= 0
         return debt.remainingBalance > 0
@@ -156,7 +160,6 @@ export default function DebtTable({
                 const isCard = debt.type === 'CREDIT_CARD'
                 const isLoan = debt.type === 'LOAN'
                 const isKMH = debt.type === 'KMH'
-                const minPayment = isCard ? calculateMinPayment(debt.limit || 0, debt.remainingBalance) : 0
                 const taxRates = { kkdfRate: normalizeRate(debt.kkdfRate), bsmvRate: normalizeRate(debt.bsmvRate) }
                 const interestBase = isKMH ? (debt.totalPrincipal ?? debt.remainingBalance) : debt.remainingBalance
                 const monthlyInterest = calculateAccumulatedInterest(interestBase, debt.interestRate, 30, taxRates)
@@ -217,7 +220,7 @@ export default function DebtTable({
                                         <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
                                             <span className="status-badge status-badge-neutral">{formatCategoryLabel(debt.type)}</span>
                                             <span>{debt.sourceLabel}</span>
-                                            {debt.interestRate > 0 ? <span>Faiz: %{debt.interestRate}</span> : null}
+                                            {!isCard && debt.interestRate > 0 ? <span>Faiz: %{debt.interestRate}</span> : null}
                                         </div>
                                         {debt.subtitle ? <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{debt.subtitle}</p> : null}
                                     </div>
@@ -227,7 +230,7 @@ export default function DebtTable({
                                     <div className="text-right">
                                         <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Güncel Borç</p>
                                         <p className="font-mono text-xl font-bold privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(displayDebtBalance, 'TRY')}</p>
-                                        {(isCard || isKMH) && debt.limit ? (
+                                        {isKMH && debt.limit ? (
                                             <div className="w-24 h-1 rounded-full mt-1 ml-auto" style={{ background: 'var(--bg-elevated)' }}>
                                                 <div
                                                     className="h-1 rounded-full transition-all"
@@ -273,19 +276,19 @@ export default function DebtTable({
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                                     <div className="space-y-3">
                                         <h4 className="text-sm font-medium pb-2" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-default)' }}>Hesap Detayları</h4>
-                                        {debt.limit ? (
+                                        {!isCard && debt.limit ? (
                                             <div className="flex justify-between text-sm">
                                                 <span style={{ color: 'var(--text-secondary)' }}>Limit</span>
                                                 <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(debt.limit, 'TRY')}</span>
                                             </div>
                                         ) : null}
-                                        {debt.cutOffDay ? (
+                                        {!isCard && debt.cutOffDay ? (
                                             <div className="flex justify-between text-sm">
                                                 <span style={{ color: 'var(--text-secondary)' }}>Hesap Kesim</span>
                                                 <span className="font-mono" style={{ color: 'var(--text-primary)' }}>Her ayın {debt.cutOffDay}. günü</span>
                                             </div>
                                         ) : null}
-                                        {debt.paymentDueDay ? (
+                                        {!isCard && debt.paymentDueDay ? (
                                             <div className="flex justify-between text-sm">
                                                 <span style={{ color: 'var(--text-secondary)' }}>Son Ödeme</span>
                                                 <span className="font-mono" style={{ color: 'var(--text-primary)' }}>Her ayın {debt.paymentDueDay}. günü</span>
@@ -318,8 +321,19 @@ export default function DebtTable({
                                     </div>
 
                                     <div className="space-y-3">
-                                        <h4 className="text-sm font-medium pb-2" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-default)' }}>Maliyet Analizi</h4>
-                                        {isLoan ? (
+                                        <h4 className="text-sm font-medium pb-2" style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-default)' }}>{isCard ? 'Borç Özeti' : 'Maliyet Analizi'}</h4>
+                                        {isCard ? (
+                                            <>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Ekstre / Toplam Borç</span>
+                                                    <span className="font-mono privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(debt.totalBalance, 'TRY')}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm pt-2" style={{ borderTop: '1px solid var(--border-subtle)' }}>
+                                                    <span className="font-medium" style={{ color: 'var(--text-primary)' }}>Kalan Borç</span>
+                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--accent-danger)' }}>{formatCurrency(debt.remainingBalance, 'TRY')}</span>
+                                                </div>
+                                            </>
+                                        ) : isLoan ? (
                                             <>
                                                 <div className="flex justify-between text-sm">
                                                     <span style={{ color: 'var(--text-secondary)' }}>Aylık Taksit</span>
@@ -436,13 +450,14 @@ export default function DebtTable({
                                                 </div>
                                             </div>
                                         ) : isCard ? (
-                                            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
-                                                <div className="flex justify-between mb-1">
-                                                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Asgari Ödeme</span>
-                                                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(minPayment, 'TRY')}</span>
+                                            <div className="p-3 rounded-lg space-y-2" style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-subtle)' }}>
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Ödenecek Tutar</span>
+                                                    <span className="font-mono font-bold privacy-blur tabular-nums" style={{ color: 'var(--text-primary)' }}>{formatCurrency(debt.remainingBalance, 'TRY')}</span>
                                                 </div>
-                                                <div className="w-full h-1.5 rounded-full mt-2" style={{ background: 'var(--bg-hover)' }}>
-                                                    <div className="h-1.5 rounded-full" style={{ width: `${Math.min(debt.minPaymentRate * 100, 100)}%`, background: 'var(--accent-info)' }} />
+                                                <div className="flex justify-between text-sm">
+                                                    <span style={{ color: 'var(--text-secondary)' }}>Son Ödeme</span>
+                                                    <span className="font-mono" style={{ color: 'var(--text-primary)' }}>{debt.dueDate ? new Date(debt.dueDate).toLocaleDateString('tr-TR') : '-'}</span>
                                                 </div>
                                             </div>
                                         ) : (

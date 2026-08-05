@@ -202,4 +202,65 @@ describe('getDebtWorkspaceData', () => {
         expect(returnedIds).toContain('ob-1')
         expect(returnedIds).toContain('ob-4')
     })
+
+    it('kart kaynağını salt okunur, manuel kart borcunu düzenlenebilir göstermeli', async () => {
+        const baseCard = {
+            userId: 'user-1',
+            sourceType: 'CREDIT_CARD',
+            counterpartyName: 'Banka',
+            currency: 'TRY',
+            status: 'ACTIVE',
+            limit: null,
+            principalBalance: 0,
+            statementBalance: 12500,
+            currentBalance: 10000,
+            interestRate: 4.25,
+            lateInterestRate: 4.55,
+            kkdfRate: 0.15,
+            bsmvRate: 0.15,
+            cutOffDay: null,
+            paymentDueDay: null,
+            statementDate: null,
+            nextDueDate: new Date('2026-05-28T00:00:00Z'),
+            obligations: [],
+        }
+        const mockDebtAccounts = [
+            {
+                ...baseCard,
+                id: 'canonical-card',
+                sourceEntityId: 'credit-card-1',
+                name: 'Banka kart borcu',
+                metadata: { source: 'CreditCard' },
+            },
+            {
+                ...baseCard,
+                id: 'manual-card',
+                sourceEntityId: 'legacy-debt-1',
+                name: 'Manuel kart borcu',
+                metadata: { source: 'Debt', legacyDebtId: 'legacy-debt-1' },
+            },
+        ]
+
+        vi.mocked(prisma.debtAccount.findMany).mockResolvedValue(mockDebtAccounts as unknown as DebtAccount[])
+        vi.mocked(prisma.person.findMany).mockResolvedValue([])
+
+        const result = await getDebtWorkspaceData('user-1')
+        const canonicalCard = result.debts.find((debt) => debt.id === 'canonical-card')
+        const manualCard = result.debts.find((debt) => debt.id === 'manual-card')
+
+        expect(canonicalCard).toMatchObject({
+            sourceKind: 'CREDIT_CARD',
+            sourceLabel: 'Kart borcu',
+            canEdit: false,
+            canDelete: false,
+            navigateHref: undefined,
+        })
+        expect(manualCard).toMatchObject({
+            sourceKind: 'DEBT',
+            sourceLabel: 'Borç kaydı',
+            canEdit: true,
+            canDelete: true,
+            navigateHref: undefined,
+        })
+    })
 })
