@@ -169,6 +169,7 @@ ogzie veri kanalı (ingest):
 
 - `app/api/ogzie-ingest`: ogzie (app.ogzie.com) → finance **tek-yönlü, imzalı** veri kanalı. ogzie kendi domain maliyetlerini + müşteri gelir/giderlerini buraya gönderir; idempotent `LedgerEntry` (`source='ogzie'`) olarak yazılır.
 - Doğrulama **fail-closed**: ogzie ÖZEL Ed25519 anahtarıyla imzalar, finance yalnız `OGZIE_FINANCE_PUSH_PUBLIC_JWK` (PUBLIC) ile doğrular. Özel anahtar finance'a HİÇ verilmez. NextAuth middleware'inden muaftır (kendi imza-auth'u vardır).
+- `/api/ogzie-sync/commands`, mevcut App imzalayıcısına ek olarak isteğe bağlı `OGZIE_FINANCE_HERMES_PUBLIC_JWK` ile imzalanan komutları kabul eder. İki değer de yalnız public Ed25519 JWK olmalıdır; private `d` alanı reddedilir. Anahtarlardan herhangi biri geçerli imza verirse istek ilerler, hiçbiri doğrulamazsa 401 ile fail-closed kalır. Bu ikinci anahtar ingest ve snapshot rotalarına uygulanmaz.
 - Effectively-once: `OgzieIngestBatch.batchId` UNIQUE + `LedgerEntry (source, externalId)` UNIQUE + ±300s zaman tazeliği. `source='ogzie'` route tarafında enjekte edilir (gövdeden alınmaz).
 - Para birimi TRY değilse CollectAPI kuruyla TRY'ye çevrilir (`SUPPORTED_FX` allowlist). `OGZIE_INGEST_USER_ID` olayların hangi kullanıcıya yazılacağını belirler (yoksa reddedilir).
 - Öngörü (forecast) satırları gerçekleşen toplam/özet/export'tan **her zaman** dışlanır; İşlem Defteri listesinde varsayılan gizlidir (`?forecast=1` ile gösterilir, "Öngörü" rozeti).
@@ -200,11 +201,20 @@ SMTP_PASSWORD
 SMTP_FROM
 SMTP_REPLY_TO
 OGZIE_FINANCE_PUSH_PUBLIC_JWK
+OGZIE_FINANCE_HERMES_PUBLIC_JWK
 OGZIE_FINANCE_PUSH_AUDIENCE
 OGZIE_INGEST_USER_ID
 ```
 
-> `OGZIE_FINANCE_PUSH_*` + `OGZIE_INGEST_USER_ID`: ogzie → finance imzalı ingest kanalı (yukarıdaki "ogzie veri kanalı"). `OGZIE_FINANCE_PUSH_PUBLIC_JWK` yalnız **public** Ed25519 anahtarıdır; özel anahtar finance'a girmez. Yoksa `/api/ogzie-ingest` fail-closed reddeder.
+> `OGZIE_FINANCE_PUSH_*` + `OGZIE_INGEST_USER_ID`: ogzie → finance imzalı ingest kanalı (yukarıdaki "ogzie veri kanalı"). `OGZIE_FINANCE_PUSH_PUBLIC_JWK` yalnız **public** Ed25519 anahtarıdır; özel anahtar finance'a girmez. Yoksa `/api/ogzie-ingest` fail-closed reddeder. `OGZIE_FINANCE_HERMES_PUBLIC_JWK` de yalnız PUBLIC Ed25519 JWK'dır ve sadece komut rotasında isteğe bağlı ikinci doğrulayıcıdır.
+
+Komut imzalayıcı anahtar rotasyonu ve iptali:
+
+1. Finance aynı anda en fazla iki public doğrulama anahtarı kabul eder: App anahtarı (`OGZIE_FINANCE_PUSH_PUBLIC_JWK`) ve isteğe bağlı Hermes anahtarı (`OGZIE_FINANCE_HERMES_PUBLIC_JWK`). Private JWK hiçbir ortama, loga veya repository'ye konmaz.
+2. Boş bir slot varsa yeni public anahtarı o slota ekleyip uygulamayı yeniden başlatın; yeni imzalayıcıyla doğrulamayı kanıtladıktan sonra eski public anahtarı kaldırın.
+3. İki slot da doluyken bir anahtar döndürülecekse ilgili imzalayıcıyı geçici olarak durdurun, yalnız o env değerini yeni public JWK ile değiştirip uygulamayı yeniden başlatın ve ardından imzalayıcıyı yeni private anahtarla açın. App imzalayıcısının diğer slottaki anahtarı bu sırada çalışmaya devam eder.
+4. Bir anahtar iptal edilecek veya ele geçirildiğinden şüphelenilecekse ilgili PUBLIC env değerini hemen kaldırın/değiştirin ve uygulamayı yeniden başlatın. Kalan anahtar geçerli istekleri doğrulamaya devam eder; iki anahtar da kaldırılırsa komut rotası `not_configured` ile kapanır.
+5. Her rotasyon/iptal sonrasında eski anahtarla imzalanan komutun 401, aktif anahtarla imzalanan komutun ise kimlik ve payload doğrulama aşamasına ilerlediğini doğrulayın.
 
 Seed için kullanılan değişkenler:
 

@@ -47,9 +47,13 @@ export async function POST(req: Request) {
     const rawBody = await req.text()
     const aud = process.env.OGZIE_FINANCE_PUSH_AUDIENCE
     const publicJwk = process.env.OGZIE_FINANCE_PUSH_PUBLIC_JWK
-    if (!aud || !publicJwk) return NextResponse.json({ ok: false, error: 'not_configured' }, { status: 500 })
+    const hermesPublicJwk = process.env.OGZIE_FINANCE_HERMES_PUBLIC_JWK
+    const publicJwks = [publicJwk, hermesPublicJwk].filter((jwk): jwk is string => Boolean(jwk))
+    if (!aud || publicJwks.length === 0) {
+        return NextResponse.json({ ok: false, error: 'not_configured' }, { status: 500 })
+    }
 
-    const verdict = verifyOgziePush(rawBody, req.headers.get('x-ogzie-timestamp'), req.headers.get('x-ogzie-signature'), { aud, publicJwk })
+    const verdict = verifyOgziePush(rawBody, req.headers.get('x-ogzie-timestamp'), req.headers.get('x-ogzie-signature'), { aud, publicJwks })
     if (!verdict.ok) return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 })
 
     let body: CommandBody

@@ -14,7 +14,7 @@
  * Kanonik-JSON YOK: gönderici gönderdiği string'i hash'ler, alıcı `req.text()`
  * ile aldığı ham string'i hash'ler → JSON key sırası önemsiz.
  */
-import { createHash, createPublicKey, verify as edVerify } from 'node:crypto'
+import { createHash, createPublicKey, verify as edVerify, type KeyObject } from 'node:crypto'
 
 const SIG_VERSION = 'v1'
 const SIG_CONTEXT = 'ogzie-finance-push:v1'
@@ -23,6 +23,14 @@ const SIG_CONTEXT = 'ogzie-finance-push:v1'
 const TIMESTAMP_TOLERANCE_SECONDS = 300
 
 export type VerifyResult = { ok: true } | { ok: false; reason: string }
+type PublicJwkInput = string | Record<string, unknown>
+type VerifyOptions = {
+    aud: string
+    now?: number
+} & (
+    | { publicJwk: PublicJwkInput; publicJwks?: never }
+    | { publicJwk?: never; publicJwks: readonly PublicJwkInput[] }
+)
 
 /**
  * İmza için karşılaştırılan kanonik string. ham gövde string'i sha256 hex
@@ -63,6 +71,39 @@ function parseTimestamp(header: string | null | undefined): number | null {
     return Number.isFinite(ts) ? ts : null
 }
 
+/** Yalnız public Ed25519 JWK kabul eder; private `d` alanını kesin olarak reddeder. */
+function publicEd25519Key(input: PublicJwkInput): KeyObject | null {
+    try {
+        const jwk: unknown = typeof input === 'string' ? JSON.parse(input) : input
+        if (!jwk || typeof jwk !== 'object' || Array.isArray(jwk)) return null
+
+        const candidate = jwk as Record<string, unknown>
+        if (
+            candidate.kty !== 'OKP' ||
+            candidate.crv !== 'Ed25519' ||
+            typeof candidate.x !== 'string' ||
+            !/^[A-Za-z0-9_-]{43}$/.test(candidate.x) ||
+            Object.hasOwn(candidate, 'd')
+        ) return null
+
+        const publicBytes = Buffer.from(candidate.x, 'base64url')
+        if (publicBytes.length !== 32 || publicBytes.toString('base64url') !== candidate.x) return null
+        if (candidate.alg !== undefined && candidate.alg !== 'EdDSA') return null
+        if (candidate.use !== undefined && candidate.use !== 'sig') return null
+        if (candidate.key_ops !== undefined) {
+            if (
+                !Array.isArray(candidate.key_ops) ||
+                !candidate.key_ops.includes('verify') ||
+                candidate.key_ops.some((operation) => operation !== 'verify')
+            ) return null
+        }
+
+        return createPublicKey({ key: candidate, format: 'jwk' })
+    } catch {
+        return null
+    }
+}
+
 /**
  * ogzie push isteğini doğrular.
  *
@@ -70,16 +111,17 @@ function parseTimestamp(header: string | null | undefined): number | null {
  * @param tsHeader   x-ogzie-timestamp header değeri.
  * @param sigHeader  x-ogzie-signature header değeri ("v1=...").
  * @param opts.aud   beklenen audience (= finance origin).
- * @param opts.publicJwk  Ed25519 PUBLIC JWK (string ya da obje).
+ * @param opts.publicJwk  Tek Ed25519 PUBLIC JWK (string ya da obje).
+ * @param opts.publicJwks En fazla iki Ed25519 PUBLIC JWK; herhangi biri doğrulayabilir.
  * @param opts.now   (test) referans zaman; varsayılan Date.now().
  */
 export function verifyOgziePush(
     rawBody: string,
     tsHeader: string | null | undefined,
     sigHeader: string | null | undefined,
-    opts: { aud: string; publicJwk: string | Record<string, unknown>; now?: number },
+    opts: VerifyOptions,
 ): VerifyResult {
-    const { aud, publicJwk } = opts
+    const { aud } = opts
 
     const timestamp = parseTimestamp(tsHeader)
     if (timestamp === null) return { ok: false, reason: 'bad_timestamp' }
@@ -93,24 +135,25 @@ export function verifyOgziePush(
         return { ok: false, reason: 'stale_timestamp' }
     }
 
-    let key
-    try {
-        const jwk = typeof publicJwk === 'string' ? JSON.parse(publicJwk) : publicJwk
-        key = createPublicKey({ key: jwk, format: 'jwk' })
-    } catch {
-        return { ok: false, reason: 'bad_public_key' }
-    }
-
     const bodyHash = hashBody(rawBody)
     const input = Buffer.from(signingInput(aud, String(timestamp), bodyHash), 'utf8')
+    const publicJwks = opts.publicJwks ?? [opts.publicJwk]
+    if (publicJwks.length > 2) return { ok: false, reason: 'too_many_public_keys' }
 
-    let valid = false
-    try {
-        valid = edVerify(null, input, key, signature)
-    } catch {
-        return { ok: false, reason: 'verify_error' }
+    let usableKeyCount = 0
+    let verifyErrorCount = 0
+    for (const publicJwk of publicJwks) {
+        const key = publicEd25519Key(publicJwk)
+        if (!key) continue
+        usableKeyCount += 1
+        try {
+            if (edVerify(null, input, key, signature)) return { ok: true }
+        } catch {
+            verifyErrorCount += 1
+        }
     }
-    if (!valid) return { ok: false, reason: 'invalid_signature' }
 
-    return { ok: true }
+    if (usableKeyCount === 0) return { ok: false, reason: 'bad_public_key' }
+    if (verifyErrorCount === usableKeyCount) return { ok: false, reason: 'verify_error' }
+    return { ok: false, reason: 'invalid_signature' }
 }
