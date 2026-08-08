@@ -13,6 +13,7 @@ import {
     validFinancePayload,
     type FinancePayload,
 } from '@/lib/ogzie-finance-command'
+import { BUNDLED_HERMES_COMMAND_PUBLIC_JWK } from '@/lib/hermes-command-trust'
 import { verifyOgziePush } from '@/lib/ogzie-ingest-verify'
 import { prisma } from '@/lib/prisma'
 import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
@@ -47,7 +48,8 @@ export async function POST(req: Request) {
     const rawBody = await req.text()
     const aud = process.env.OGZIE_FINANCE_PUSH_AUDIENCE
     const publicJwk = process.env.OGZIE_FINANCE_PUSH_PUBLIC_JWK
-    const hermesPublicJwk = process.env.OGZIE_FINANCE_HERMES_PUBLIC_JWK
+    const hermesPublicJwk = process.env.OGZIE_FINANCE_HERMES_PUBLIC_JWK?.trim()
+        || BUNDLED_HERMES_COMMAND_PUBLIC_JWK
     const publicJwks = [publicJwk, hermesPublicJwk].filter((jwk): jwk is string => Boolean(jwk))
     if (!aud || publicJwks.length === 0) {
         return NextResponse.json({ ok: false, error: 'not_configured' }, { status: 500 })

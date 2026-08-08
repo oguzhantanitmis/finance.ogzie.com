@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-08-08 - Hermes komut trust anchor deploy'u
+
+- Hermes Ed25519 public trust anchor kodda sürümlendi; özel `d` alanı bulunmadığı testle zorunlu tutuldu.
+- `OGZIE_FINANCE_HERMES_PUBLIC_JWK` tanımlanırsa anahtar rotasyonu için sürümlenmiş değeri geçersiz kılar.
+- Böylece Dokploy ortam değişkeni eklenmeden de `main` auto-deploy sonrasında Hermes komut imzaları doğrulanabilir; yanlış imzalar 401 ile fail-closed kalır.
+
 ## 2026-06-26 - ogzie → finance İmzalı Veri Kanalı (Ingest), Ölü Sync Gönderici Kaldırma ve Öngörü Filtresi
 
 ogzie (app.ogzie.com) → finance tek-yönlü **imzalı** veri kanalı (ingest) canlıya alındı; eski (ters-yön, kullanılmayan) `finance → ogzie` sync gönderici tamamen kaldırıldı; İşlem Defteri'ne ogzie öngörü (forecast) satırları için aç/kapa filtre eklendi. Tüm mevcut auth/SSO akışları **korundu**.
@@ -227,4 +233,3 @@ Premium finans kokpiti redesign'ının 1. aşaması. Mevcut `globals.css` tasar�
 
 - EVDS altın/emtia seri kodları varsayılan olarak kapalıdır. Güncel ve desteklenen seri kodları Ayarlar ekranından girilmelidir.
 - Repo genelindeki ESLint kontrolü, revizyon öncesinden gelen legacy dosyalardaki kurallara takılmaktadır; üretim build'i ve testler başarılıdır.
-
