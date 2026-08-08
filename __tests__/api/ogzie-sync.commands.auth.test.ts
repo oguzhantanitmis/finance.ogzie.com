@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { POST } from '@/app/api/ogzie-sync/commands/route'
+import { BUNDLED_HERMES_COMMAND_PUBLIC_JWK } from '@/lib/hermes-command-trust'
 import { signingInput } from '@/lib/ogzie-ingest-verify'
 
 const AUD = 'https://finance.ogzie.com'
@@ -67,6 +68,20 @@ function configure(primaryJwk?: string, hermesJwk?: string) {
 }
 
 describe('POST /api/ogzie-sync/commands signer authentication', () => {
+    it('ships only the public fields of the Hermes trust anchor', () => {
+        const jwk = JSON.parse(BUNDLED_HERMES_COMMAND_PUBLIC_JWK) as JsonWebKey
+
+        expect(jwk).toMatchObject({
+            kty: 'OKP',
+            crv: 'Ed25519',
+            alg: 'EdDSA',
+            use: 'sig',
+            kid: 'hermes-838fbd7d5e2700c0',
+        })
+        expect(jwk.x).toBeTruthy()
+        expect(jwk.d).toBeUndefined()
+    })
+
     it('accepts a request signed by the primary App key', async () => {
         configure(JSON.stringify(primary.publicJwk))
 
@@ -103,13 +118,13 @@ describe('POST /api/ogzie-sync/commands signer authentication', () => {
         await expect(response.json()).resolves.toEqual({ ok: false, error: 'unauthorized' })
     })
 
-    it('returns not_configured when both public keys are absent', async () => {
+    it('keeps the route configured with the bundled Hermes trust anchor', async () => {
         configure()
 
         const response = await POST(request(primary.privateKey))
 
-        expect(response.status).toBe(500)
-        await expect(response.json()).resolves.toEqual({ ok: false, error: 'not_configured' })
+        expect(response.status).toBe(401)
+        await expect(response.json()).resolves.toEqual({ ok: false, error: 'unauthorized' })
     })
 
     it('rejects an Ed25519 JWK containing private key material', async () => {
