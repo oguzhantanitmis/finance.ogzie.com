@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer9'
+import nodemailer from 'nodemailer10'
 import type { SendMailOptions } from 'nodemailer'
 
 type MailAddress = string
