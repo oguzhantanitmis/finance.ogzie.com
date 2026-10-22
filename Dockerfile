@@ -1,8 +1,12 @@
 # syntax=docker/dockerfile:1
 # Multi-stage build for Next.js (standalone) + Prisma (PostgreSQL) on Dokploy.
 
+# Node 24 LTS, pinned by tag + multi-arch index digest (Oct 2026 security release).
+# Move tag and digest together; keep .nvmrc and package.json engines in sync.
+ARG NODE_IMAGE=node:24.22.1-alpine3.24@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+
 # ---- deps: install full deps (incl. prisma CLI) ----
-FROM node:20-alpine AS deps
+FROM ${NODE_IMAGE} AS deps
 RUN apk add --no-cache curl libc6-compat openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -51,7 +55,7 @@ RUN --mount=type=cache,target=/root/.cache/prisma \
     done
 
 # ---- builder: generate Prisma client + build Next ----
-FROM node:20-alpine AS builder
+FROM ${NODE_IMAGE} AS builder
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -67,7 +71,7 @@ RUN DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build" \
     npm run build
 
 # ---- runner: standalone server + prisma CLI/engines for migrate deploy ----
-FROM node:20-alpine AS runner
+FROM ${NODE_IMAGE} AS runner
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 ENV NODE_ENV=production \
