@@ -209,14 +209,17 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
         return () => clearTimeout(timeout)
     }, [])
 
-    // Glance at each other when typing starts
+    // Glance at each other when typing starts: follow isTyping during render, then look
+    // back after 800 ms (no synchronous setState in the effect).
+    const [prevTyping, setPrevTyping] = useState(isTyping)
+    if (isTyping !== prevTyping) {
+        setPrevTyping(isTyping)
+        setIsLookingAtEachOther(isTyping)
+    }
     useEffect(() => {
-        if (isTyping) {
-            setIsLookingAtEachOther(true)
-            const t = setTimeout(() => setIsLookingAtEachOther(false), 800)
-            return () => clearTimeout(t)
-        }
-        setIsLookingAtEachOther(false)
+        if (!isTyping) return
+        const t = setTimeout(() => setIsLookingAtEachOther(false), 800)
+        return () => clearTimeout(t)
     }, [isTyping])
 
     // Purple sneaky peek when password is revealed
@@ -228,7 +231,8 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
             }, Math.random() * 3000 + 2000)
             return () => clearTimeout(t)
         }
-        setIsPurplePeeking(false)
+        // Hidden password: nothing to reset — the render only reads isPurplePeeking while the
+        // password is revealed, and the 800 ms timer above always turns it back off.
     }, [passwordLength, showPassword, isPurplePeeking])
 
     const calcPos = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -442,9 +446,13 @@ function LoginInner() {
     const [error, setError] = useState('')
     const [isTyping, setIsTyping] = useState(false)
 
-    useEffect(() => {
+    // A reset link opened while the page is mounted switches to the reset form
+    // (adjusted during render; the initial value already covers a fresh load).
+    const [prevResetToken, setPrevResetToken] = useState(resetToken)
+    if (resetToken !== prevResetToken) {
+        setPrevResetToken(resetToken)
         if (resetToken) setMode('reset')
-    }, [resetToken])
+    }
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault()

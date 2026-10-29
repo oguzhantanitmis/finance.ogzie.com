@@ -1,7 +1,6 @@
 'use client'
 
 import { useActionState, useEffect, useState, useTransition } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, ArrowLeftRight } from 'lucide-react'
 import type { Account } from '@prisma/client'
 
@@ -19,6 +18,7 @@ import Modal from '@/components/ui/Modal'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
 import { cn, formatCurrency } from '@/lib/utils'
+import { useDeepLinkParam } from '@/lib/use-deep-link-param'
 
 type ModalState = 'closed' | 'add' | 'edit' | 'adjust' | 'transfer'
 
@@ -39,14 +39,7 @@ export default function AccountsWorkspace({ initialAccounts, totalBalance, avail
     const [transferState, transferFormAction] = useActionState(transferAction, EMPTY_ACTION_RESULT)
 
     // Hızlı işlem derin bağlantısı: /accounts?new=1 → hesap ekleme modalını aç
-    const router = useRouter()
-    const pathname = usePathname()
-    const searchParams = useSearchParams()
-    useEffect(() => {
-        if (!searchParams.get('new')) return
-        setModal('add')
-        router.replace(pathname, { scroll: false })
-    }, [searchParams, router, pathname])
+    useDeepLinkParam('new', () => setModal('add'))
 
     function handleEdit(account: Account) {
         setSelectedAccount(account)
