@@ -13,13 +13,14 @@ COPY package.json package-lock.json ./
 # Prisma schema must be present before `npm ci` because package.json has a
 # `postinstall: prisma generate` that fails without ./prisma/schema.prisma.
 COPY prisma ./prisma
-# Prisma 5.19.0's Node downloader fails on this build host even though curl in
+# Prisma's Node downloader failed on this build host (seen with 5.19.0) even though curl in
 # the same container can reach the official CDN. Seed Prisma's normal cache via
 # curl and verify both compressed and uncompressed SHA-256 checksums first.
-# The commit below is Prisma 5.19.0's engine commit and must move with Prisma.
+# The commit below is Prisma 5.22.0's engine commit (@prisma/engines-version
+# 5.22.0-44.<commit>) and must move with Prisma.
 RUN --mount=type=cache,target=/root/.cache/prisma \
     set -eu; \
-    engine_commit="5fe21811a6ba0b952a3bc71400666511fe3b902f"; \
+    engine_commit="605197351a3c8bdd595af2d2a9bc3025bca48ea2"; \
     engine_target="linux-musl-openssl-3.0.x"; \
     engine_base="https://binaries.prisma.sh/all_commits/${engine_commit}/${engine_target}"; \
     engine_cache="/root/.cache/prisma/master/${engine_commit}/${engine_target}"; \
