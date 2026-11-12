@@ -4,7 +4,6 @@ import { boundedFetch } from '@/lib/request';
 
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Calendar, Landmark, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 
@@ -17,6 +16,7 @@ import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
 import type { SubscriptionEnrichment } from '@/lib/finance-os-types'
 import { formatRecordStatusLabel } from '@/lib/ui-text'
 import { formatCurrency } from '@/lib/utils'
+import { useDeepLinkParam } from '@/lib/use-deep-link-param'
 
 type SubscriptionItem = {
     id: string; name: string; amount: number; currency: string
@@ -51,14 +51,7 @@ export default function ExpensesWorkspace({
     const [addMode, setAddMode] = useState<AddMode>(null)
 
     // Hızlı işlem derin bağlantısı: /expenses?new=1 → abonelik/sabit gider ekleme seçicisini aç
-    const router = useRouter()
-    const pathname = usePathname()
-    const searchParams = useSearchParams()
-    useEffect(() => {
-        if (!searchParams.get('new')) return
-        setAddMode('choose')
-        router.replace(pathname, { scroll: false })
-    }, [searchParams, router, pathname])
+    useDeepLinkParam('new', () => setAddMode('choose'))
     const [editItem, setEditItem] = useState<UnifiedItem | null>(null)
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [, startDelete] = useTransition()
@@ -149,7 +142,7 @@ export default function ExpensesWorkspace({
                                         {categoryData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                                     </Pie>
                                     <Tooltip
-                                        formatter={(value?: number) => formatCurrency(value ?? 0, 'TRY')}
+                                        formatter={(value) => formatCurrency(typeof value === 'number' ? value : Number(value ?? 0), 'TRY')}
                                         contentStyle={{
                                             background: 'var(--bg-elevated)',
                                             border: '1px solid var(--border-default)',

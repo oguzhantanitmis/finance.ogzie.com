@@ -22,8 +22,8 @@ export async function getUnreadNotifications() {
         })
 
         return { success: true, alerts }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 }
 
@@ -46,8 +46,8 @@ export async function markNotificationAsRead(id: string) {
 
         revalidatePath('/')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 }
 
@@ -70,8 +70,8 @@ export async function markAllNotificationsAsRead() {
 
         revalidatePath('/')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 }
 
@@ -119,7 +119,7 @@ export async function generateSystemAlerts() {
         }
         
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 }

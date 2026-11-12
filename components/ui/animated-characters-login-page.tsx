@@ -249,17 +249,19 @@ function LoginPage() {
     return () => clearTimeout(timeout);
   }, []);
 
-  // Looking at each other animation when typing starts
+  // Looking at each other animation when typing starts: follow isTyping during render,
+  // then look back after 800 ms (no synchronous setState in the effect).
+  const [prevTyping, setPrevTyping] = useState(isTyping);
+  if (isTyping !== prevTyping) {
+    setPrevTyping(isTyping);
+    setIsLookingAtEachOther(isTyping);
+  }
   useEffect(() => {
-    if (isTyping) {
-      setIsLookingAtEachOther(true);
-      const timer = setTimeout(() => {
-        setIsLookingAtEachOther(false);
-      }, 800); // Look at each other for 1.5 seconds, then back to tracking mouse
-      return () => clearTimeout(timer);
-    } else {
+    if (!isTyping) return;
+    const timer = setTimeout(() => {
       setIsLookingAtEachOther(false);
-    }
+    }, 800);
+    return () => clearTimeout(timer);
   }, [isTyping]);
 
   // Purple sneaky peeking animation when typing password and it's visible
@@ -277,9 +279,9 @@ function LoginPage() {
 
       const firstPeek = schedulePeek();
       return () => clearTimeout(firstPeek);
-    } else {
-      setIsPurplePeeking(false);
     }
+    // Hidden password: nothing to reset — the render only reads isPurplePeeking while the
+    // password is revealed, and the 800 ms timer always turns it back off.
   }, [password, showPassword, isPurplePeeking]);
 
   const calculatePosition = (ref: React.RefObject<HTMLDivElement | null>) => {

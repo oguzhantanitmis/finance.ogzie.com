@@ -65,7 +65,7 @@ export async function generateAvalancheInsights() {
             where: { userId, type: { in: ['CASH', 'BANK'] } }
         })
 
-        const totalCash = assets.reduce((acc: number, asset: any) => acc + asset.amount, 0)
+        const totalCash = assets.reduce((acc: number, asset) => acc + asset.amount, 0)
         let totalMinimumPayments = 0
 
         const debtNodes = []
@@ -144,8 +144,8 @@ export async function generateAvalancheInsights() {
 
         revalidatePath('/ai')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 }
 
@@ -160,7 +160,7 @@ export async function getAlgorithmicInsights() {
         })
 
         return { success: true, insights }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 }

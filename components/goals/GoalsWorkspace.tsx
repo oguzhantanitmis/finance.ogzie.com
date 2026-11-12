@@ -1,7 +1,6 @@
 'use client'
 
 import { useActionState, useEffect, useState, useTransition } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Plus, Target, CheckCircle, Clock, Trash2, Pencil, TrendingUp, TrendingDown, Sparkles, AlertTriangle } from 'lucide-react'
 
 import { createGoalAction, deleteGoalAction, updateGoalAction } from '@/app/goals/actions'
@@ -10,6 +9,7 @@ import Modal from '@/components/ui/Modal'
 import SubmitButton from '@/components/ui/SubmitButton'
 import { EMPTY_ACTION_RESULT, type ActionResult } from '@/lib/action-result'
 import { cn, formatCurrency } from '@/lib/utils'
+import { useDeepLinkParam } from '@/lib/use-deep-link-param'
 
 interface GoalData {
     id: string
@@ -57,14 +57,7 @@ export default function GoalsWorkspace({ goals }: Props) {
     const [editingGoal, setEditingGoal] = useState<GoalData | null>(null)
 
     // Hızlı işlem derin bağlantısı: /goals?new=1 → hedef ekleme modalını aç
-    const router = useRouter()
-    const pathname = usePathname()
-    const searchParams = useSearchParams()
-    useEffect(() => {
-        if (!searchParams.get('new')) return
-        setShowAdd(true)
-        router.replace(pathname, { scroll: false })
-    }, [searchParams, router, pathname])
+    useDeepLinkParam('new', () => setShowAdd(true))
     const [feedback, setFeedback] = useState<ActionResult | null>(null)
     const [celebratingGoal, setCelebratingGoal] = useState<string | null>(null)
     const [, startDeleteTransition] = useTransition()
