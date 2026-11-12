@@ -432,6 +432,7 @@ const MODE_SUBTITLE: Record<Mode, string> = {
 function LoginInner() {
     const params = useSearchParams()
     const resetToken = params.get('reset')
+    const callbackUrl = params.get('callbackUrl')
 
     const [mode, setMode] = useState<Mode>(resetToken ? 'reset' : 'login')
     const [email, setEmail] = useState('')
@@ -442,6 +443,7 @@ function LoginInner() {
     const [showPass, setShowPass] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [resetOutcomeUnknown, setResetOutcomeUnknown] = useState(false)
     const [isTyping, setIsTyping] = useState(false)
 
     useEffect(() => {
@@ -452,7 +454,7 @@ function LoginInner() {
         e.preventDefault()
         setLoading(true); setError('')
         try {
-            const result = await submitCredentials(email, password, rememberMe)
+            const result = await submitCredentials(email, password, rememberMe, callbackUrl ?? '/')
             if (result?.error) {
                 if (result.status >= 500 || result.error === 'SERVICE_UNAVAILABLE') {
                     setError('Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.')
@@ -464,7 +466,7 @@ function LoginInner() {
                     setError('E-posta veya şifre hatalı.')
                 }
             } else {
-                window.location.assign('/')
+                window.location.assign(result.callbackUrl ?? '/')
             }
         } catch {
             setError('Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.')
@@ -503,12 +505,18 @@ function LoginInner() {
             })
             const data = await res.json()
             if (!res.ok) {
-                setError(data.error ?? 'Sıfırlama başarısız.')
+                if (data.outcome === 'unknown') {
+                    setResetOutcomeUnknown(true)
+                    setError('Şifre değişikliğinin sonucu doğrulanamadı. Aynı işlemi tekrar göndermeyin; giriş yapmayı deneyin veya yeni sıfırlama bağlantısı isteyin.')
+                } else {
+                    setError(data.error ?? 'Sıfırlama başarısız.')
+                }
             } else {
                 setMode('reset-done')
             }
         } catch {
-            setError('Bir hata oluştu.')
+            setResetOutcomeUnknown(true)
+            setError('Şifre değişikliğinin sonucu doğrulanamadı. Aynı işlemi tekrar göndermeyin; giriş yapmayı deneyin veya yeni sıfırlama bağlantısı isteyin.')
         } finally {
             setLoading(false)
         }
@@ -516,6 +524,7 @@ function LoginInner() {
 
     const errorBox = error && (
         <div
+            role="alert"
             className="flex items-start gap-2.5 p-3.5 rounded-lg text-sm border"
             style={{ background: 'var(--accent-danger-bg)', borderColor: 'var(--accent-danger-border)', color: 'var(--accent-danger)' }}
         >
@@ -739,9 +748,15 @@ function LoginInner() {
                                     className="h-12"
                                 />
                             </div>
-                            <Button type="submit" className="w-full h-12 text-base font-medium" size="lg" disabled={loading}>
+                            <Button type="submit" className="w-full h-12 text-base font-medium" size="lg" disabled={loading || resetOutcomeUnknown}>
                                 {loading ? 'Sıfırlanıyor...' : 'Şifreyi Güncelle'}
                             </Button>
+                            {resetOutcomeUnknown && (
+                                <div className="flex flex-wrap gap-3 text-sm">
+                                    <button type="button" onClick={() => { setMode('login'); setError('') }} className="text-primary underline">Giriş yapmayı dene</button>
+                                    <button type="button" onClick={() => { setMode('forgot'); setError(''); setResetOutcomeUnknown(false) }} className="text-primary underline">Yeni bağlantı iste</button>
+                                </div>
+                            )}
                         </form>
                     )}
 

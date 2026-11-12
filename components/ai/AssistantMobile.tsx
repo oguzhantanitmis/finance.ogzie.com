@@ -1,6 +1,7 @@
 'use client'
 
 import { boundedFetch } from '@/lib/request';
+import { readAiResponse } from '@/lib/ai/read-response'
 
 /* ============================================================
    AssistantMobile.tsx — Finans Asistanı (mobil-native, streaming)
@@ -23,25 +24,6 @@ const QUICK = [
   { label: 'Nakit akışı', prompt: 'Bu ay nakit akışım nasıl?' },
 ]
 
-async function readStream(res: Response, onChunk: (t: string) => void) {
-  const ct = res.headers.get('content-type') ?? ''
-  if (ct.includes('application/json')) {
-    const data = await res.json()
-    onChunk(data.text || data.error || 'Yanıt alınamadı.')
-    return
-  }
-  const reader = res.body?.getReader()
-  if (!reader) { onChunk('⚠️ Bağlantı hatası.'); return }
-  const dec = new TextDecoder()
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    const chunk = dec.decode(value, { stream: true })
-    if (chunk) onChunk(chunk)
-  }
-  reader.releaseLock()
-}
-
 export default function AssistantMobile({ used = 0, limit = 30000 }: { used?: number; limit?: number }) {
   const [msgs, setMsgs] = useState<Message[]>([
     { role: 'assistant', content: 'Merhaba 👋 Finans asistanınım. Aşağıdaki butonlardan birine dokun ya da soru yaz. Yalnızca sen sorunca çalışırım — boşta token harcamam.' },
@@ -58,13 +40,13 @@ export default function AssistantMobile({ used = 0, limit = 30000 }: { used?: nu
     setLoading(true)
     try {
       const res = await boundedFetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text }) })
-      await readStream(res, (chunk) => setMsgs((m) => {
+      await readAiResponse(res, (chunk) => setMsgs((m) => {
         const u = [...m]; const last = u[u.length - 1]
         if (last?.role === 'assistant') u[u.length - 1] = { ...last, content: last.content + chunk }
         return u
       }))
     } catch {
-      setMsgs((m) => { const u = [...m]; u[u.length - 1] = { role: 'assistant', content: '⚠️ Bağlantı hatası. Lütfen tekrar dene.' }; return u })
+      setMsgs((m) => { const u = [...m]; const last = u[u.length - 1]; u[u.length - 1] = { role: 'assistant', content: `${last?.content ?? ''}${last?.content ? '\n\n' : ''}⚠️ Yanıt tamamlanamadı. Kayıt isteği gönderdiysen yeniden göndermeden önce kayıtlarını kontrol et.` }; return u })
     } finally { setLoading(false) }
   }, [loading])
 

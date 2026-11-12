@@ -1,6 +1,7 @@
 'use client'
 
 import { boundedFetch } from '@/lib/request';
+import { readAiResponse } from '@/lib/ai/read-response'
 
 import { useState } from 'react'
 import { Bot, Sparkles, TrendingUp, PiggyBank, Shield, ArrowRight, X } from 'lucide-react'
@@ -12,25 +13,6 @@ const QUICK_ACTIONS = [
     { label: 'Tasarruf fırsatları', prompt: 'Aboneliklerimde tasarruf fırsatları var mı?', icon: PiggyBank, color: 'var(--accent-success)' },
     { label: 'Borç stratejisi', prompt: 'Borçlarımı nasıl önceliklendirmem lazım?', icon: Shield, color: 'var(--accent-purple)' },
 ]
-
-async function readStream(response: Response, onChunk: (text: string) => void) {
-    const contentType = response.headers.get('content-type') ?? ''
-    if (contentType.includes('application/json')) {
-        const data = await response.json()
-        onChunk(data.text || data.error || 'Yanıt alınamadı.')
-        return
-    }
-    const reader = response.body?.getReader()
-    if (!reader) { onChunk('⚠️ Bağlantı hatası.'); return }
-    const decoder = new TextDecoder()
-    while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        if (chunk) onChunk(chunk)
-    }
-    reader.releaseLock()
-}
 
 export default function AIQuickAction() {
     const [expanded, setExpanded] = useState(false)
@@ -50,11 +32,11 @@ export default function AIQuickAction() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt }),
             })
-            await readStream(res, (chunk) => {
+            await readAiResponse(res, (chunk) => {
                 setResponse(prev => prev + chunk)
             })
         } catch {
-            setResponse('Bağlantı hatası. Tekrar deneyin.')
+            setResponse(prev => `${prev}${prev ? '\n\n' : ''}⚠️ Yanıt tamamlanamadı. Tekrar deneyin.`)
         } finally {
             setLoading(false)
         }

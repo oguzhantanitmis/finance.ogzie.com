@@ -134,7 +134,7 @@ export const authOptions: NextAuthOptions = {
                     if (user) await logLogin(user.id, false, "ogzie_inactive", ip, userAgent);
                     // Teşhis: jti zaten tüketildi; eşleşen aktif hesap yoksa kök
                     // nedeni logla (ogzie subject_email yanlış/finance'ta hesap yok).
-                    else console.warn(`[ogzie-sso] eşleşen aktif hesap yok: ${email}`);
+                    else console.warn('auth.sso_account_unavailable');
                     return null;
                 }
 
