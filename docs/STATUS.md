@@ -19,7 +19,7 @@ Yeni bağımlılık, CI kullanıcısı/servisi, DB migration veya deploy yok. Ü
 | Gerçek Dockerfile builder | Kapanışta başlatılmış build exit 0: Next 16.4.2 production build ve TypeScript geçti. Kullanıcının yerel işleri durdurma düzeltmesinden önce başlamıştı; güvenle sonuçlandırıldı. |
 | Tam süit / runtime / tarayıcı | 12 Kasım tarihsel Linux kabulü: 182 Vitest + 9 Node, gerçek runtime, tarayıcı 10/10; izole DB ile 200→500→200 ve aynı oturum. Son iki düzeltme sonrasında tam süit/runtime/tarayıcı yeniden çalıştırılmadı. |
 | Lint | Tarihsel temiz base ve kirli kaynakta aynı 20 ürün hatası; #45 ayrı lint/bağımlılık PR'ı. Güncel tam lint çalıştırılmadı; yeşil denmez. |
-| GitHub CI | API: 0 runner / 0 workflow / 0 run. Ryzen mevcut hedef; yeni runner kurulmadı. CI yeşil kapısı açık. |
+| GitHub CI | **Tarihsel 12 Kasım gözlemi:** API o anda 0 runner / 0 workflow / 0 run döndürdü. Güncel runner ve SHA kanıtı aşağıdadır. |
 | Sır taraması | Aday commit kaynakları Gitleaks v8.28.0 ile redakte çıktı kullanılarak taranır; nihai sonuç yerel kapanış raporundadır. |
 
 Eski Linux testleri Mac/Ryzen hazır kabulü değildir. MacBook yalnız ajan/kod yönetimi ve tarayıcı kabul yüzeyidir; Mac Docker/Colima kullanımı geçerli değildir. Güncel Ryzen rootless kabulü aşağıdadır; mevcut rootful oyun daemon'una erişim verilmez. Cihaz kuralı [AGENTS.md](../AGENTS.md) ve [işletim notunda](operations/error-recovery.md) sürümlüdür.
@@ -36,4 +36,10 @@ Ryzen `ogzie-dev` rootless Docker socket'i doğrulandı. Ayrı BuildKit konteyne
 
 Dockerfile runtime imajı da geçti. Üretim DB'si yerine erişilemeyen test adresiyle başlatılan runtime'da `/unavailable.html` ve `/offline.html` 200, `/login/definitely-missing-llm054` 404, korunan `/api/subscription-enrich` 401, `/api/auth/csrf` 200 ve credentials DB kesintisi 503 / `SERVICE_UNAVAILABLE` döndürdü. Test konteyneri durduruldu. Gerçek izole DB yaşam döngüsü, Mac/Brave, fiziksel mobil ve ekran okuyucu kabulü yapılmadı.
 
-GitHub Actions açık olmasına rağmen bu repoda 0 workflow, 0 runner ve 0 run var; doğru commit için CI sonucu yok. Ryzen NetBird daemon'u `NeedsLogin` durumunda, doğrulanmış NetBird önizleme bağlantısı yok. Koordinatörün bağımsız incelemesi ve yayın kapısı açık. Main merge veya production deploy yapılmadı.
+Bu paragraf ilk Mac devrinin tarihsel anlık görüntüsüdür: o anda bu repoda 0 workflow, 0 runner ve 0 run vardı. Ryzen NetBird daemon'u `NeedsLogin` durumundaydı; doğrulanmış NetBird önizleme bağlantısı yoktu. Main merge veya production deploy yapılmadı.
+
+## Güncel CI kanıtı ve PR #46 kaynak kapısı — 13 Kasım 2026
+
+`.github/workflows/finance-ci.yml` artık `codex/llm054-finance-closure` push olayında mevcut `ryzen-finance-1` self-hosted runner'ını kullanıyor. [Actions run 43320750837](https://github.com/oguzhantanitmis/finance.ogzie.com/actions/runs/43320750837) gerçek `7176cfea7b4ed848f19c780bfec9902209f90fab` SHA'sını checkout ve `git rev-parse HEAD` ile doğrulayıp başarılı tamamlandı: 24 dosyada 209 Vitest, 10 Node recovery testi, TypeScript, `origin/main..HEAD` Gitleaks, production build ve lint exit 0 (0 hata, 10 uyarı). Bu koşu sonraki commitler için kanıt sayılmaz; her yeni PR head SHA'sı ayrıca doğrulanır.
+
+Bağımsız kaynak incelemesi AI insight ve bildirim action hata akışlarında üç açık bulgu saptadı. Bu düzeltme `success:false` sonucunu boş durumdan ayırır, bildirim yüklemesini sonlu bekleme ve elle retry ile kapatır, AI/bildirim Server Action hata metinlerini redakte eder. Yeni head'in CI ve bağımsız yeniden incelemesi tamamlanmadan kaynak kabulü kapalıdır. `experimental.cpus: 2` aynı Next yapılandırmasını kullanan diğer buildlerde de sayfa verisi worker sayısını sınırlar; CI lint/test/build/secret kapılarında gevşetme yapılmadı. Main merge/deploy koordinatör kapısındadır.

@@ -12,10 +12,9 @@ export async function triggerAiAnalysisAction() {
         const user = await requireSuperuser()
         await runProactiveAiAnalysis(user.id)
         return { success: true }
-    } catch (error) {
-        console.error('AI Analysis Action Error:', error)
-        const message = error instanceof Error ? error.message : 'Analiz sırasında bilinmeyen bir hata oluştu.'
-        return { success: false, error: message }
+    } catch {
+        console.error('ai.analysis_unavailable')
+        return { success: false, error: 'Analiz şu anda kullanılamıyor. Lütfen tekrar deneyin.' }
     }
 }
 
@@ -144,8 +143,8 @@ export async function generateAvalancheInsights() {
 
         revalidatePath('/ai')
         return { success: true }
-    } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
+    } catch {
+        return { success: false, error: 'Stratejiler şu anda kullanılamıyor. Lütfen tekrar deneyin.' }
     }
 }
 
@@ -160,7 +159,7 @@ export async function getAlgorithmicInsights() {
         })
 
         return { success: true, insights }
-    } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
+    } catch {
+        return { success: false, error: 'Stratejiler şu anda kullanılamıyor. Lütfen tekrar deneyin.' }
     }
 }
