@@ -1,5 +1,7 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Bot, User, Zap, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -67,7 +69,7 @@ export default function FinanceAssistantWorkspace() {
         setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
         try {
-            const res = await fetch('/api/ai', {
+            const res = await boundedFetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: text }),

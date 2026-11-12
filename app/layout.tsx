@@ -1,3 +1,4 @@
+import RecoveryOffline from '../components/RecoveryOffline';
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -44,7 +45,7 @@ export default async function RootLayout({
       <body
         className={`${inter.variable} font-[family-name:var(--font-inter)] antialiased`}
         style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}
-      >
+      ><RecoveryOffline />
         <AuthProvider>
           <ThemeProvider>
             <ToastProvider>

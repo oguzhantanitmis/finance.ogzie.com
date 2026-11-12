@@ -1,3 +1,5 @@
+import { safeRoute } from '@/lib/safe-route';
+import { boundedFetch } from '@/lib/request';
 import { NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/prisma'
@@ -68,7 +70,7 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await boundedFetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
@@ -85,7 +87,7 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
     })
 
     if (!response.ok || !response.body) {
-        console.error('OpenAI stream error:', response.status, response.statusText)
+        console.error('api.request_failed')
         return null
     }
 
@@ -136,14 +138,14 @@ function createTextStream(
                     }
                 }
             } catch (err) {
-                console.error('Stream read error:', err)
+                console.error('api.request_failed')
             } finally {
                 // close'tan ÖNCE await: serverless'ta fonksiyon ömrü içinde DB yazımı garanti
                 if (capturedUsage && onUsage) {
                     try {
                         await onUsage(capturedUsage)
                     } catch (e) {
-                        console.error('recordUsage error:', e)
+                        console.error('api.request_failed')
                     }
                 }
                 controller.close()
@@ -153,7 +155,7 @@ function createTextStream(
     })
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
     try {
         const user = await requireSuperuser().catch((error) => {
             const message = error instanceof Error ? error.message : ''
@@ -257,7 +259,7 @@ export async function POST(req: Request) {
             const rawBaseUrl = process.env.OPENAI_BASE_URL
             const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-            const fallbackRes = await fetch(`${baseUrl}/chat/completions`, {
+            const fallbackRes = await boundedFetch(`${baseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({
@@ -274,13 +276,13 @@ export async function POST(req: Request) {
             if (fallbackRes.ok) {
                 const data = await fallbackRes.json()
                 if (data.usage) {
-                    await recordUsage(user.id, data.usage).catch((e) => console.error('recordUsage error:', e))
+                    await recordUsage(user.id, data.usage).catch((e) => console.error('api.request_failed'))
                 }
                 const text = data.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
                 return NextResponse.json({ text })
             }
         } catch (e) {
-            console.error('Non-streaming fallback error:', e)
+            console.error('api.request_failed')
         }
 
         // All AI attempts failed — return formatted context
@@ -288,7 +290,7 @@ export async function POST(req: Request) {
             text: generateFormattedFallback(context),
         })
     } catch (error) {
-        console.error('AI API Error:', error)
+        console.error('api.request_failed')
         // İç hata detayını istemciye sızdırma
         return NextResponse.json({ error: 'AI servisi şu an kullanılamıyor. Lütfen tekrar deneyin.' }, { status: 500 })
     }
@@ -327,3 +329,5 @@ function generateFormattedFallback(context: string): string {
 
     return sections.join('\n')
 }
+
+export const POST = safeRoute(POSTHandler);

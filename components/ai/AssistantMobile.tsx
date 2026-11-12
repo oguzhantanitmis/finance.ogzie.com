@@ -1,5 +1,7 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+
 /* ============================================================
    AssistantMobile.tsx — Finans Asistanı (mobil-native, streaming)
    Yerleşim: components/ai/AssistantMobile.tsx
@@ -55,7 +57,7 @@ export default function AssistantMobile({ used = 0, limit = 30000 }: { used?: nu
     setMsgs((m) => [...m, { role: 'user', content: text }, { role: 'assistant', content: '' }])
     setLoading(true)
     try {
-      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text }) })
+      const res = await boundedFetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: text }) })
       await readStream(res, (chunk) => setMsgs((m) => {
         const u = [...m]; const last = u[u.length - 1]
         if (last?.role === 'assistant') u[u.length - 1] = { ...last, content: last.content + chunk }

@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic'
  * Body: { token: string, newPassword: string }
  * Token DB'de sha256 hash olarak saklanır — gelen ham token hash'lenip aranır.
  */
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
     try {
         // Token brute-force koruması: IP başına 10 deneme / 15 dk
         const ip = clientIp(req)
@@ -54,7 +55,9 @@ export async function POST(req: NextRequest) {
 
         return Response.json({ ok: true })
     } catch (e) {
-        console.error('reset-password error:', e instanceof Error ? e.message : 'bilinmeyen')
+        console.error('api.request_failed')
         return Response.json({ error: 'Sunucu hatası.' }, { status: 500 })
     }
 }
+
+export const POST = safeRoute(POSTHandler);

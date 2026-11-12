@@ -1,7 +1,9 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+import { submitCredentials } from '@/lib/client-auth';
+
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -450,11 +452,11 @@ function LoginInner() {
         e.preventDefault()
         setLoading(true); setError('')
         try {
-            const result = await signIn('credentials', {
-                email, password, rememberMe: String(rememberMe), redirect: false,
-            })
+            const result = await submitCredentials(email, password, rememberMe)
             if (result?.error) {
-                if (result.error.startsWith('LOCKED:')) {
+                if (result.status >= 500 || result.error === 'SERVICE_UNAVAILABLE') {
+                    setError('Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.')
+                } else if (result.error.startsWith('LOCKED:')) {
                     setError(`Çok fazla başarısız deneme. Hesabınız ${result.error.split(':')[1]} dakika kilitli.`)
                 } else if (result.error.startsWith('ATTEMPTS:')) {
                     setError(`Hatalı şifre. ${result.error.split(':')[1]} deneme hakkınız kaldı.`)
@@ -465,7 +467,7 @@ function LoginInner() {
                 window.location.assign('/')
             }
         } catch {
-            setError('Bir hata oluştu. Lütfen tekrar deneyin.')
+            setError('Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.')
         } finally {
             setLoading(false)
         }
@@ -475,7 +477,7 @@ function LoginInner() {
         e.preventDefault()
         setLoading(true); setError('')
         try {
-            await fetch('/api/auth/forgot-password', {
+            await boundedFetch('/api/auth/forgot-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
@@ -494,7 +496,7 @@ function LoginInner() {
         if (newPassword.length < 8) { setError('Şifre en az 8 karakter olmalı.'); return }
         setLoading(true); setError('')
         try {
-            const res = await fetch('/api/auth/reset-password', {
+            const res = await boundedFetch('/api/auth/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token: resetToken, newPassword }),

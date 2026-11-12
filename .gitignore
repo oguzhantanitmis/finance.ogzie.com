@@ -46,3 +46,7 @@ next-env.d.ts
 
 # Tasarım aktarım paketi (referans — koda kopyalandı)
 repo-drop/
+
+# Local acceptance evidence and closure reports (never source)
+/.local/
+/docs/evidence/

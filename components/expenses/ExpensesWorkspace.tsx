@@ -1,5 +1,7 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -321,7 +323,7 @@ function SubscriptionAddForm({ onSuccess }: { onSuccess: (r: ActionResult) => vo
         if (name.trim().length < 2) return
         const controller = new AbortController()
         const tid = window.setTimeout(async () => {
-            const res = await fetch('/api/subscription-enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }), signal: controller.signal })
+            const res = await boundedFetch('/api/subscription-enrich', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }), signal: controller.signal })
             if (res.ok) setPreview(await res.json())
         }, 300)
         return () => { controller.abort(); window.clearTimeout(tid) }

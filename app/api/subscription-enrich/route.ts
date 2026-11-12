@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextResponse } from 'next/server'
 
 import { enrichSubscriptionName } from '@/lib/subscription-enrichment'
@@ -5,11 +6,14 @@ import { requireCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
     try {
         await requireCurrentUser()
-    } catch {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    } catch (error) {
+        if (error instanceof Error && error.message === 'Unauthorized') {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+        throw error
     }
 
     let body: { name?: string }
@@ -31,3 +35,5 @@ export async function POST(req: Request) {
 
     return NextResponse.json(enrichSubscriptionName(name))
 }
+
+export const POST = safeRoute(POSTHandler);

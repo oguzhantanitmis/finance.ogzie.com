@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextRequest } from 'next/server'
 
 import { csvResponse } from '@/lib/export/csv'
@@ -15,7 +16,7 @@ const SOURCE_LABEL: Record<string, string> = {
     PERSONAL_RP:  'Şahsi Borç',
 }
 
-export async function GET(req: NextRequest) {
+async function GETHandler(req: NextRequest) {
     try {
         const user = await requireCurrentUser()
         const url = new URL(req.url)
@@ -102,3 +103,5 @@ export async function GET(req: NextRequest) {
         })
     }
 }
+
+export const GET = safeRoute(GETHandler);

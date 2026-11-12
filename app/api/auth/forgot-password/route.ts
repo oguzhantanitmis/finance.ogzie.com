@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 
@@ -14,7 +15,7 @@ export const dynamic = 'force-dynamic'
  * Cevap her zaman 200 — kullanıcı varlığını sızdırmaz (timing-safe).
  * Token DB'de sha256 hash olarak saklanır; ham token yalnızca e-postada yer alır.
  */
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
     try {
         // IP başına 5 istek / 15 dk + e-posta başına 3 istek / 15 dk
         const ip = clientIp(req)
@@ -52,14 +53,16 @@ export async function POST(req: NextRequest) {
                 }).catch(err => {
                     // Token/PII loglama — yalnızca hata özeti
                     const msg = err instanceof Error ? err.message : 'SMTP hatası'
-                    console.error('forgot-password email error:', msg.slice(0, 200))
+                    console.error('api.request_failed')
                 })
             }
         }
 
         return Response.json({ ok: true }, { status: 200 })
     } catch (e) {
-        console.error('forgot-password error:', e instanceof Error ? e.message : 'bilinmeyen')
+        console.error('api.request_failed')
         return Response.json({ ok: true }, { status: 200 })
     }
 }
+
+export const POST = safeRoute(POSTHandler);

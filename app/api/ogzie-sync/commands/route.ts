@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import {
     BillingCycle,
     LedgerEntryType,
@@ -44,7 +45,7 @@ function date(value: string): Date {
     return new Date(`${value}T00:00:00.000Z`)
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
     const rawBody = await req.text()
     const aud = process.env.OGZIE_FINANCE_PUSH_AUDIENCE
     const publicJwk = process.env.OGZIE_FINANCE_PUSH_PUBLIC_JWK
@@ -226,3 +227,5 @@ export async function POST(req: Request) {
 
     return NextResponse.json(result)
 }
+
+export const POST = safeRoute(POSTHandler, { errorEnvelope: 'ogzie' });

@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextRequest } from 'next/server'
 
 import { csvResponse } from '@/lib/export/csv'
@@ -8,7 +9,7 @@ import { requireCurrentUser } from '@/lib/server-auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+async function GETHandler(req: NextRequest) {
     try {
         const user = await requireCurrentUser()
         const url = new URL(req.url)
@@ -68,3 +69,5 @@ export async function GET(req: NextRequest) {
         })
     }
 }
+
+export const GET = safeRoute(GETHandler);

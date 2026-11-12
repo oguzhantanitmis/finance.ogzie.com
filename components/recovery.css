@@ -1,0 +1,9 @@
+.recovery { --recovery-bg: var(--bg-primary, #09090b); --recovery-ink: var(--text-primary, #fafafa); --recovery-muted: var(--text-secondary, #a1a1aa); --recovery-accent: var(--accent-primary, #a78bfa); box-sizing: border-box; min-height: 70dvh; display: grid; align-content: center; justify-items: start; gap: 24px; padding: max(32px, env(safe-area-inset-top)) 24px max(96px, env(safe-area-inset-bottom)); margin: 0 auto; max-width: 760px; color: var(--recovery-ink); background: var(--recovery-bg); font-family: var(--font-body-stack, var(--font-sans, system-ui)), sans-serif; overflow-wrap: anywhere; }
+.recovery h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.15; margin: 0; max-width: 24ch; font-family: var(--font-display-stack, inherit); }
+.recovery p { font-size: 1rem; line-height: 1.6; color: var(--recovery-muted); margin: 0; max-width: 56ch; }
+.recovery-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.recovery-actions a, .recovery-actions button { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 20px; border: 1px solid currentColor; border-radius: 8px; background: transparent; color: var(--recovery-ink); text-decoration: none; font: inherit; cursor: pointer; }
+.recovery-actions :focus-visible { outline: 3px solid var(--recovery-accent); outline-offset: 4px; }
+.recovery-actions :hover { text-decoration: underline; text-underline-offset: 4px; }
+.recovery-document { margin: 0; background: var(--bg-primary, #09090b); color: var(--text-primary, #fafafa); }
+@media (max-width: 640px) { .recovery { min-height: 65dvh; padding-inline: 20px; } .recovery-actions { width: 100%; } .recovery-actions a, .recovery-actions button { flex-grow: 1; } }

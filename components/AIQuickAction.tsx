@@ -1,5 +1,7 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+
 import { useState } from 'react'
 import { Bot, Sparkles, TrendingUp, PiggyBank, Shield, ArrowRight, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -43,7 +45,7 @@ export default function AIQuickAction() {
         setResponse('')
 
         try {
-            const res = await fetch('/api/ai', {
+            const res = await boundedFetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt }),

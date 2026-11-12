@@ -14,6 +14,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  experimental: { globalNotFound: true },
   // Slim, self-contained server bundle for the Docker/Dokploy runtime.
   output: "standalone",
   images: {
