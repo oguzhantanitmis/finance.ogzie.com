@@ -14,7 +14,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  experimental: { globalNotFound: true },
+  // Keep page-data workers within the two CPU build container budget.
+  experimental: { globalNotFound: true, cpus: 2 },
   // Slim, self-contained server bundle for the Docker/Dokploy runtime.
   output: "standalone",
   images: {
