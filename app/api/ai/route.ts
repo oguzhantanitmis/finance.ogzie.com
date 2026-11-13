@@ -1,11 +1,14 @@
+import { safeRoute } from '@/lib/safe-route';
+import { boundedFetch } from '@/lib/request';
 import { NextResponse } from 'next/server'
 
-import { prisma } from '@/lib/prisma'
+import { isDbConnectionError, prisma } from '@/lib/prisma'
 import { composeFinancialContext } from '@/lib/ai/context-composer'
 import { buildSystemPrompt, buildChatPrompt } from '@/lib/ai/prompt-builder'
 import { isOverQuota, recordUsage } from '@/lib/ai-usage'
 import { answerFinanceAssistant } from '@/lib/finance-assistant'
 import { requireSuperuser } from '@/lib/server-auth'
+import { createAiEventStream } from '@/lib/ai/stream'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -68,7 +71,7 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
     const rawBaseUrl = process.env.OPENAI_BASE_URL
     const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await boundedFetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
@@ -85,86 +88,26 @@ async function streamOpenAI(context: string, userMessage: string): Promise<Reada
     })
 
     if (!response.ok || !response.body) {
-        console.error('OpenAI stream error:', response.status, response.statusText)
+        console.error('api.request_failed')
         return null
     }
 
     return response.body
 }
 
-type OpenAIUsage = { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
-
-/** SSE stream parser — converts OpenAI SSE format to plain text chunks */
-function createTextStream(
-    openaiStream: ReadableStream<Uint8Array>,
-    onUsage?: (usage: OpenAIUsage) => Promise<void>,
-): ReadableStream<Uint8Array> {
-    const encoder = new TextEncoder()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    // stream_options.include_usage: [DONE]'dan önce choices boş + usage dolu son chunk gelir
-    let capturedUsage: OpenAIUsage | null = null
-
-    return new ReadableStream({
-        async start(controller) {
-            const reader = openaiStream.getReader()
-            try {
-                while (true) {
-                    const { done, value } = await reader.read()
-                    if (done) break
-
-                    buffer += decoder.decode(value, { stream: true })
-                    const lines = buffer.split('\n')
-                    buffer = lines.pop() ?? ''
-
-                    for (const line of lines) {
-                        const trimmed = line.trim()
-                        if (!trimmed || !trimmed.startsWith('data: ')) continue
-                        const data = trimmed.slice(6)
-                        if (data === '[DONE]') continue
-
-                        try {
-                            const parsed = JSON.parse(data)
-                            if (parsed.usage) capturedUsage = parsed.usage
-                            const content = parsed.choices?.[0]?.delta?.content
-                            if (content) {
-                                controller.enqueue(encoder.encode(content))
-                            }
-                        } catch {
-                            // Skip malformed chunks
-                        }
-                    }
-                }
-            } catch (err) {
-                console.error('Stream read error:', err)
-            } finally {
-                // close'tan ÖNCE await: serverless'ta fonksiyon ömrü içinde DB yazımı garanti
-                if (capturedUsage && onUsage) {
-                    try {
-                        await onUsage(capturedUsage)
-                    } catch (e) {
-                        console.error('recordUsage error:', e)
-                    }
-                }
-                controller.close()
-                reader.releaseLock()
-            }
-        },
-    })
-}
-
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
     try {
-        const user = await requireSuperuser().catch((error) => {
-            const message = error instanceof Error ? error.message : ''
-            return message === 'Unauthorized' ? null : 'FORBIDDEN'
-        })
-
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-        if (user === 'FORBIDDEN') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        let user: Awaited<ReturnType<typeof requireSuperuser>>
+        try {
+            user = await requireSuperuser()
+        } catch (error) {
+            if (error instanceof Error && error.message === 'Unauthorized') {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            }
+            if (error instanceof Error && error.message === 'Forbidden') {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+            }
+            throw error
         }
 
         const parsedPrompt = await parsePrompt(req)
@@ -241,12 +184,11 @@ export async function POST(req: Request) {
         const openaiStream = await streamOpenAI(context, prompt)
 
         if (openaiStream) {
-            const textStream = createTextStream(openaiStream, (usage) => recordUsage(user.id, usage))
+            const textStream = createAiEventStream(openaiStream, (usage) => recordUsage(user.id, usage))
             return new Response(textStream, {
                 headers: {
-                    'Content-Type': 'text/plain; charset=utf-8',
-                    'Cache-Control': 'no-cache',
-                    'Transfer-Encoding': 'chunked',
+                    'Content-Type': 'text/event-stream; charset=utf-8',
+                    'Cache-Control': 'no-store',
                 },
             })
         }
@@ -257,7 +199,7 @@ export async function POST(req: Request) {
             const rawBaseUrl = process.env.OPENAI_BASE_URL
             const baseUrl = rawBaseUrl ? rawBaseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1'
 
-            const fallbackRes = await fetch(`${baseUrl}/chat/completions`, {
+            const fallbackRes = await boundedFetch(`${baseUrl}/chat/completions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
                 body: JSON.stringify({
@@ -274,13 +216,13 @@ export async function POST(req: Request) {
             if (fallbackRes.ok) {
                 const data = await fallbackRes.json()
                 if (data.usage) {
-                    await recordUsage(user.id, data.usage).catch((e) => console.error('recordUsage error:', e))
+                    await recordUsage(user.id, data.usage).catch(() => console.error('api.request_failed'))
                 }
                 const text = data.choices?.[0]?.message?.content ?? 'Yanıt alınamadı.'
                 return NextResponse.json({ text })
             }
-        } catch (e) {
-            console.error('Non-streaming fallback error:', e)
+        } catch {
+            console.error('api.request_failed')
         }
 
         // All AI attempts failed — return formatted context
@@ -288,7 +230,8 @@ export async function POST(req: Request) {
             text: generateFormattedFallback(context),
         })
     } catch (error) {
-        console.error('AI API Error:', error)
+        console.error('api.request_failed')
+        if (isDbConnectionError(error)) throw error
         // İç hata detayını istemciye sızdırma
         return NextResponse.json({ error: 'AI servisi şu an kullanılamıyor. Lütfen tekrar deneyin.' }, { status: 500 })
     }
@@ -327,3 +270,5 @@ function generateFormattedFallback(context: string): string {
 
     return sections.join('\n')
 }
+
+export const POST = safeRoute(POSTHandler);

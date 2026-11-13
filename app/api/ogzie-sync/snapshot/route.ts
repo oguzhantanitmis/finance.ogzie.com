@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextResponse } from 'next/server'
 
 import { getDashboardData } from '@/lib/dashboard-service'
@@ -15,7 +16,7 @@ type SnapshotRequest = {
     identity: OgzieIdentity
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
     const rawBody = await req.text()
     const aud = process.env.OGZIE_FINANCE_PUSH_AUDIENCE
     const publicJwk = process.env.OGZIE_FINANCE_PUSH_PUBLIC_JWK
@@ -115,3 +116,5 @@ export async function POST(req: Request) {
         })),
     })
 }
+
+export const POST = safeRoute(POSTHandler, { errorEnvelope: 'ogzie' });

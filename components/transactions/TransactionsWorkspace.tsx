@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard, ReceiptText, Settings, Search, Plus, X, Loader2 } from 'lucide-react'
 import { formatCurrency, cn } from '@/lib/utils'
 import { addIncomeAction, addExpenseAction } from '@/app/transactions/actions'
+import { useDeepLinkParam } from '@/lib/use-deep-link-param'
 
 const TYPE_META: Record<string, { label: string; icon: typeof ArrowDownLeft; color: string }> = {
     INCOME: { label: 'Gelir', icon: ArrowDownLeft, color: 'text-[color:var(--accent-success)]' },
@@ -96,13 +97,14 @@ export default function TransactionsWorkspace({ entries, totalIncome, totalExpen
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
-    useEffect(() => {
-        const n = searchParams.get('new')
-        if (n !== 'income' && n !== 'expense') return
-        resetForm()
-        setModal(n)
-        router.replace(pathname, { scroll: false })
-    }, [searchParams, resetForm, router, pathname])
+    useDeepLinkParam(
+        'new',
+        (n) => {
+            resetForm()
+            setModal(n as 'income' | 'expense')
+        },
+        (n) => n === 'income' || n === 'expense',
+    )
 
     // Öngörüleri göster toggle'ı: durum URL ?forecast=1 ile (server-render uyumlu).
     const toggleForecast = useCallback((checked: boolean) => {

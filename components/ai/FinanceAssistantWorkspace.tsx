@@ -1,5 +1,8 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+import { readAiResponse } from '@/lib/ai/read-response'
+
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Bot, User, Zap, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
@@ -22,31 +25,6 @@ const QUICK_PROMPTS = [
     { label: 'Hedef takibi', prompt: 'Aktif hedeflerim ne durumda?' },
 ]
 
-async function readStream(response: Response, onChunk: (text: string) => void) {
-    const contentType = response.headers.get('content-type') ?? ''
-
-    if (contentType.includes('application/json')) {
-        const data = await response.json()
-        onChunk(data.text || data.error || 'Yanıt alınamadı.')
-        return
-    }
-
-    const reader = response.body?.getReader()
-    if (!reader) {
-        onChunk('⚠️ Bağlantı hatası.')
-        return
-    }
-
-    const decoder = new TextDecoder()
-    while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        if (chunk) onChunk(chunk)
-    }
-    reader.releaseLock()
-}
-
 export default function FinanceAssistantWorkspace() {
     const [messages, setMessages] = useState<Message[]>([
         { role: 'assistant', content: 'Merhaba. Ben finans asistanınım. Aşağıdaki hızlı butonları kullanabilir ya da doğrudan soru sorabilirsin.\n\nDurum analizi, borç stratejisi, abonelik tasarrufu ve sağlık puanı gibi konularda yardımcı olurum.' }
@@ -67,13 +45,13 @@ export default function FinanceAssistantWorkspace() {
         setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
         try {
-            const res = await fetch('/api/ai', {
+            const res = await boundedFetch('/api/ai', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ prompt: text }),
             })
 
-            await readStream(res, (chunk) => {
+            await readAiResponse(res, (chunk) => {
                 setMessages(prev => {
                     const updated = [...prev]
                     const last = updated[updated.length - 1]
@@ -88,7 +66,7 @@ export default function FinanceAssistantWorkspace() {
                 const updated = [...prev]
                 const last = updated[updated.length - 1]
                 if (last && last.role === 'assistant') {
-                    updated[updated.length - 1] = { ...last, content: '⚠️ Bağlantı hatası. Lütfen tekrar dene.' }
+                    updated[updated.length - 1] = { ...last, content: `${last.content}${last.content ? '\n\n' : ''}⚠️ Yanıt tamamlanamadı. Kayıt isteği gönderdiysen yeniden göndermeden önce kayıtlarını kontrol et.` }
                 }
                 return updated
             })

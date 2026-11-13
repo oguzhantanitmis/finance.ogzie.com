@@ -12,3 +12,7 @@ repo-drop
 __tests__
 *.tsbuildinfo
 .DS_Store
+
+# Local evidence, sessions and closure reports
+.local
+docs/evidence

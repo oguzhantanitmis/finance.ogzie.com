@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextRequest } from 'next/server'
 
 import { csvResponse } from '@/lib/export/csv'
@@ -20,7 +21,7 @@ const TYPE_LABEL: Record<string, string> = {
     OTHER:  'Diğer',
 }
 
-export async function GET(req: NextRequest) {
+async function GETHandler(req: NextRequest) {
     try {
         const user = await requireCurrentUser()
         const format = (new URL(req.url).searchParams.get('format') ?? 'csv') as 'csv' | 'pdf'
@@ -77,3 +78,5 @@ export async function GET(req: NextRequest) {
         })
     }
 }
+
+export const GET = safeRoute(GETHandler);

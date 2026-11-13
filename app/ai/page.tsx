@@ -17,8 +17,11 @@ export default async function AIPage() {
     }
 
     // Attempt to generate new algorithmic insights on load
-    await generateAvalancheInsights()
-    const { insights } = await getAlgorithmicInsights()
+    const generation = await generateAvalancheInsights()
+    if (!generation.success) throw new Error('AI insights unavailable')
+    const result = await getAlgorithmicInsights()
+    if (!result.success) throw new Error('AI insights unavailable')
+    const { insights } = result
 
     // /api/ai superuser korumalı — chat yalnız AI kullanabilenlere
     const canUseAi = isSuperuser(user)

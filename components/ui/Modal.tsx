@@ -1,10 +1,13 @@
 'use client'
 
 import { X } from 'lucide-react'
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
 import { cn } from '@/lib/utils'
+
+// useSyncExternalStore with a store that never changes: false on the server, true on the client.
+const subscribeNever = () => () => {}
 
 type Size = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '4xl'
 
@@ -45,10 +48,8 @@ export default function Modal({
     const titleId = useId()
     const subtitleId = useId()
     const containerRef = useRef<HTMLDivElement>(null)
-    // Portal hedefi yalnızca client'ta var — SSR'da render etme
-    const [mounted, setMounted] = useState(false)
-
-    useEffect(() => setMounted(true), [])
+    // Portal hedefi yalnızca client'ta var — SSR'da render etme (sunucuda false, istemcide true)
+    const mounted = useSyncExternalStore(subscribeNever, () => true, () => false)
 
     useEffect(() => {
         const previouslyFocused = document.activeElement as HTMLElement | null

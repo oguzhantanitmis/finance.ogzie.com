@@ -72,12 +72,11 @@ export default function CardFormModal({
         card?.minPaymentRate ? toPercentInput(card.minPaymentRate, 0.2) : (totalLimit > 50000 ? 40 : 20)
     )
 
-    // Sync minPaymentRate when totalLimit or isNewCard changes, unless user manually edited it
-    useEffect(() => {
-        if (!card) { // Only auto-update for new cards to avoid overriding user's manual settings
-            setMinPaymentRate(isNewCard || totalLimit > 50000 ? 40 : 20)
-        }
-    }, [totalLimit, isNewCard, card])
+    // New cards only: re-derive minPaymentRate when the limit or the "new card" flag changes.
+    // Done in those inputs' change handlers instead of an effect (react-hooks/set-state-in-effect).
+    const syncAutoMinPaymentRate = (nextLimit: number, nextIsNewCard: boolean) => {
+        if (!card) setMinPaymentRate(nextIsNewCard || nextLimit > 50000 ? 40 : 20)
+    }
 
     const [createState, createAction] = useActionState(addCreditCard, EMPTY_ACTION_RESULT)
     const [updateState, updateAction] = useActionState(updateCreditCard, EMPTY_ACTION_RESULT)
@@ -176,7 +175,7 @@ export default function CardFormModal({
                             type="number"
                             required
                             value={totalLimit}
-                            onChange={(e) => setTotalLimit(Number(e.target.value))}
+                            onChange={(e) => { const next = Number(e.target.value); setTotalLimit(next); syncAutoMinPaymentRate(next, isNewCard) }}
                             placeholder="50000"
                             className="form-input font-mono"
                         />
@@ -301,7 +300,7 @@ export default function CardFormModal({
                             id="isNewCard"
                             name="isNewCard"
                             checked={isNewCard}
-                            onChange={(e) => setIsNewCard(e.target.checked)}
+                            onChange={(e) => { setIsNewCard(e.target.checked); syncAutoMinPaymentRate(totalLimit, e.target.checked) }}
                             className="h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-zinc-900"
                         />
                         <label htmlFor="isNewCard" className="text-sm text-zinc-300">

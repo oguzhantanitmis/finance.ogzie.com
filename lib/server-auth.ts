@@ -22,9 +22,7 @@ export const getCurrentUser = cache(async () => {
 
     const role = resolveUserRole(user.email, user.role)
     if (role !== user.role) {
-        return withDbRetry(() =>
-            prisma.user.update({ where: { id: user.id }, data: { role } })
-        )
+        return prisma.user.update({ where: { id: user.id }, data: { role } })
     }
 
     return user

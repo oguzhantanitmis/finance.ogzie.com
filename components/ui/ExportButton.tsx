@@ -1,5 +1,7 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react'
 
@@ -60,7 +62,7 @@ export default function ExportButton({
             }
 
             const url = `${endpoint}?${qs.toString()}`
-            const res = await fetch(url, { method: 'GET' })
+            const res = await boundedFetch(url, { method: 'GET' })
 
             if (!res.ok) throw new Error(`Export başarısız (${res.status})`)
 

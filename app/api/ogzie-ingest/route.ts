@@ -1,3 +1,4 @@
+import { safeRoute } from '@/lib/safe-route';
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 
@@ -66,7 +67,7 @@ function mapLedgerType(assetType: string, direction: string): 'EXPENSE' | 'COLLE
     return null
 }
 
-export async function POST(req: Request) {
+async function POSTHandler(req: Request) {
     // 1) HAM gövde — imza bu string üzerinden doğrulanır (kanonik-JSON yok).
     const rawBody = await req.text()
     const tsHeader = req.headers.get('x-ogzie-timestamp')
@@ -225,3 +226,5 @@ export async function POST(req: Request) {
         subscriptionsSynced,
     })
 }
+
+export const POST = safeRoute(POSTHandler, { errorEnvelope: 'ogzie' });

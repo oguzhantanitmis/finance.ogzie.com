@@ -16,12 +16,13 @@ async function logLogin(userId: string, success: boolean, reason: string, ip: st
         await prisma.loginHistory.create({
             data: { userId, success, reason, ip, userAgent: userAgent?.slice(0, 1000) ?? null },
         });
-    } catch (e) {
-        console.error('login history error:', e);
+    } catch {
+        console.error('auth.audit_unavailable');
     }
 }
 
 export const authOptions: NextAuthOptions = {
+    logger: { error() { console.error('auth.unavailable'); }, warn() {}, debug() {} },
     session: { strategy: "jwt", maxAge: SESSION_LONG_SECONDS },
     pages:   { signIn: "/login" },
     providers: [
@@ -33,6 +34,7 @@ export const authOptions: NextAuthOptions = {
                 rememberMe: { label: "Beni hatırla", type: "text"     },
             },
             async authorize(credentials, req) {
+              try {
                 if (!credentials?.email || !credentials.password) return null;
 
                 const email      = normalizeEmail(credentials.email);
@@ -94,6 +96,10 @@ export const authOptions: NextAuthOptions = {
                     sessionVersion: user.sessionVersion,
                     rememberMe,
                 };
+              } catch (error) {
+                if (error instanceof Error && /^(LOCKED|ATTEMPTS):\d+$/.test(error.message)) throw error;
+                throw new Error('SERVICE_UNAVAILABLE');
+              }
             },
         }),
         // ogzie SSO — EdDSA imzalı tek-kullanımlık bilet ile şifresiz giriş.
@@ -128,7 +134,7 @@ export const authOptions: NextAuthOptions = {
                     if (user) await logLogin(user.id, false, "ogzie_inactive", ip, userAgent);
                     // Teşhis: jti zaten tüketildi; eşleşen aktif hesap yoksa kök
                     // nedeni logla (ogzie subject_email yanlış/finance'ta hesap yok).
-                    else console.warn(`[ogzie-sso] eşleşen aktif hesap yok: ${email}`);
+                    else console.warn('auth.sso_account_unavailable');
                     return null;
                 }
 

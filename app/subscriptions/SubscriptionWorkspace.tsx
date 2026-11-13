@@ -1,5 +1,7 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+
 import { BillingCycle, RecordStatus } from '@prisma/client'
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Calendar, Pencil, Plus, Sparkles, Trash2 } from 'lucide-react'
@@ -60,7 +62,7 @@ export default function SubscriptionWorkspace({ subscriptions }: SubscriptionWor
 
         const controller = new AbortController()
         const timeoutId = window.setTimeout(async () => {
-            const response = await fetch('/api/subscription-enrich', {
+            const response = await boundedFetch('/api/subscription-enrich', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name }),

@@ -1,7 +1,9 @@
 'use client'
 
+import { boundedFetch } from '@/lib/request';
+import { submitCredentials } from '@/lib/client-auth';
+
 import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Eye, EyeOff, ShieldCheck, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -209,14 +211,17 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
         return () => clearTimeout(timeout)
     }, [])
 
-    // Glance at each other when typing starts
+    // Glance at each other when typing starts: follow isTyping during render, then look
+    // back after 800 ms (no synchronous setState in the effect).
+    const [prevTyping, setPrevTyping] = useState(isTyping)
+    if (isTyping !== prevTyping) {
+        setPrevTyping(isTyping)
+        setIsLookingAtEachOther(isTyping)
+    }
     useEffect(() => {
-        if (isTyping) {
-            setIsLookingAtEachOther(true)
-            const t = setTimeout(() => setIsLookingAtEachOther(false), 800)
-            return () => clearTimeout(t)
-        }
-        setIsLookingAtEachOther(false)
+        if (!isTyping) return
+        const t = setTimeout(() => setIsLookingAtEachOther(false), 800)
+        return () => clearTimeout(t)
     }, [isTyping])
 
     // Purple sneaky peek when password is revealed
@@ -228,7 +233,8 @@ function CharacterScene({ isTyping, showPassword, passwordLength }: CharacterSce
             }, Math.random() * 3000 + 2000)
             return () => clearTimeout(t)
         }
-        setIsPurplePeeking(false)
+        // Hidden password: nothing to reset — the render only reads isPurplePeeking while the
+        // password is revealed, and the 800 ms timer above always turns it back off.
     }, [passwordLength, showPassword, isPurplePeeking])
 
     const calcPos = (ref: React.RefObject<HTMLDivElement | null>) => {
@@ -430,6 +436,7 @@ const MODE_SUBTITLE: Record<Mode, string> = {
 function LoginInner() {
     const params = useSearchParams()
     const resetToken = params.get('reset')
+    const callbackUrl = params.get('callbackUrl')
 
     const [mode, setMode] = useState<Mode>(resetToken ? 'reset' : 'login')
     const [email, setEmail] = useState('')
@@ -440,21 +447,26 @@ function LoginInner() {
     const [showPass, setShowPass] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
+    const [resetOutcomeUnknown, setResetOutcomeUnknown] = useState(false)
     const [isTyping, setIsTyping] = useState(false)
 
-    useEffect(() => {
+    // A reset link opened while the page is mounted switches to the reset form
+    // (adjusted during render; the initial value already covers a fresh load).
+    const [prevResetToken, setPrevResetToken] = useState(resetToken)
+    if (resetToken !== prevResetToken) {
+        setPrevResetToken(resetToken)
         if (resetToken) setMode('reset')
-    }, [resetToken])
+    }
 
     async function handleLogin(e: React.FormEvent) {
         e.preventDefault()
         setLoading(true); setError('')
         try {
-            const result = await signIn('credentials', {
-                email, password, rememberMe: String(rememberMe), redirect: false,
-            })
+            const result = await submitCredentials(email, password, rememberMe, callbackUrl ?? '/')
             if (result?.error) {
-                if (result.error.startsWith('LOCKED:')) {
+                if (result.status >= 500 || result.error === 'SERVICE_UNAVAILABLE') {
+                    setError('Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.')
+                } else if (result.error.startsWith('LOCKED:')) {
                     setError(`Çok fazla başarısız deneme. Hesabınız ${result.error.split(':')[1]} dakika kilitli.`)
                 } else if (result.error.startsWith('ATTEMPTS:')) {
                     setError(`Hatalı şifre. ${result.error.split(':')[1]} deneme hakkınız kaldı.`)
@@ -462,10 +474,10 @@ function LoginInner() {
                     setError('E-posta veya şifre hatalı.')
                 }
             } else {
-                window.location.assign('/')
+                window.location.assign(result.callbackUrl ?? '/')
             }
         } catch {
-            setError('Bir hata oluştu. Lütfen tekrar deneyin.')
+            setError('Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.')
         } finally {
             setLoading(false)
         }
@@ -475,7 +487,7 @@ function LoginInner() {
         e.preventDefault()
         setLoading(true); setError('')
         try {
-            await fetch('/api/auth/forgot-password', {
+            await boundedFetch('/api/auth/forgot-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
@@ -494,19 +506,25 @@ function LoginInner() {
         if (newPassword.length < 8) { setError('Şifre en az 8 karakter olmalı.'); return }
         setLoading(true); setError('')
         try {
-            const res = await fetch('/api/auth/reset-password', {
+            const res = await boundedFetch('/api/auth/reset-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token: resetToken, newPassword }),
             })
             const data = await res.json()
             if (!res.ok) {
-                setError(data.error ?? 'Sıfırlama başarısız.')
+                if (data.outcome === 'unknown') {
+                    setResetOutcomeUnknown(true)
+                    setError('Şifre değişikliğinin sonucu doğrulanamadı. Aynı işlemi tekrar göndermeyin; giriş yapmayı deneyin veya yeni sıfırlama bağlantısı isteyin.')
+                } else {
+                    setError(data.error ?? 'Sıfırlama başarısız.')
+                }
             } else {
                 setMode('reset-done')
             }
         } catch {
-            setError('Bir hata oluştu.')
+            setResetOutcomeUnknown(true)
+            setError('Şifre değişikliğinin sonucu doğrulanamadı. Aynı işlemi tekrar göndermeyin; giriş yapmayı deneyin veya yeni sıfırlama bağlantısı isteyin.')
         } finally {
             setLoading(false)
         }
@@ -514,6 +532,7 @@ function LoginInner() {
 
     const errorBox = error && (
         <div
+            role="alert"
             className="flex items-start gap-2.5 p-3.5 rounded-lg text-sm border"
             style={{ background: 'var(--accent-danger-bg)', borderColor: 'var(--accent-danger-border)', color: 'var(--accent-danger)' }}
         >
@@ -737,9 +756,15 @@ function LoginInner() {
                                     className="h-12"
                                 />
                             </div>
-                            <Button type="submit" className="w-full h-12 text-base font-medium" size="lg" disabled={loading}>
+                            <Button type="submit" className="w-full h-12 text-base font-medium" size="lg" disabled={loading || resetOutcomeUnknown}>
                                 {loading ? 'Sıfırlanıyor...' : 'Şifreyi Güncelle'}
                             </Button>
+                            {resetOutcomeUnknown && (
+                                <div className="flex flex-wrap gap-3 text-sm">
+                                    <button type="button" onClick={() => { setMode('login'); setError('') }} className="text-primary underline">Giriş yapmayı dene</button>
+                                    <button type="button" onClick={() => { setMode('forgot'); setError(''); setResetOutcomeUnknown(false) }} className="text-primary underline">Yeni bağlantı iste</button>
+                                </div>
+                            )}
                         </form>
                     )}
 

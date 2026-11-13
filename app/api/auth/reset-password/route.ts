@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 
-import { prisma } from '@/lib/prisma'
+import { isDbConnectionError, prisma } from '@/lib/prisma'
 import { clientIp, rateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic'
  * Body: { token: string, newPassword: string }
  * Token DB'de sha256 hash olarak saklanır — gelen ham token hash'lenip aranır.
  */
-export async function POST(req: NextRequest) {
+async function POSTHandler(req: NextRequest) {
+    let writeStarted = false
     try {
         // Token brute-force koruması: IP başına 10 deneme / 15 dk
         const ip = clientIp(req)
@@ -37,6 +38,7 @@ export async function POST(req: NextRequest) {
         const hash = await bcrypt.hash(newPassword, 12)
 
         // Atomik tek-kullanım: token hâlâ eşleşiyorsa güncelle (replay koruması)
+        writeStarted = true
         const result = await prisma.user.updateMany({
             where: { id: user.id, passwordResetToken: tokenHash },
             data: {
@@ -53,8 +55,14 @@ export async function POST(req: NextRequest) {
         }
 
         return Response.json({ ok: true })
-    } catch (e) {
-        console.error('reset-password error:', e instanceof Error ? e.message : 'bilinmeyen')
-        return Response.json({ error: 'Sunucu hatası.' }, { status: 500 })
+    } catch (error) {
+        console.error('auth.reset_failed')
+        const unavailable = isDbConnectionError(error)
+        return Response.json({
+            error: unavailable ? 'Şu anda bağlantı kuramıyoruz. Biraz sonra tekrar deneyin.' : 'Bir sorun oluştu.',
+            outcome: writeStarted ? 'unknown' : 'not_started',
+        }, { status: unavailable ? 503 : 500, headers: { 'Cache-Control': 'no-store' } })
     }
 }
+
+export const POST = POSTHandler

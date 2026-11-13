@@ -1,12 +1,18 @@
+import { boundedDbUrl, sanitizeDbFailure } from './db-timeouts';
 import { PrismaClient } from '@prisma/client'
 
 const prismaClientSingleton = () => {
   if (process.env.PRISMA_CLIENT_ENGINE_TYPE === 'binary') {
     delete process.env.PRISMA_CLIENT_ENGINE_TYPE
   }
-  return new PrismaClient({
-    log: process.env.NODE_ENV === 'production' ? ['error'] : ['error', 'warn'],
+  const client = new PrismaClient({
+    log: [],
+    ...(process.env.DATABASE_URL ? { datasources: { db: { url: boundedDbUrl(process.env.DATABASE_URL)! } } } : {}),
   })
+  client.$use(async (params, next) => {
+    try { return await next(params) } catch (error) { throw sanitizeDbFailure(error) }
+  })
+  return client
 }
 
 declare global {
@@ -37,14 +43,7 @@ export async function withDbRetry<T>(
             return await fn()
         } catch (err) {
             lastError = err
-            const message = err instanceof Error ? err.message : ''
-            const isConnectionError =
-                message.includes("Can't reach database server") ||
-                message.includes('Connection refused') ||
-                message.includes('ECONNREFUSED') ||
-                message.includes('ETIMEDOUT') ||
-                message.includes('PrismaClientInitializationError')
-
+            const isConnectionError = isDbConnectionError(err)
             if (!isConnectionError || attempt === retries) throw err
             // Üstel bekleme: 300ms, 600ms, 1200ms
             await new Promise(r => setTimeout(r, delay * Math.pow(2, attempt)))
@@ -56,8 +55,10 @@ export async function withDbRetry<T>(
 /** DB bağlantı hatası mı? UI tarafında friendly mesaj göstermek için. */
 export function isDbConnectionError(err: unknown): boolean {
     if (!(err instanceof Error)) return false
+    const code = 'code' in err ? String(err.code) : ''
     const m = err.message
     return (
+        ['P1000', 'P1001', 'P1002', 'P1008', 'P1017', 'P2024', 'ECONNREFUSED', 'ETIMEDOUT'].includes(code) ||
         m.includes("Can't reach database server") ||
         m.includes('Connection refused') ||
         m.includes('ECONNREFUSED') ||

@@ -1,0 +1,60 @@
+# Finance is public: only the owner-controlled feature branch schedules this
+# repository-specific Ryzen runner. Fork pull_request events are never run here.
+name: Finance CI
+on:
+  push:
+    branches: [codex/llm054-finance-closure]
+permissions:
+  contents: read
+concurrency:
+  group: finance-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    if: github.repository == 'oguzhantanitmis/finance.ogzie.com'
+    runs-on: [self-hosted, Linux, X64, finance, ryzen]
+    timeout-minutes: 35
+    container:
+      image: node:24.22.1-bookworm
+      options: --memory=4g --memory-swap=4g --cpus=2 --pids-limit=512
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NODE_OPTIONS: --max-old-space-size=2048
+    steps:
+      - name: Install container tools
+        run: apt-get update && apt-get install -y --no-install-recommends git curl ca-certificates && rm -rf /var/lib/apt/lists/*
+      - name: Check out exact event commit
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - name: Verify source SHA and runner
+        run: |
+          test "$RUNNER_NAME" = ryzen-finance-1-isolated
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git rev-parse HEAD
+          node --version
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Vitest
+        run: npm test
+      - name: Node recovery tests
+        run: node --test tests/*.test.cjs tests/*.test.mjs
+      - name: TypeScript
+        run: ./node_modules/.bin/tsc --noEmit
+      - name: Secret scan for PR commits
+        run: |
+          curl -fsSL --retry 3 https://github.com/gitleaks/gitleaks/releases/download/v8.28.0/gitleaks_8.28.0_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          printf '%s  %s\n' a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb /tmp/gitleaks.tar.gz | sha256sum -c -
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks git --log-opts="origin/main..HEAD" --redact --no-banner .
+      - name: Production build with dummy environment
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+          NEXTAUTH_SECRET: build_time_placeholder_not_used_at_runtime
+          APP_SETTINGS_SECRET: build_time_placeholder_not_used_at_runtime
+          NEXTAUTH_URL: https://finance.ogzie.com
+        run: npm run build
+      - name: Lint gate
+        run: npm run lint

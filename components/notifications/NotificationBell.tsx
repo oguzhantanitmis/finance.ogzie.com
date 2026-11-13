@@ -6,6 +6,7 @@ import { getUnreadNotifications, markNotificationAsRead, markAllNotificationsAsR
 import { BudgetAlert } from '@prisma/client'
 import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { loadNotificationAlerts, withNotificationTimeout } from '@/lib/notification-recovery'
 
 interface NotificationBellProps {
     align?: 'left' | 'right' | 'sidebar'
@@ -19,20 +20,29 @@ export default function NotificationBell({ align = 'right', className, showLabel
     const [notifications, setNotifications] = useState<BudgetAlert[]>([])
     const [isOpen, setIsOpen] = useState(false)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(false)
+    const [busy, setBusy] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
 
     // Açılışta sistem uyarılarını üretip okunmamış bildirimleri çek.
     // setState yalnızca `await` sonrası çağrılır → react-hooks/set-state-in-effect
     // tetiklenmez. `active` bayrağı unmount sonrası state güncellemesini engeller.
+    const loadNotifications = async (isActive: () => boolean) => {
+        setLoading(true)
+        setError(false)
+        try {
+            const alerts = await loadNotificationAlerts(generateSystemAlerts, getUnreadNotifications)
+            if (isActive()) setNotifications(alerts)
+        } catch {
+            if (isActive()) setError(true)
+        } finally {
+            if (isActive()) setLoading(false)
+        }
+    }
+
     useEffect(() => {
         let active = true
-        ;(async () => {
-            await generateSystemAlerts()
-            const res = await getUnreadNotifications()
-            if (!active) return
-            if (res.success && res.alerts) setNotifications(res.alerts)
-            setLoading(false)
-        })()
+        void Promise.resolve().then(() => { if (active) return loadNotifications(() => active) })
         return () => { active = false }
     }, [])
 
@@ -55,14 +65,34 @@ export default function NotificationBell({ align = 'right', className, showLabel
 
     const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
-        setNotifications(prev => prev.filter(n => n.id !== id))
-        await markNotificationAsRead(id)
+        if (busy) return
+        setBusy(true)
+        setError(false)
+        try {
+            const result = await withNotificationTimeout(markNotificationAsRead(id))
+            if (!result.success) throw new Error('Notification update failed')
+            setNotifications(prev => prev.filter(n => n.id !== id))
+        } catch {
+            setError(true)
+        } finally {
+            setBusy(false)
+        }
     }
 
     const handleMarkAllAsRead = async () => {
-        setNotifications([])
-        await markAllNotificationsAsRead()
-        setIsOpen(false)
+        if (busy) return
+        setBusy(true)
+        setError(false)
+        try {
+            const result = await withNotificationTimeout(markAllNotificationsAsRead())
+            if (!result.success) throw new Error('Notification update failed')
+            setNotifications([])
+            setIsOpen(false)
+        } catch {
+            setError(true)
+        } finally {
+            setBusy(false)
+        }
     }
 
     const getIcon = (type: string) => {
@@ -131,9 +161,10 @@ export default function NotificationBell({ align = 'right', className, showLabel
                             style={{ borderBottom: '1px solid var(--border-default)', background: 'var(--bg-elevated)' }}
                         >
                             <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Bildirimler</h3>
-                            {notifications.length > 0 && (
+                            {notifications.length > 0 && !loading && (
                                 <button
                                     onClick={handleMarkAllAsRead}
+                                    disabled={busy}
                                     className="text-[10px] uppercase font-bold transition-colors flex items-center gap-1 cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                                 >
                                     <Check className="w-3 h-3" /> Tümünü Okundu İşaretle
@@ -144,6 +175,11 @@ export default function NotificationBell({ align = 'right', className, showLabel
                         <div className="flex-1 overflow-y-auto scrollbar-hide p-2 flex flex-col gap-1 max-h-[300px]">
                             {loading ? (
                                 <div className="text-center py-6 text-xs" style={{ color: 'var(--text-muted)' }}>Yükleniyor...</div>
+                            ) : error ? (
+                                <div className="text-center py-6 text-xs flex flex-col items-center gap-3" role="alert" style={{ color: 'var(--text-secondary)' }}>
+                                    Bildirimler yüklenemedi veya güncellenemedi.
+                                    <button type="button" onClick={() => void loadNotifications(() => true)} className="underline cursor-pointer">Tekrar dene</button>
+                                </div>
                             ) : notifications.length === 0 ? (
                                 <div className="text-center py-8 text-xs flex flex-col items-center gap-2" style={{ color: 'var(--text-muted)' }}>
                                     <Bell className="w-8 h-8 opacity-20" />
@@ -170,6 +206,8 @@ export default function NotificationBell({ align = 'right', className, showLabel
                                         </div>
                                         <button
                                             onClick={(e) => handleMarkAsRead(notification.id, e)}
+                                            disabled={busy}
+                                            aria-label={`${notification.title} bildirimini okundu işaretle`}
                                             className="absolute right-2 top-2 p-1.5 opacity-0 group-hover:opacity-100 transition-all rounded-md cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
                                             title="Okundu olarak işaretle"
                                         >

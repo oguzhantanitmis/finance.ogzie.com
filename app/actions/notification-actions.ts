@@ -3,7 +3,6 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { BudgetAlertState, BudgetAlertType } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 
 // Get all open notifications for the user
@@ -22,8 +21,8 @@ export async function getUnreadNotifications() {
         })
 
         return { success: true, alerts }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch {
+        return { success: false, error: 'Bildirimler şu anda kullanılamıyor. Lütfen tekrar deneyin.' }
     }
 }
 
@@ -46,8 +45,8 @@ export async function markNotificationAsRead(id: string) {
 
         revalidatePath('/')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch {
+        return { success: false, error: 'Bildirim güncellenemedi. Lütfen tekrar deneyin.' }
     }
 }
 
@@ -70,8 +69,8 @@ export async function markAllNotificationsAsRead() {
 
         revalidatePath('/')
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch {
+        return { success: false, error: 'Bildirimler güncellenemedi. Lütfen tekrar deneyin.' }
     }
 }
 
@@ -119,7 +118,7 @@ export async function generateSystemAlerts() {
         }
         
         return { success: true }
-    } catch (error: any) {
-        return { success: false, error: error.message }
+    } catch {
+        return { success: false, error: 'Bildirimler şu anda kullanılamıyor. Lütfen tekrar deneyin.' }
     }
 }
