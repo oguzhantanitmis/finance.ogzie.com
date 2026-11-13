@@ -31,7 +31,7 @@ jobs:
           clean: true
       - name: Verify source SHA and runner
         run: |
-          test "$RUNNER_NAME" = ryzen-finance-1
+          test "$RUNNER_NAME" = ryzen-finance-1-isolated
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           git rev-parse HEAD
           node --version
